@@ -10,7 +10,7 @@ distribution is aggregated. Lets tier/stat-weight tuning be sanity-checked
 without polluting the db with throwaway batches.
 
 CLI:
-    python engine/simulate.py db/local.db --material NEUT --planet KESSARI-PRIME \\
+    python engine/balance_harness.py db/local.db --material NEUT --planet KESSARI-PRIME \\
         --schematic "Capital Hull Plate" --crafter "Vex Marren" --n 1000 --seed 7
 """
 from __future__ import annotations
