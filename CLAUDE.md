@@ -40,6 +40,18 @@ tests/           Smoke tests
   + floor + planet bias. Auto-registers new planets in both the SQLite db
   and `engine/universe.py`'s JSON "universe" state
   (`db/universe.json`, gitignored — regenerate with `roll_batch.py`).
+- **Market listings** (`engine/market.py`): `list_batch(conn, station_code,
+  batch_code, price) -> listing_id` creates a `market_listing` row for an
+  existing `material_batch` at an existing `station`. `station` has no
+  `code` column, so it's looked up by its `name` column instead.
+- **Balance harness** (`engine/balance_harness.py`): `run_simulation(conn,
+  material_class_code, planet_code, schematic_name, crafter_name, n, rng)`
+  rolls `n` synthetic material stat sets (same envelope/floor/bias math as
+  `roll_batch.py`, but ephemeral — nothing is persisted to `material_batch`/
+  `region_node`), crafts them against a schematic's slots, and returns a
+  `final_quality` distribution summary (mean/min/max/stdev + quality-band
+  counts). For sanity-checking tier/stat-weight tuning without polluting the
+  db with throwaway batches.
 
 ## Conventions
 
@@ -57,6 +69,8 @@ tests/           Smoke tests
 python scripts/build_db.py db/local.db
 python engine/craft_engine.py db/local.db "Capital Hull Plate" "Vex Marren" --slot "Structural=NEUT-48291" --seed 42
 python engine/roll_batch.py db/local.db db/universe.json --material NEUT --planet KESSARI-PRIME --count 5 --seed 7
+python engine/market.py db/local.db --station "Kessari Trade Hub" --batch NEUT-48291 --price 4200
+python engine/balance_harness.py db/local.db --material NEUT --planet KESSARI-PRIME --schematic "Capital Hull Plate" --crafter "Vex Marren" --n 1000 --seed 7
 python tests/test_craft_engine.py
 ```
 
@@ -67,13 +81,14 @@ See `docs/design/data-model.md` §4 for the full roadmap. Current state:
 - [x] Schema, seed data, crafting engine (validated against the design
       doc's worked example)
 - [x] Stat-roll generator with planet support (`roll_batch.py`)
+- [x] Balance harness — Monte Carlo script to sanity-check tier/stat-weight
+      tuning (`balance_harness.py`)
 - [ ] Refining execution — `refine(recipe, input_batches) -> new_batch`
       implementing variance-reduction/blending math (§6 of the design doc).
       `refining_recipe` table exists but nothing executes it yet.
-- [ ] Market/turn economy — `station`/`market_listing` are modeled but
-      there's no transaction or turn-budget logic yet.
-- [ ] Balance harness — Monte Carlo script to sanity-check tier/stat-weight
-      tuning.
+- [ ] Market/turn economy — listing creation exists (`market.py`'s
+      `list_batch`), but there's still no purchase/transaction or
+      turn-budget logic.
 
 ## Working style
 
