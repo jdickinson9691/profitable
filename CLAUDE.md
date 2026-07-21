@@ -59,6 +59,12 @@ tests/           Smoke tests
   `final_quality` distribution summary (mean/min/max/stdev + quality-band
   counts). For sanity-checking tier/stat-weight tuning without polluting the
   db with throwaway batches.
+- **Unified CLI** (`scripts/cli.py`): one entry point wrapping all five
+  engine functions as subcommands (`roll`, `craft`, `refine`, `sell`,
+  `simulate`), plus read-only `show` subcommands (`planets`, `materials`,
+  `batches`, `schematics`, `crafters`, `listings`, `recipes`) for browsing
+  db content without hand-writing SQL. Stdlib-only — table formatting is
+  hand-rolled, no `rich`/`click`.
 
 ## Conventions
 
@@ -80,6 +86,10 @@ python engine/refine.py db/local.db --recipe "Neutronium Smelting" --batch NEUT-
 python engine/market.py db/local.db --station "Kessari Trade Hub" --batch NEUT-48291 --price 4200
 python engine/balance_harness.py db/local.db --material NEUT --planet KESSARI-PRIME --schematic "Capital Hull Plate" --crafter "Vex Marren" --n 1000 --seed 7
 python tests/test_craft_engine.py
+
+# Or use the unified CLI for all of the above, plus read-only browsing:
+python scripts/cli.py db/local.db show batches --planet KESSARI-PRIME
+python scripts/cli.py db/local.db craft "Capital Hull Plate" "Vex Marren" --slot "Structural=NEUT-48291" --seed 42
 ```
 
 ## Status / next steps
