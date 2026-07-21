@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "engine"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from balance_harness import run_simulation  # noqa: E402
 from build_db import build_db  # noqa: E402
 from craft_engine import craft  # noqa: E402
 from market import list_batch  # noqa: E402
@@ -111,8 +112,31 @@ def test_list_batch_creates_listing():
         conn.close()
 
 
+def test_run_simulation_summarizes_quality():
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "test.db"
+        build_db(db_path)
+        conn = sqlite3.connect(db_path)
+
+        result = run_simulation(
+            conn, "NEUT", "KESSARI-PRIME", "Capital Hull Plate", "Vex Marren",
+            n=200, rng=random.Random(42),
+        )
+
+        assert result["n"] == 200
+        assert 0.0 <= result["min_quality"] <= result["mean_quality"] <= result["max_quality"] <= 1000.0
+        assert result["stdev_quality"] >= 0.0
+        assert sum(result["band_counts"].values()) == 200
+        assert set(result["band_counts"]) <= {"Shoddy", "Standard", "Fine", "Masterwork"}
+
+        print(f"run_simulation(): n={result['n']} mean={result['mean_quality']:.2f} "
+              f"bands={result['band_counts']}  [OK]")
+        conn.close()
+
+
 if __name__ == "__main__":
     test_craft_worked_example()
     test_roll_batch_creates_planet_and_batch()
     test_list_batch_creates_listing()
+    test_run_simulation_summarizes_quality()
     print("All smoke tests passed.")
