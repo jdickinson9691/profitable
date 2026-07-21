@@ -25,7 +25,17 @@ INSERT INTO material_class (code, name, tier, stage,
         500, 850, 250,  700, 950, 300,   50, 300,  20),
     ('FERR', 'Ferrite Shale', 1, 'raw',
         200, 500, 100,  100, 400, 50,   150, 450, 80,
-        150, 500, 80,   200, 500, 100,  100, 400,  40);
+        150, 500, 80,   200, 500, 100,  100, 400,  40),
+    ('NEUT-INGOT', 'Neutronium Ingot', 4, 'refined',
+        800, 950, 400,  250, 450, 150,  350, 550, 200,
+        600, 900, 350,  750, 960, 400,   30, 250,  10);
+
+-- Refining recipes (material_class -> material_class)
+INSERT INTO refining_recipe (name, input_class_id, output_class_id, notes) VALUES
+    ('Neutronium Smelting',
+        (SELECT id FROM material_class WHERE code = 'NEUT'),
+        (SELECT id FROM material_class WHERE code = 'NEUT-INGOT'),
+        'Smelts raw Neutronium Ore into Neutronium Ingot.');
 
 -- Worked-example batch (matches docs/design/data-model.md's worked example:
 -- SI 880 / DN 900, feeding a 70/30-weighted Structural slot -> SlotQuality 886)
@@ -34,6 +44,13 @@ INSERT INTO material_batch (code, material_class_id, region_node_id, si, cd, el,
         (SELECT id FROM material_class WHERE code = 'NEUT'),
         (SELECT id FROM region_node WHERE code = 'KESSARI-PRIME'),
         880, 310, 420, 610, 900, 140);
+
+-- A second NEUT batch, for refining recipes that blend multiple inputs.
+INSERT INTO material_batch (code, material_class_id, region_node_id, si, cd, el, pu, dn, vo) VALUES
+    ('NEUT-77002',
+        (SELECT id FROM material_class WHERE code = 'NEUT'),
+        (SELECT id FROM region_node WHERE code = 'KESSARI-PRIME'),
+        760, 470, 510, 700, 850, 205);
 
 -- Crafting definitions
 INSERT INTO profession (name) VALUES ('Structural Engineer');

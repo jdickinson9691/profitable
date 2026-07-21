@@ -14,6 +14,7 @@ from balance_harness import run_simulation  # noqa: E402
 from build_db import build_db  # noqa: E402
 from craft_engine import craft  # noqa: E402
 from market import list_batch  # noqa: E402
+from refine import refine  # noqa: E402
 from roll_batch import roll_batch  # noqa: E402
 from universe import load_universe, save_universe  # noqa: E402
 
@@ -134,9 +135,39 @@ def test_run_simulation_summarizes_quality():
         conn.close()
 
 
+def test_refine_blends_best_of_per_stat():
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "test.db"
+        build_db(db_path)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        result = refine(conn, "Neutronium Smelting", ["NEUT-48291", "NEUT-77002"])
+
+        # NEUT-48291: si=880 cd=310 el=420 pu=610 dn=900 vo=140
+        # NEUT-77002: si=760 cd=470 el=510 pu=700 dn=850 vo=205
+        assert result["stats"] == {"si": 880, "cd": 470, "el": 510, "pu": 700, "dn": 900, "vo": 205}
+        assert result["material_class"] == "NEUT-INGOT"
+
+        row = conn.execute(
+            "SELECT * FROM material_batch WHERE code = ?", (result["code"],)
+        ).fetchone()
+        assert row is not None
+        assert row["si"] == 880 and row["vo"] == 205
+
+        output_class = conn.execute(
+            "SELECT * FROM material_class WHERE code = 'NEUT-INGOT'"
+        ).fetchone()
+        assert row["material_class_id"] == output_class["id"]
+
+        print(f"refine(): code={result['code']} stats={result['stats']}  [OK]")
+        conn.close()
+
+
 if __name__ == "__main__":
     test_craft_worked_example()
     test_roll_batch_creates_planet_and_batch()
     test_list_batch_creates_listing()
     test_run_simulation_summarizes_quality()
+    test_refine_blends_best_of_per_stat()
     print("All smoke tests passed.")
