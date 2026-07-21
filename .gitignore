@@ -1,0 +1,17 @@
+# Generated artifacts — rebuild with scripts/build_db.py / engine/roll_batch.py
+db/local.db
+db/*.db
+db/universe.json
+*.universe.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
