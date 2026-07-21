@@ -48,6 +48,10 @@ INSERT INTO ingredient_slot (schematic_id, slot_name, slot_weight, w_si, w_cd, w
 -- Crafter
 INSERT INTO crafter (name, skill_factor) VALUES ('Vex Marren', 0.8);
 
+-- Market
+INSERT INTO station (name, region_node_id) VALUES
+    ('Kessari Trade Hub', (SELECT id FROM region_node WHERE code = 'KESSARI-PRIME'));
+
 -- Quality bands
 INSERT INTO quality_band (name, min_value, max_value) VALUES
     ('Shoddy',     0,   399.999),

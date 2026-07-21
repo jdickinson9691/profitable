@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from build_db import build_db  # noqa: E402
 from craft_engine import craft  # noqa: E402
+from market import list_batch  # noqa: E402
 from roll_batch import roll_batch  # noqa: E402
 from universe import load_universe, save_universe  # noqa: E402
 
@@ -32,6 +33,7 @@ def test_craft_worked_example():
         assert result["quality_band"] in ("Fine", "Masterwork")
         print(f"craft(): IBQ={result['ibq']:.1f} final={result['final_quality']:.2f} "
               f"band={result['quality_band']}  [OK]")
+        conn.close()
 
 
 def test_roll_batch_creates_planet_and_batch():
@@ -75,9 +77,41 @@ def test_roll_batch_creates_planet_and_batch():
         assert len(reloaded["planets"]["NEW-WORLD"]["batches_generated"]) == 2
 
         print("roll_batch(): planet + batch created and persisted to db + universe.json  [OK]")
+        conn.close()
+
+
+def test_list_batch_creates_listing():
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "test.db"
+        build_db(db_path)
+        conn = sqlite3.connect(db_path)
+
+        listing_id = list_batch(conn, "Kessari Trade Hub", "NEUT-48291", 4200)
+        assert isinstance(listing_id, int)
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM market_listing WHERE id = ?", (listing_id,)
+        ).fetchone()
+        assert row is not None
+        assert row["price"] == 4200
+
+        station = conn.execute(
+            "SELECT * FROM station WHERE id = ?", (row["station_id"],)
+        ).fetchone()
+        assert station["name"] == "Kessari Trade Hub"
+
+        batch = conn.execute(
+            "SELECT * FROM material_batch WHERE id = ?", (row["batch_id"],)
+        ).fetchone()
+        assert batch["code"] == "NEUT-48291"
+
+        print(f"list_batch(): listing_id={listing_id} price={row['price']}  [OK]")
+        conn.close()
 
 
 if __name__ == "__main__":
     test_craft_worked_example()
     test_roll_batch_creates_planet_and_batch()
+    test_list_batch_creates_listing()
     print("All smoke tests passed.")
