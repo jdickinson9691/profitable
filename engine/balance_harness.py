@@ -23,15 +23,26 @@ import sys
 from collections import Counter
 from typing import Any
 
-from craft_engine import (
-    STATS,
-    SlotResult,
-    experimentation_roll,
-    final_quality,
-    item_base_quality,
-    lookup_quality_band,
-    slot_quality,
-)
+try:
+    from .craft_engine import (
+        STATS,
+        SlotResult,
+        experimentation_roll,
+        final_quality,
+        item_base_quality,
+        lookup_quality_band,
+        slot_quality,
+    )
+except ImportError:
+    from craft_engine import (
+        STATS,
+        SlotResult,
+        experimentation_roll,
+        final_quality,
+        item_base_quality,
+        lookup_quality_band,
+        slot_quality,
+    )
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:

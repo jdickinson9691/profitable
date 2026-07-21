@@ -12,5 +12,8 @@ dependencies = []
 [project.scripts]
 profitable = "scripts.cli:main"
 
+[project.gui-scripts]
+profitable-gui = "gui.app:main"
+
 [tool.setuptools]
-packages = ["engine", "scripts"]
+packages = ["engine", "scripts", "gui"]

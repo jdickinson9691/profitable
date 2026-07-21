@@ -17,6 +17,7 @@ from market import list_batch  # noqa: E402
 from refine import refine  # noqa: E402
 from roll_batch import roll_batch  # noqa: E402
 from universe import load_universe, save_universe  # noqa: E402
+from worldgen import generate_world  # noqa: E402
 
 
 def test_craft_worked_example():
@@ -164,10 +165,54 @@ def test_refine_blends_best_of_per_stat():
         conn.close()
 
 
+def test_generate_world_creates_usable_entities():
+    with tempfile.TemporaryDirectory() as tmp:
+        db_path = Path(tmp) / "test.db"
+        build_db(db_path)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+
+        before_planets = conn.execute("SELECT COUNT(*) AS n FROM region_node").fetchone()["n"]
+        before_materials = conn.execute("SELECT COUNT(*) AS n FROM material_class").fetchone()["n"]
+        before_schematics = conn.execute("SELECT COUNT(*) AS n FROM schematic").fetchone()["n"]
+
+        result = generate_world(conn, 3, 2, 2, random.Random(99))
+
+        assert len(result["planets"]) == 3
+        assert len(result["materials"]) == 2
+        assert len(result["schematics"]) == 2
+        for schematic in result["schematics"]:
+            assert 1 <= len(schematic["slots"]) <= 3
+            total_weight = sum(s["slot_weight"] for s in schematic["slots"])
+            assert abs(total_weight - 1.0) < 0.01
+
+        after_planets = conn.execute("SELECT COUNT(*) AS n FROM region_node").fetchone()["n"]
+        after_materials = conn.execute("SELECT COUNT(*) AS n FROM material_class").fetchone()["n"]
+        after_schematics = conn.execute("SELECT COUNT(*) AS n FROM schematic").fetchone()["n"]
+        assert after_planets == before_planets + 3
+        assert after_materials == before_materials + 2
+        assert after_schematics == before_schematics + 2
+
+        # Generated entities are immediately usable by roll_batch + craft.
+        universe = load_universe(Path(tmp) / "universe.json")
+        mat, planet, schem = result["materials"][0], result["planets"][0], result["schematics"][0]
+        batch = roll_batch(conn, universe, mat["code"], planet["code"], random.Random(1))
+        crafter_name = conn.execute("SELECT name FROM crafter LIMIT 1").fetchone()["name"]
+        slot_name = schem["slots"][0]["slot_name"]
+        craft_result = craft(conn, schem["name"], crafter_name, {slot_name: batch["code"]}, random.Random(1))
+        assert 0.0 <= craft_result["final_quality"] <= 1000.0
+
+        print(f"generate_world(): +{len(result['planets'])} planets "
+              f"+{len(result['materials'])} materials +{len(result['schematics'])} schematics, "
+              f"generated entities craftable  [OK]")
+        conn.close()
+
+
 if __name__ == "__main__":
     test_craft_worked_example()
     test_roll_batch_creates_planet_and_batch()
     test_list_batch_creates_listing()
     test_run_simulation_summarizes_quality()
     test_refine_blends_best_of_per_stat()
+    test_generate_world_creates_usable_entities()
     print("All smoke tests passed.")

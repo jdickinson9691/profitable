@@ -15,6 +15,7 @@ Examples:
     python scripts/cli.py db/local.db show listings
     python scripts/cli.py db/local.db show recipes
 
+    python scripts/cli.py db/local.db build-db
     python scripts/cli.py db/local.db roll --material NEUT --planet KESSARI-PRIME --count 3 --seed 7
     python scripts/cli.py db/local.db craft "Capital Hull Plate" "Vex Marren" --slot "Structural=NEUT-48291" --seed 42
     python scripts/cli.py db/local.db refine --recipe "Neutronium Smelting" --batch NEUT-48291 --batch NEUT-77002
@@ -31,14 +32,18 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "engine"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-from balance_harness import run_simulation  # noqa: E402
-from craft_engine import craft  # noqa: E402
-from market import list_batch  # noqa: E402
-from refine import refine  # noqa: E402
-from roll_batch import roll_batch  # noqa: E402
-from universe import load_universe, save_universe  # noqa: E402
+# Qualified (not bare) imports so PyInstaller's static analysis can trace
+# and bundle engine/scripts as real packages -- see packaging/profitable.spec.
+from engine.balance_harness import run_simulation  # noqa: E402
+from engine.craft_engine import craft  # noqa: E402
+from engine.market import list_batch  # noqa: E402
+from engine.refine import refine  # noqa: E402
+from engine.roll_batch import roll_batch  # noqa: E402
+from engine.universe import load_universe, save_universe  # noqa: E402
+from scripts.build_db import build_db  # noqa: E402
 
 STATS = ("si", "cd", "el", "pu", "dn", "vo")
 
@@ -193,8 +198,14 @@ SHOW_COMMANDS = {
 
 
 # ---------------------------------------------------------------------
-# action commands: wrap the five engine functions
+# action commands: wrap the five engine functions (+ build-db)
 # ---------------------------------------------------------------------
+
+def cmd_build_db(args: argparse.Namespace) -> None:
+    output_path = Path(args.db_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    build_db(output_path)
+
 
 def cmd_roll(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
     universe_path = Path(args.universe) if args.universe else _default_universe_path(args.db_path)
@@ -263,6 +274,8 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("planets", "materials", "schematics", "crafters", "listings", "recipes"):
         show_sub.add_parser(name)
 
+    sub.add_parser("build-db", help="build/rebuild the sqlite db from bundled schema+seed data")
+
     roll = sub.add_parser("roll", help="roll a new material_batch (wraps roll_batch.py)")
     roll.add_argument("--material", required=True, help="material_class code, e.g. NEUT")
     roll.add_argument("--planet", required=True, help="planet (region_node) code, e.g. KESSARI-PRIME")
@@ -309,6 +322,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "build-db":
+        cmd_build_db(args)
+        return
 
     conn = sqlite3.connect(args.db_path)
     conn.row_factory = sqlite3.Row

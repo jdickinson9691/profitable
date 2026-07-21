@@ -41,7 +41,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from universe import STATS, load_universe, record_batch, register_planet, save_universe
+try:
+    from .universe import STATS, load_universe, record_batch, register_planet, save_universe
+except ImportError:
+    from universe import STATS, load_universe, record_batch, register_planet, save_universe
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:
