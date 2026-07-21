@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "profitable"
+version = "0.1.0"
+description = "Material-tier crafting/trading system for a space game"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+profitable = "scripts.cli:main"
+
+[tool.setuptools]
+packages = ["engine", "scripts"]

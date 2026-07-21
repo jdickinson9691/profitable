@@ -11,8 +11,9 @@ crafting formula that turns raw material quality into finished-item quality.
 docs/design/     Design docs (system design + data model rationale)
 db/              SQLite schema and seed fixtures
 engine/          Reference Python implementation of the crafting math
-scripts/         Convenience scripts (e.g. rebuilding the local DB)
+scripts/         Convenience scripts (e.g. rebuilding the local DB, unified CLI)
 tests/           Smoke tests
+pyproject.toml   Packaging -- editable-installable, provides the `profitable` console script
 ```
 
 ## Core concepts
@@ -76,6 +77,27 @@ tests/           Smoke tests
 - Generated artifacts (`db/local.db`, `db/universe.json`) are gitignored —
   never commit them. Rebuild with `python scripts/build_db.py`.
 
+## Installing
+
+`pyproject.toml` declares `engine/` and `scripts/` as packages (each has an
+`__init__.py`) and registers `scripts.cli:main` as the `profitable` console
+script. `engine/*.py`'s internal imports are still flat (e.g. `roll_batch.py`
+does `from universe import ...`), relying on `scripts/cli.py` inserting
+`engine/` onto `sys.path` — that's unchanged; packaging only adds the
+entry point on top, it doesn't restructure imports.
+
+```powershell
+python -m pip install -e .
+profitable db/local.db show batches
+```
+
+This works via `pip install -e .` (editable install) from anywhere, since
+`db_path` is always an explicit argument. Note: `db/schema.sql` /
+`seed_data.sql` are located relative to `scripts/build_db.py`'s own file
+path, which only resolves correctly for an editable install (source stays
+in place) — a real wheel/sdist would need those SQL files declared as
+package data, which hasn't been done.
+
 ## Commands
 
 ```powershell
@@ -87,9 +109,10 @@ python engine/market.py db/local.db --station "Kessari Trade Hub" --batch NEUT-4
 python engine/balance_harness.py db/local.db --material NEUT --planet KESSARI-PRIME --schematic "Capital Hull Plate" --crafter "Vex Marren" --n 1000 --seed 7
 python tests/test_craft_engine.py
 
-# Or use the unified CLI for all of the above, plus read-only browsing:
+# Or use the unified CLI for all of the above, plus read-only browsing
+# (either form works once installed; `profitable` needs `pip install -e .` first):
 python scripts/cli.py db/local.db show batches --planet KESSARI-PRIME
-python scripts/cli.py db/local.db craft "Capital Hull Plate" "Vex Marren" --slot "Structural=NEUT-48291" --seed 42
+profitable db/local.db craft "Capital Hull Plate" "Vex Marren" --slot "Structural=NEUT-48291" --seed 42
 ```
 
 ## Status / next steps
