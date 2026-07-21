@@ -54,8 +54,9 @@ def test_roll_batch_creates_planet_and_batch():
         save_universe(universe, universe_path)
 
         # Batch respects the class envelope + floor after bias/clamping.
+        conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM material_class WHERE code = 'NEUT'").fetchone()
-        assert result["stats"]["si"] >= row[list(row.keys()).index("si_floor")] or True
+        assert result["stats"]["si"] >= row["si_floor"]
 
         # Planet exists in the db now.
         planet_row = conn.execute(
