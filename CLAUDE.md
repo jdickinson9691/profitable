@@ -66,12 +66,32 @@ boundaries.
 ## Layout
 
 ```
-docs/design/     Design docs (profitable-mvp-gdd.md is the current source of truth)
+docs/design/         Design docs (profitable-mvp-gdd.md is the current source of truth)
+src/data/types/      Data Schema Agent — TS interfaces for every data shape in GDD §3
+src/data/schemas/    Data Schema Agent — JSON Schema files validating content/ against types/
+src/data/constants/  Data Schema Agent — tier/formula constant tables from GDD §3, as data
+src/simulation/      Simulation Core Agent — pure functions (rollQuality, refine, craft)
+src/adapters/        Infrastructure/Adapter Agent — SaveSystem, AudioManager interfaces + impls
+src/presentation/    Presentation Agent — Phaser/PixiJS scenes (engine choice still deferred)
+content/             Content Agent — JSON config for the MVP's resources/recipe/schematic
+tests/               Validation/Test Agent — node:test suite, mirrors src/'s layout
 ```
 
-Everything else (simulation core, data schemas/config, presentation scenes,
-adapters, tests) does not exist yet — it gets created per the agent
-contracts above as implementation begins.
+Each directory above has a README.md stating its owning agent's contract
+(inputs, outputs, must-NOT-do, definition of done) — read it before adding
+code there. Everything is currently an empty skeleton; no formulas, types,
+or content have been implemented yet.
+
+## Toolchain
+
+- Node >=23.6 (native TS type-stripping — no ts-node/tsx/babel needed).
+  `npm test` runs `node --test`, which recursively discovers `*.test.ts`
+  files. Avoid TS features that don't survive type-stripping (enums,
+  namespaces with runtime values, experimental decorators, parameter
+  properties) — stick to interfaces, type aliases, and plain functions.
+- `npm run typecheck` runs `tsc --noEmit` over `src/` and `tests/`.
+- No bundler/render-engine dependency chosen yet — that's the Presentation
+  Agent's call (Phaser vs PixiJS, GDD §4) when that stage starts.
 
 ## Working style
 

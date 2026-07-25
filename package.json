@@ -1,0 +1,18 @@
+{
+  "name": "profitable",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Quality-driven resource gathering, refining, and crafting systems engine (see docs/design/profitable-mvp-gdd.md).",
+  "engines": {
+    "node": ">=23.6.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^7.0.2"
+  }
+}
