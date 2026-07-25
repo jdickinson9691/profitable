@@ -11,6 +11,8 @@ No formula logic, gameplay behavior, or rendering — shapes only. Every other
 agent imports types from here rather than re-declaring them.
 
 **Status:** `tierColor.ts` (the `TierColor` union), `quality.ts` (the `Quality`
-union + `QualityMap`/`QualityRoll`), and `resource.ts` (the `Resource` shape)
-are defined. `Recipe`, `Schematic`, `Planet`, and the remaining GDD §3 tables
-are still outstanding.
+union + `QualityMap`/`QualityRoll`), `resource.ts` (the `Resource` shape),
+`resourceInstance.ts` (a rolled, tradeable batch), `refineResult.ts`,
+`tierVariance.ts`, `refundChance.ts`, and `random.ts` (the shared injectable
+`RandomFn`) are defined. `Recipe`, `Schematic`, `Planet`, the threshold
+penalty curve, and the schematic tier table are still outstanding.

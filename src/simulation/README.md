@@ -16,6 +16,15 @@ Rules:
 - Deterministic given a fixed random seed.
 - No hardcoded numeric constant that already exists in `src/data/constants`.
 
-**Status:** `getTierColor()` (`tierColor.ts`) and `rollQuality()`
-(`rollQuality.ts`) are implemented. `refine` and `craft` are still
-outstanding.
+**Status:** `getTierColor()` (`tierColor.ts`), `rollQuality()`
+(`rollQuality.ts`), and `refine()` + `computeBaseAverages()` (`refine.ts`,
+with `tierVariance.ts`/`refundChance.ts` lookup helpers alongside) are
+implemented. `craft` is still outstanding.
+
+**Note on `refine()`'s output tier:** refined items display each quality's
+own tier individually (GDD §3.1), so there's no single "output tier" to key
+the refund chance table off of. `refine()` resolves this by applying the
+GDD's own straight-average stub to the 5 final quality values (excluding
+nulls) and tiering that average — a deliberate, documented interpretation
+of an underspecified point in the GDD, not an incidental implementation
+detail. Revisit if the GDD is ever amended to define this explicitly.
