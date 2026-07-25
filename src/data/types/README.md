@@ -10,4 +10,5 @@ curve, schematic tier contribution).
 No formula logic, gameplay behavior, or rendering — shapes only. Every other
 agent imports types from here rather than re-declaring them.
 
-Nothing has been defined here yet.
+**Status:** `tierColor.ts` (the `TierColor` union) is defined. Everything else in
+GDD §3 is still outstanding.

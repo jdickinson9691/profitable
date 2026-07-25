@@ -21,4 +21,12 @@ Node version this project targets). Mirror `src/`'s folder layout here
 (e.g. `tests/simulation/refine.test.ts`) so each test file's home maps
 obviously to the module it covers.
 
-Nothing has been written here yet.
+**Status:** `simulation/tierColor.test.ts` covers `getTierColor`'s boundary
+table exactly (all 13 breakpoint values plus out-of-range rejection).
+Everything else in Agent 3's coverage list is still outstanding.
+
+**Import specifiers:** use the literal `.ts` extension (not `.js`) for
+relative imports in test/source files — Node's native type-stripping on this
+project's Node version resolves the specifier as-is against the filesystem,
+it does not remap `.js` to a sibling `.ts` file the way `tsc`-then-run does.
+`tsconfig.json` sets `allowImportingTsExtensions` to match.

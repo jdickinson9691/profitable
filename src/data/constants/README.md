@@ -15,4 +15,6 @@ scattered as magic numbers through logic:
 No other module may hardcode a number that belongs in one of these tables —
 it imports the constant instead (GDD §5.3).
 
-Nothing has been defined here yet.
+**Status:** `tierColor.ts` (the 7-tier color breakpoint table) is defined. The
+variance, refund chance, penalty curve, and schematic tier tables are still
+outstanding.

@@ -16,4 +16,5 @@ Rules:
 - Deterministic given a fixed random seed.
 - No hardcoded numeric constant that already exists in `src/data/constants`.
 
-Nothing has been implemented here yet.
+**Status:** `getTierColor()` is implemented (`tierColor.ts`). `rollQuality`,
+`refine`, and `craft` are still outstanding.
