@@ -1,8 +1,7 @@
 # tests
 
-Owned by the **Validation/Test Agent** (GDD §5.2, agent 3).
-
-Automated tests proving the Simulation Core Agent's output matches the
+Primarily owned by the **Validation/Test Agent** (GDD §5.2, agent 3):
+automated tests proving the Simulation Core Agent's output matches the
 GDD's tables and formulas exactly — not just "it runs," but "it runs
 correctly" (e.g. a gold-tier refiner narrows variance to -0.5%/+15% exactly,
 not approximately). Must cover: quality roll distribution and clamping
@@ -13,6 +12,11 @@ points below threshold, and the +18% combined ceiling cap.
 
 This agent tests and reports only — it must never modify Simulation Core
 logic to make a failing test pass.
+
+Other agents own their *own* testing requirements per their contracts (e.g.
+Agent 4's round-trip and browser-API-isolation checks) but their tests still
+live under this shared top-level `tests/` tree, mirroring `src/`'s layout,
+rather than each agent inventing its own test location.
 
 **Running tests:** `npm test` runs `node --test`, which recursively
 discovers `*.test.ts` files (Node's built-in type-stripping runs them
@@ -50,6 +54,15 @@ resources (Igneous Ore, Hydrogen Gas, Autunite Crystal, Radiant Alloy Bar);
 provides `queueRandom()` for pinning down an exact sequence of random()
 calls. None of this is authoritative content — just shapes for exercising
 Agent 2's functions ahead of Agent 6's real config.
+
+`adapters/saveSystem.test.ts` covers Agent 4's `SaveSystem` testing
+requirements: a save/load round-trip, confirmation that `save()` actually
+writes through the injected `StorageLike` backend (not a parallel
+structure), `load()` returning `null` for a missing key, and an automated
+architectural check that no `.ts` file outside `src/adapters/` references
+`localStorage` directly (walks `src/`, asserts zero matches — this is a
+regression guard, not a one-time manual grep). `fixtures/storage.ts`
+provides `createMemoryStorage()`, an in-memory stand-in for `localStorage`.
 
 **Import specifiers:** use the literal `.ts` extension (not `.js`) for
 relative imports in test/source files — Node's native type-stripping on this
