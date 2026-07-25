@@ -21,23 +21,30 @@ Node version this project targets). Mirror `src/`'s folder layout here
 (e.g. `tests/simulation/refine.test.ts`) so each test file's home maps
 obviously to the module it covers.
 
-**Status:** `simulation/tierColor.test.ts` covers `getTierColor`'s boundary
-table exactly (all 13 breakpoint values plus out-of-range rejection).
-`simulation/rollQuality.test.ts` covers range/integer correctness, null (not
-zero) exclusion for both MVP resources with a non-applicable quality
-(Hydrogen Gas/durability, Autunite Crystal/purity), and exact behavior under
-an injected deterministic random function. `simulation/refine.test.ts` covers
+**Status:** every item in Agent 3's coverage list (GDD §3.2/§3.3) now has a
+passing test. `simulation/tierColor.test.ts` covers `getTierColor`'s
+boundary table exactly (all 13 breakpoint values plus out-of-range
+rejection). `simulation/rollQuality.test.ts` covers range/integer
+correctness, null (not zero) exclusion, and exact behavior under an
+injected deterministic random function. `simulation/refine.test.ts` covers
 quantity-weighted straight averaging (including null exclusion), the exact
 variance range at all 7 refiner tiers, refund chance keyed to the *output*
-tier rather than the inputs' base tier (including Gold's secondary refund
-unit), and a no-failure smoke test. `fixtures/resources.ts` holds reusable
-`Resource` test fixtures for the three MVP resources (Igneous Ore, Hydrogen
-Gas, Autunite Crystal); `fixtures/instances.ts` builds `ResourceInstance`s
-from them; `fixtures/random.ts` provides `queueRandom()` for pinning down an
-exact sequence of random() calls. None of this is authoritative content —
-just shapes for exercising Agent 2's functions ahead of Agent 6's real
-config. Everything else in Agent 3's coverage list (crafting formula) is
-still outstanding.
+tier (including Gold's secondary refund unit), and a no-failure smoke test.
+`simulation/craft.test.ts` covers the +18% combined ceiling cap, the exact
+threshold penalty curve (all 5 bands + the 41+ rejection floor), schematic
+forgiveness shifting the effective points-below-threshold across a band
+boundary without ever fully cancelling the penalty, an explicit
+order-of-operations check (ceiling+variance before penalty, not after), null
+exclusion from the threshold check, and the full MVP recipe end-to-end
+against a hand-calculated value.
+
+`fixtures/resources.ts` holds reusable `Resource` fixtures for the MVP
+resources (Igneous Ore, Hydrogen Gas, Autunite Crystal, Radiant Alloy Bar);
+`fixtures/instances.ts` builds `ResourceInstance`s from them;
+`fixtures/recipes.ts` holds the MVP crafting recipe; `fixtures/random.ts`
+provides `queueRandom()` for pinning down an exact sequence of random()
+calls. None of this is authoritative content — just shapes for exercising
+Agent 2's functions ahead of Agent 6's real config.
 
 **Import specifiers:** use the literal `.ts` extension (not `.js`) for
 relative imports in test/source files — Node's native type-stripping on this

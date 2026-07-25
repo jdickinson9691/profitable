@@ -10,9 +10,10 @@ curve, schematic tier contribution).
 No formula logic, gameplay behavior, or rendering — shapes only. Every other
 agent imports types from here rather than re-declaring them.
 
-**Status:** `tierColor.ts` (the `TierColor` union), `quality.ts` (the `Quality`
-union + `QualityMap`/`QualityRoll`), `resource.ts` (the `Resource` shape),
-`resourceInstance.ts` (a rolled, tradeable batch), `refineResult.ts`,
-`tierVariance.ts`, `refundChance.ts`, and `random.ts` (the shared injectable
-`RandomFn`) are defined. `Recipe`, `Schematic`, `Planet`, the threshold
-penalty curve, and the schematic tier table are still outstanding.
+**Status:** all GDD §3 data shapes and tables are now defined: `tierColor.ts`,
+`quality.ts`, `resource.ts`, `resourceInstance.ts`, `refineResult.ts`,
+`tierVariance.ts`, `refundChance.ts`, `random.ts`, `recipe.ts`,
+`schematicEntity.ts` (the `Schematic` item, distinct from `schematicTier.ts`'s
+formula table), `craftResult.ts`, `penaltyCurve.ts`, and `schematicTier.ts`.
+Only `Planet` (GDD §3.4, needed once Content/Presentation start) remains
+outstanding.

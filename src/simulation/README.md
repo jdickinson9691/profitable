@@ -16,15 +16,34 @@ Rules:
 - Deterministic given a fixed random seed.
 - No hardcoded numeric constant that already exists in `src/data/constants`.
 
-**Status:** `getTierColor()` (`tierColor.ts`), `rollQuality()`
-(`rollQuality.ts`), and `refine()` + `computeBaseAverages()` (`refine.ts`,
-with `tierVariance.ts`/`refundChance.ts` lookup helpers alongside) are
-implemented. `craft` is still outstanding.
+**Status:** all four GDD §5.2 Agent 2 functions are implemented:
+`getTierColor()` (`tierColor.ts`), `rollQuality()` (`rollQuality.ts`),
+`refine()` + `computeBaseAverages()` (`refine.ts`), and `craft()`
+(`craft.ts`), plus `tierVariance.ts`/`refundChance.ts`/`schematicTier.ts`/
+`penaltyCurve.ts` lookup helpers alongside the data-layer tables they read.
 
-**Note on `refine()`'s output tier:** refined items display each quality's
-own tier individually (GDD §3.1), so there's no single "output tier" to key
-the refund chance table off of. `refine()` resolves this by applying the
-GDD's own straight-average stub to the 5 final quality values (excluding
-nulls) and tiering that average — a deliberate, documented interpretation
-of an underspecified point in the GDD, not an incidental implementation
-detail. Revisit if the GDD is ever amended to define this explicitly.
+**Two underspecified GDD points were resolved by explicit user decision**
+(not silently guessed) and are documented here so they aren't re-litigated:
+
+- **`refine()`'s output tier:** refined items display each quality's own
+  tier individually (GDD §3.1), so there's no single "output tier" to key
+  the refund chance table off of. Resolved by applying the GDD's own
+  straight-average stub to the 5 final quality values (excluding nulls) and
+  tiering that average.
+- **`refine()`/`craft()`'s variance roll:** one shared random roll is
+  applied proportionally across all 5 quality dimensions per action, not
+  five independent per-dimension rolls.
+- **`craft()`'s ceiling + variance mechanics:** the combined ceiling raise
+  (crafter + schematic, capped at +18%) is a true cap, not just a new
+  center point — the roll only ever pulls *down* from the raised ceiling,
+  never above it. The downside width is the crafter tier's negative bound
+  widened toward zero by the schematic's variance-narrowing value (floored
+  at 0, never crossing positive). At Gold crafter + Gold schematic this
+  floors to exactly 0 -- deterministically at the (capped) ceiling.
+- **`craft()`'s recipe/input matching:** `Recipe.inputs[i]` is matched
+  positionally against `inputs[i]` — no category-string matching logic.
+- **`craft()`'s multi-threshold combination:** if a recipe has more than
+  one thresholded input slot, the single *worst* (largest) points-below-
+  threshold across all checked slots governs the penalty. Untested by the
+  MVP recipe (which has only one thresholded slot) — revisit if a future
+  recipe actually needs multiple simultaneous threshold checks.

@@ -43,3 +43,18 @@ export const autuniteCrystal: Resource = {
     rarity: true,
   },
 };
+
+// Refined from 2x Igneous Ore + 1x Autunite Crystal (GDD §3.4). Igneous Ore
+// covers every dimension, so the refined output has all 5 applicable.
+export const radiantAlloyBar: Resource = {
+  id: "radiant-alloy-bar",
+  name: "Radiant Alloy Bar",
+  category: "refined-metal",
+  applicableQualities: {
+    purity: true,
+    density: true,
+    potency: true,
+    durability: true,
+    rarity: true,
+  },
+};
