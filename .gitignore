@@ -1,17 +1,10 @@
-# Generated artifacts — rebuild with scripts/build_db.py / engine/roll_batch.py
-db/local.db
-db/*.db
-db/universe.json
-*.universe.json
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-*.egg-info/
-build/
+# Node / TypeScript
+node_modules/
 dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
 
 # OS/editor cruft
 .DS_Store
