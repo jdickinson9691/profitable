@@ -5,15 +5,13 @@ import type { TierColor } from "../data/types/tierColor.ts";
 import type { CraftResult } from "../data/types/craftResult.ts";
 import type { RandomFn } from "../data/types/random.ts";
 import { QUALITIES } from "../data/types/quality.ts";
+import { QUALITY_MIN, QUALITY_MAX } from "../data/constants/quality.ts";
 import { computeBaseAverages } from "./refine.ts";
 import { getTierVariance } from "./tierVariance.ts";
 import { getSchematicTierContribution } from "./schematicTier.ts";
 import { getPenaltyMultiplier } from "./penaltyCurve.ts";
 import { COMBINED_CEILING_CAP } from "../data/constants/schematicTier.ts";
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
+import { clamp } from "./clamp.ts";
 
 export function craft(
   inputs: ResourceInstance[],
@@ -83,7 +81,8 @@ export function craft(
   const qualities = {} as QualityRoll;
   for (const quality of QUALITIES) {
     const value = preThreshold[quality];
-    qualities[quality] = value === null ? null : clamp(Math.round(value * multiplier), 1, 100);
+    qualities[quality] =
+      value === null ? null : clamp(Math.round(value * multiplier), QUALITY_MIN, QUALITY_MAX);
   }
 
   return { accepted: true, qualities };

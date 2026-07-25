@@ -21,22 +21,27 @@ Node version this project targets). Mirror `src/`'s folder layout here
 (e.g. `tests/simulation/refine.test.ts`) so each test file's home maps
 obviously to the module it covers.
 
-**Status:** every item in Agent 3's coverage list (GDD §3.2/§3.3) now has a
-passing test. `simulation/tierColor.test.ts` covers `getTierColor`'s
-boundary table exactly (all 13 breakpoint values plus out-of-range
-rejection). `simulation/rollQuality.test.ts` covers range/integer
-correctness, null (not zero) exclusion, and exact behavior under an
-injected deterministic random function. `simulation/refine.test.ts` covers
-quantity-weighted straight averaging (including null exclusion), the exact
-variance range at all 7 refiner tiers, refund chance keyed to the *output*
-tier (including Gold's secondary refund unit), and a no-failure smoke test.
-`simulation/craft.test.ts` covers the +18% combined ceiling cap, the exact
-threshold penalty curve (all 5 bands + the 41+ rejection floor), schematic
-forgiveness shifting the effective points-below-threshold across a band
-boundary without ever fully cancelling the penalty, an explicit
-order-of-operations check (ceiling+variance before penalty, not after), null
-exclusion from the threshold check, and the full MVP recipe end-to-end
-against a hand-calculated value.
+**Status:** every table row in GDD §3.2/§3.3 now has its own passing test
+asserting the exact documented value, hardcoded independently of the
+constant it checks (not derived from it — a table typo would be caught, not
+silently rubber-stamped). `simulation/tierColor.test.ts` covers
+`getTierColor`'s boundary table exactly (all 13 breakpoint values plus
+out-of-range rejection). `simulation/rollQuality.test.ts` covers
+range/integer correctness, null (not zero) exclusion, and exact behavior
+under an injected deterministic random function. `simulation/refine.test.ts`
+independently asserts every row of `TIER_VARIANCE` and `REFUND_CHANCE`
+against literal GDD values, plus quantity-weighted straight averaging
+(including null exclusion), the exact variance range at all 7 refiner
+tiers, refund chance keyed to the *output* tier (including Gold's secondary
+refund unit), and a no-failure smoke test. `simulation/craft.test.ts`
+independently asserts every row of `SCHEMATIC_TIER_CONTRIBUTION`, plus the
++18% combined ceiling cap, the exact threshold penalty curve (all 5 bands +
+the 41+ rejection floor), schematic forgiveness shifting the effective
+points-below-threshold across a band boundary without ever fully
+cancelling the penalty, an explicit order-of-operations check
+(ceiling+variance before penalty, not after), null exclusion from the
+threshold check, and the full MVP recipe end-to-end against a
+hand-calculated value.
 
 `fixtures/resources.ts` holds reusable `Resource` fixtures for the MVP
 resources (Igneous Ore, Hydrogen Gas, Autunite Crystal, Radiant Alloy Bar);

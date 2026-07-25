@@ -4,9 +4,11 @@ import type { TierColor } from "../data/types/tierColor.ts";
 import type { RefineResult } from "../data/types/refineResult.ts";
 import type { RandomFn } from "../data/types/random.ts";
 import { QUALITIES } from "../data/types/quality.ts";
+import { QUALITY_MIN, QUALITY_MAX } from "../data/constants/quality.ts";
 import { getTierVariance } from "./tierVariance.ts";
 import { getRefundChance } from "./refundChance.ts";
 import { getTierColor } from "./tierColor.ts";
+import { clamp } from "./clamp.ts";
 
 // Straight average of each quality dimension across inputs, weighted by
 // quantity only (never toward best/worst). A quality is excluded from its
@@ -28,10 +30,6 @@ export function computeBaseAverages(inputs: ResourceInstance[]): QualityMap {
   return averages;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
 export function refine(
   inputs: ResourceInstance[],
   refinerTier: TierColor,
@@ -49,7 +47,7 @@ export function refine(
   for (const quality of QUALITIES) {
     const base = baseAverages[quality];
     qualities[quality] =
-      base === null ? null : clamp(Math.round(base * (1 + varianceRoll)), 1, 100);
+      base === null ? null : clamp(Math.round(base * (1 + varianceRoll)), QUALITY_MIN, QUALITY_MAX);
   }
 
   // Refined items display each quality's own tier individually (GDD §3.1),

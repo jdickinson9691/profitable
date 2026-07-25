@@ -2,12 +2,34 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { craft } from "../../src/simulation/craft.ts";
 import { getPenaltyMultiplier } from "../../src/simulation/penaltyCurve.ts";
+import { SCHEMATIC_TIER_CONTRIBUTION } from "../../src/data/constants/schematicTier.ts";
 import { igneousOre, hydrogenGas, radiantAlloyBar } from "../fixtures/resources.ts";
 import { makeInstance } from "../fixtures/instances.ts";
 import { queueRandom } from "../fixtures/random.ts";
 import { ionForgedHullPlateRecipe } from "../fixtures/recipes.ts";
 import type { Recipe } from "../../src/data/types/recipe.ts";
 import type { CraftAccepted } from "../../src/data/types/craftResult.ts";
+import type { SchematicTierContribution } from "../../src/data/types/schematicTier.ts";
+
+// Hardcoded directly from GDD §3.3, independent of SCHEMATIC_TIER_CONTRIBUTION
+// -- compares the actual constant against literal expected values so a typo
+// in the table itself gets caught.
+const EXPECTED_SCHEMATIC_TIER_CONTRIBUTION: SchematicTierContribution[] = [
+  { tier: "Grey", ceilingRaise: 0, varianceNarrowing: 0, penaltyForgiveness: 0 },
+  { tier: "White", ceilingRaise: 0.01, varianceNarrowing: -0.005, penaltyForgiveness: 0.05 },
+  { tier: "Green", ceilingRaise: 0.02, varianceNarrowing: -0.01, penaltyForgiveness: 0.1 },
+  { tier: "Blue", ceilingRaise: 0.03, varianceNarrowing: -0.015, penaltyForgiveness: 0.15 },
+  { tier: "Purple", ceilingRaise: 0.04, varianceNarrowing: -0.02, penaltyForgiveness: 0.2 },
+  { tier: "Orange", ceilingRaise: 0.05, varianceNarrowing: -0.025, penaltyForgiveness: 0.25 },
+  { tier: "Gold", ceilingRaise: 0.06, varianceNarrowing: -0.03, penaltyForgiveness: 0.35 },
+];
+
+for (const expected of EXPECTED_SCHEMATIC_TIER_CONTRIBUTION) {
+  test(`SCHEMATIC_TIER_CONTRIBUTION.${expected.tier} matches the GDD §3.3 table exactly`, () => {
+    const actual = SCHEMATIC_TIER_CONTRIBUTION.find((entry) => entry.tier === expected.tier);
+    assert.deepEqual(actual, expected);
+  });
+}
 
 const noThresholdRecipe: Recipe = {
   id: "test-no-threshold",

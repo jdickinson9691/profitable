@@ -2,9 +2,51 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { refine, computeBaseAverages } from "../../src/simulation/refine.ts";
 import { TIER_VARIANCE } from "../../src/data/constants/tierVariance.ts";
+import { REFUND_CHANCE } from "../../src/data/constants/refundChance.ts";
 import { igneousOre, autuniteCrystal } from "../fixtures/resources.ts";
 import { makeInstance } from "../fixtures/instances.ts";
 import { queueRandom } from "../fixtures/random.ts";
+import type { TierVariance } from "../../src/data/types/tierVariance.ts";
+import type { RefundChance } from "../../src/data/types/refundChance.ts";
+
+// Hardcoded directly from GDD §3.2, independent of TIER_VARIANCE/
+// REFUND_CHANCE -- these compare the *actual* constants against literal
+// expected values, so a typo in the table itself gets caught (a test that
+// destructures its expectations from the same table it's checking can't
+// catch that).
+const EXPECTED_TIER_VARIANCE: TierVariance[] = [
+  { tier: "Grey", negative: -0.1, positive: 0.1 },
+  { tier: "White", negative: -0.08, positive: 0.1 },
+  { tier: "Green", negative: -0.06, positive: 0.1 },
+  { tier: "Blue", negative: -0.045, positive: 0.11 },
+  { tier: "Purple", negative: -0.03, positive: 0.12 },
+  { tier: "Orange", negative: -0.015, positive: 0.13 },
+  { tier: "Gold", negative: -0.005, positive: 0.15 },
+];
+
+const EXPECTED_REFUND_CHANCE: RefundChance[] = [
+  { tier: "Grey", chance: 0 },
+  { tier: "White", chance: 0 },
+  { tier: "Green", chance: 0.05 },
+  { tier: "Blue", chance: 0.1 },
+  { tier: "Purple", chance: 0.15 },
+  { tier: "Orange", chance: 0.2 },
+  { tier: "Gold", chance: 0.25, secondaryUnitChance: 0.2 },
+];
+
+for (const expected of EXPECTED_TIER_VARIANCE) {
+  test(`TIER_VARIANCE.${expected.tier} matches the GDD §3.2 table exactly`, () => {
+    const actual = TIER_VARIANCE.find((entry) => entry.tier === expected.tier);
+    assert.deepEqual(actual, expected);
+  });
+}
+
+for (const expected of EXPECTED_REFUND_CHANCE) {
+  test(`REFUND_CHANCE.${expected.tier} matches the GDD §3.2 table exactly`, () => {
+    const actual = REFUND_CHANCE.find((entry) => entry.tier === expected.tier);
+    assert.deepEqual(actual, expected);
+  });
+}
 
 test("computeBaseAverages combines mixed resources via quantity-weighted straight average", () => {
   const ore = makeInstance(igneousOre, 2, {
@@ -39,7 +81,7 @@ test("computeBaseAverages returns null when a quality is null on every input", (
   assert.equal(averages.purity, null);
 });
 
-for (const { tier, negative, positive } of TIER_VARIANCE) {
+for (const { tier, negative, positive } of EXPECTED_TIER_VARIANCE) {
   test(`refine() applies ${tier} tier's exact variance range`, () => {
     const input = makeInstance(igneousOre, 1, {
       purity: 50,

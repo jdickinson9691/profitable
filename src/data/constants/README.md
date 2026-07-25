@@ -18,6 +18,15 @@ it imports the constant instead (GDD §5.3).
 **Status:** all GDD §3 constant tables are now defined: `tierColor.ts` (7-tier
 breakpoints), `tierVariance.ts` (shared refiner/crafter variance), and
 `refundChance.ts` (keyed to output tier), plus `penaltyCurve.ts` (threshold
-penalty bands, with a `multiplier: null` 41+ band meaning "reject") and
+penalty bands, with a `multiplier: null` 41+ band meaning "reject"),
 `schematicTier.ts` (ceiling raise / variance narrowing / penalty forgiveness
-per tier, plus the standalone `COMBINED_CEILING_CAP = 0.18` constant).
+per tier, plus the standalone `COMBINED_CEILING_CAP = 0.18` constant), and
+`quality.ts` (`QUALITY_MIN`/`QUALITY_MAX` = 1/100, GDD §3.1's universal
+quality range — the single source `clamp()` calls in `src/simulation` read,
+instead of each hardcoding `1, 100` separately).
+
+Every table here was cross-checked against the GDD's literal text (not just
+against itself) — see `tests/simulation/refine.test.ts` and
+`craft.test.ts`'s per-tier `TIER_VARIANCE`/`REFUND_CHANCE`/
+`SCHEMATIC_TIER_CONTRIBUTION` assertions, which hardcode expected values
+independently of these files so a typo here would be caught.

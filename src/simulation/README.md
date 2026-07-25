@@ -21,6 +21,9 @@ Rules:
 `refine()` + `computeBaseAverages()` (`refine.ts`), and `craft()`
 (`craft.ts`), plus `tierVariance.ts`/`refundChance.ts`/`schematicTier.ts`/
 `penaltyCurve.ts` lookup helpers alongside the data-layer tables they read.
+`clamp()` (`clamp.ts`) is the single shared implementation both `refine()`
+and `craft()` call, using `src/data/constants/quality.ts`'s
+`QUALITY_MIN`/`QUALITY_MAX` rather than each hardcoding `1, 100`.
 
 **Two underspecified GDD points were resolved by explicit user decision**
 (not silently guessed) and are documented here so they aren't re-litigated:
