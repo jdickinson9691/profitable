@@ -1,107 +1,200 @@
-# Profitable
+# CLAUDE.md — Profitable
 
-A game systems engine for resource gathering, refining, and crafting, where
-every item — raw, refined, or crafted — carries the same 5 numeric qualities
-(purity, density, potency, durability, rarity). Quality flows through
-refining and crafting via a shared formula, feeding a trading market across
-raw resources, refined resources, recipes/schematics, and crafted items.
-Long-term vision includes a galaxy of planets with local markets, a galactic
-trade map, NPC crew crafters, and multiplayer — all out of scope for the MVP.
+This is the root reference for Claude Code (or any agent) working in this repository. It summarizes the locked design, the architecture, and the AI agent plan that governs how this codebase gets built. Full rationale for every decision below lives in `docs/profitable-design-questions.md`; the build plan lives in `docs/profitable-mvp-gdd.md`; per-agent contracts live in `docs/agents/`.
 
-**Status: reset.** The repository was previously a Python/SQLite/Tkinter
-prototype (material tiers, six stats) built under a different design. That
-implementation has been removed (still recoverable from git history prior to
-this reset commit) in favor of the MVP defined below. Nothing has been built
-against the new design yet — this file and `docs/design/` are the starting
-point.
+**Read this file first in any session.** If you're about to implement a formula, add a data shape, or wire a scene together, check the relevant agent contract in `docs/agents/` before writing code — it defines exactly what you may and may not touch.
 
-## Design source of truth
+---
 
-`docs/design/profitable-mvp-gdd.md` is the MVP Game Design Document — it
-defines what gets built, in what order, and by which agent contract. Read it
-in full before starting any implementation work. Key points summarized here
-for quick reference; the GDD is authoritative if anything conflicts.
+## 1. Project Overview
 
-### The 5 qualities
-Purity, density, potency, durability, rarity. Universal, but not all apply
-to every resource type (non-applicable = `null`, never `0`). Each quality is
-an integer 1–100, mapped to a 7-tier color: Grey (1–40), White (41–60),
-Green (61–75), Blue (76–85), Purple (86–91), Orange (92–96), Gold (97–100).
+**Profitable** is a game systems engine: resource gathering → refining → crafting → trading. Every item (raw, refined, or crafted) carries the same 5 numeric qualities. Quality flows through refining and crafting via shared formulas, ultimately feeding a trading market across raw resources, refined resources, recipes/schematics, and crafted items.
 
-### MVP scope
-Proves the quality math end-to-end before any procedural generation,
-trading, or travel systems: one hardcoded planet, 2–3 resource types,
-resource quality rolls, one refining recipe (Section 3.2 formula), one
-crafting recipe + schematic (Section 3.3 formula). Galaxy/planet generation,
-trading markets, NPC crew crafters, travel, and the trade map are explicitly
-deferred.
+**This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-### Technical architecture (mandatory)
-- **Stack:** TypeScript + Phaser or PixiJS for the MVP; Unity migration is
-  planned post-MVP.
-- **Simulation/presentation separation:** all quality/refining/crafting math
-  must be plain, framework-agnostic TypeScript — pure functions and data
-  structures, zero Phaser/PixiJS objects touching them.
-- **Data-driven:** resources, recipes, qualities, and tier tables load from
-  JSON config, never hardcoded in logic — including the MVP's hardcoded
-  content.
-- **Browser API isolation:** no DOM-based UI, no URL/cookie state.
-  Persistence and audio each sit behind a single swappable adapter interface
-  (`SaveSystem`, `AudioManager`).
+**Current phase: MVP.** The MVP proves the *quality math* end-to-end on one hardcoded planet, before any procedural generation, trading, or travel systems are built. See Section 4 for exact scope.
 
-### Agent development plan
-The GDD (Section 5) defines seven agent roles built in dependency order —
-Data Schema → Simulation Core → Validation/Test (parallel with Simulation
-Core) → Infrastructure/Adapter → Presentation → Content → Integration —
-each with an explicit contract (inputs, outputs, what it must NOT do, and
-its definition of done). Cross-cutting rules: no agent hardcodes a number
-that already exists in the Data Schema Agent's output; no agent reaches
-"downward" past its declared inputs (e.g., Presentation calls Simulation
-Core's public functions only, never Content's raw JSON directly); every
-agent's output must be independently reviewable against its own definition
-of done. Follow these contracts when implementing each part of the system,
-even outside a literal multi-agent workflow — they define the module
-boundaries.
+**Full development order (only the first four are in scope right now):**
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → crafters (NPC crew) → travel → galactic map.
 
-## Layout
+---
 
-```
-docs/design/         Design docs (profitable-mvp-gdd.md is the current source of truth)
-src/data/types/      Data Schema Agent — TS interfaces for every data shape in GDD §3
-src/data/schemas/    Data Schema Agent — JSON Schema files validating content/ against types/
-src/data/constants/  Data Schema Agent — tier/formula constant tables from GDD §3, as data
-src/simulation/      Simulation Core Agent — pure functions (rollQuality, refine, craft)
-src/adapters/        Infrastructure/Adapter Agent — SaveSystem, AudioManager interfaces + impls
-src/presentation/    Presentation Agent — Phaser/PixiJS scenes (engine choice still deferred)
-content/             Content Agent — JSON config for the MVP's resources/recipe/schematic
-tests/               Validation/Test Agent — node:test suite, mirrors src/'s layout
-```
+## 2. Tech Stack & Architecture
 
-Each directory above has a README.md stating its owning agent's contract
-(inputs, outputs, must-NOT-do, definition of done) — read it before adding
-code there. Everything is currently an empty skeleton; no formulas, types,
-or content have been implemented yet.
+- **Stack:** TypeScript + Phaser or PixiJS, for now.
+- **Planned migration:** to **Unity**, once the MVP loop is built and feels right. The migration trigger is tied to the status of the initial loop, not a calendar date — evaluate once Section 4's five steps are complete and tunable.
+- **Why this stack, and why Unity as the eventual target:** the project intends to use AI agents to do the heavy lifting of development for as long as possible. A plain-text, framework-light web stack is far more agent-friendly (large training data, automatable browser-based testing, no GUI-editor dependency) than Unity's or Godot's editor-driven workflows. Unity was chosen over Godot as the eventual target in part because Unity/C# is also comparatively agent-friendly.
 
-## Toolchain
+### Architectural mandate — read before writing any game logic
 
-- Node >=23.6 (native TS type-stripping — no ts-node/tsx/babel needed).
-  `npm test` runs `node --test`, which recursively discovers `*.test.ts`
-  files. Avoid TS features that don't survive type-stripping (enums,
-  namespaces with runtime values, experimental decorators, parameter
-  properties) — stick to interfaces, type aliases, and plain functions.
-- `npm run typecheck` runs `tsc --noEmit` over `src/` and `tests/`.
-- No bundler/render-engine dependency chosen yet — that's the Presentation
-  Agent's call (Phaser vs PixiJS, GDD §4) when that stage starts.
+To keep the eventual Unity migration a **port, not a rewrite**, this codebase enforces a hard separation:
 
-## Working style
+- **Simulation layer** (quality-roll formulas, refining/crafting math, market state, planet data): plain, framework-agnostic TypeScript. Pure functions and data structures only. **Zero Phaser/PixiJS objects, zero DOM, zero browser API of any kind may touch this layer.**
+- **Presentation layer** (Phaser/PixiJS scenes): rendering, animation, input, screen flow only. Calls into the simulation layer's public functions — never duplicates or reimplements its math.
 
-- Don't add procedural generation, trading, travel, or multiplayer code —
-  all explicitly out of scope until the MVP checkpoint (GDD Section 2, step 5).
-- Keep simulation math (`engine/`-equivalent once created) free of any
-  Phaser/PixiJS/DOM import — verify this holds before considering formula
-  work done.
-- Don't hardcode a number from GDD Section 3 (quality tiers, variance
-  tables, refund chances, penalty curve, schematic tier table) anywhere
-  outside the data/config layer — import it.
-- No pip/Python dependencies going forward; this is now a Node/TypeScript
-  project.
+### Browser API isolation — isolate, don't eliminate
+
+- **Avoid entirely, anywhere in the codebase:** DOM-based UI (HTML/CSS overlays), URL params/cookies/browser routing for game state, raw DOM input event handling. Render all UI inside the Phaser/PixiJS canvas; use the engine's input abstraction.
+- **Isolate behind one swappable adapter each** (see `docs/agents/agent-04-infrastructure-adapter.md`):
+  - `SaveSystem` — wraps `localStorage`. No other file may call `localStorage` directly.
+  - `AudioManager` — wraps Web Audio. No other file may call Web Audio directly.
+  - `NetworkAdapter` — stub only for MVP (thin interface over WebSockets), built now so multiplayer costs nothing to add later.
+- **Fine as-is:** the canvas rendering surface itself — not a migration risk.
+
+### Data-driven design
+
+Resources, recipes, qualities, and every tier/formula table are defined in **config files (JSON)**, not hardcoded in logic — even the MVP's hardcoded content lives in config. See `docs/agents/agent-01-data-schema.md` for the schemas and `docs/agents/agent-06-content.md` for the actual MVP values.
+
+---
+
+## 3. The Core Systems (apply everywhere, not just MVP)
+
+### 3.1 The 5 Qualities
+
+**Purity, density, potency, durability, rarity.** Universal — every resource type has all 5 defined — but not every quality is *applicable* to every resource type (e.g., gases have no durability).
+
+- **Non-applicable qualities are `null`/N/A in data — never `0`.** Zero would misleadingly imply "worst possible quality" rather than "doesn't apply."
+- **If a recipe references a quality that's null/NA on an input, that reference does not influence the formula or output at all.** Excluded from calculation entirely — not treated as zero, and does not invalidate the input.
+- Each quality is an integer **1–100**, mapped to a **7-tier color scale**:
+
+| Tier | Range | Width |
+|---|---|---|
+| Grey | 1–40 | 40 |
+| White | 41–60 | 20 |
+| Green | 61–75 | 15 |
+| Blue | 76–85 | 10 |
+| Purple | 86–91 | 6 |
+| Orange | 92–96 | 5 |
+| Gold | 97–100 | 4 |
+
+- Qualities **persist at every item tier** (raw → refined → crafted, tiers 1–7) — no conversion into a separate stat system, no relabeling.
+- **Color display differs by tier band:**
+  - **Tiers 1–2 (raw/refined):** each of the 5 qualities displays its **own individual color tier**.
+  - **Tiers 3–7 (crafted):** the 5 qualities **aggregate into a single overall color tier** (exact aggregation formula is post-MVP — stub with a straight average for now), used for at-a-glance rarity and to help drive sell value.
+
+### 3.2 Refining Formula
+
+Refining is **n:1**: multiple units of a resource combine into one output, and this extends to multiple *different* resources as inputs (e.g., 2 Igneous Ore + 1 Autunite Crystal → 1 output).
+
+1. `base_avg` = **straight average** of input qualities, weighted by quantity only (never weighted toward best/worst — the threshold penalty in crafting already punishes weak individual inputs, so this stays simple).
+2. Apply variance: **±10% of `base_avg`**, adjusted asymmetrically by refiner tier (table below) — narrows the negative side more than it extends the positive side.
+3. Refund chance: rolled per consumed input unit, **keyed to the output tier the roll lands on** (not the input tier) — rewards refiners who consistently land near a high tier, even from mediocre inputs.
+4. **Refining never fails.** No failure state, no yield loss — always 100% base yield, plus any refund.
+5. A quality that's `null` on all relevant inputs is excluded from the average entirely — never treated as 0.
+
+**Refiner/crafter tier variance table** (shared by both roles):
+
+| Tier | Negative side | Positive side |
+|---|---|---|
+| Grey | -10% | +10% |
+| White | -8% | +10% |
+| Green | -6% | +10% |
+| Blue | -4.5% | +11% |
+| Purple | -3% | +12% |
+| Orange | -1.5% | +13% |
+| Gold | -0.5% | +15% |
+
+**Refund chance table** (keyed to output tier):
+
+| Tier | Refund chance |
+|---|---|
+| Grey | 0% |
+| White | 0% |
+| Green | 5% |
+| Blue | 10% |
+| Purple | 15% |
+| Orange | 20% |
+| Gold | 25% (+ ~20% secondary chance of 2 units instead of 1) |
+
+### 3.3 Crafting Formula
+
+Recipes are **not fixed to specific materials** — a recipe specifies a **category + recommended quality threshold** per input (e.g., "metal bar, durability 60+"). Inputs below threshold are still usable but degrade output quality.
+
+**Unified crafting formula** (one pass, not independently stacked modifiers):
+
+1. `base_avg` = straight average of input qualities (same rule as refining).
+2. **Ceiling raise:** crafter tier (via the shared variance table above) + schematic tier (table below), **additive**, then **capped at +18% combined** — not the arithmetic sum (which would be +21% at max/max).
+3. **Variance roll** around the raised ceiling, narrowed by crafter tier + schematic tier, also additive.
+4. **Threshold penalty — applied LAST**, after steps 1–3 produce a raw value: penalize per the curve below, softened (not bypassed) by the schematic's forgiveness %. A great crafter and great schematic **cannot fully compensate for under-threshold inputs**, since this penalty comes after their influence.
+5. `output = clamp(final penalized value, 1, 100)`.
+6. A recipe referencing a `null`/N/A quality on an input is excluded from the threshold check and the formula entirely — never an automatic failure or a 0.
+
+**Threshold penalty curve** (escalating, with a hard floor):
+
+| Points below threshold | Penalty multiplier |
+|---|---|
+| 0 | 1.0 |
+| 1–10 | 0.95 |
+| 11–20 | 0.85 |
+| 21–30 | 0.70 |
+| 31–40 | 0.50 |
+| 41+ | **Input rejected — craft cannot proceed** |
+
+**Schematic tier contribution** (additive on top of crafter tier, deliberately smaller in scale — a schematic is equipment, not a skill investment):
+
+| Tier | Ceiling raise | Variance narrowing | Penalty forgiveness |
+|---|---|---|---|
+| Grey | +0% | -0% | 0% |
+| White | +1% | -0.5% | 5% |
+| Green | +2% | -1% | 10% |
+| Blue | +3% | -1.5% | 15% |
+| Purple | +4% | -2% | 20% |
+| Orange | +5% | -2.5% | 25% |
+| Gold | +6% | -3% | 35% |
+
+**Schematics are unique items** — discoverable/purchasable from planetary markets, not just permanent unlocks (full market mechanics are post-MVP). **Crafter skill is not universal** — tier 6–7 crafters have defined professions/specialties (full scope post-MVP); lower tiers may share a more general skill.
+
+---
+
+## 4. MVP Scope — Current Build Target
+
+The MVP proves the quality math end-to-end on **one hardcoded planet**, before investing in procedural generation. Do not build galaxy/planet generation, the trading market, crew crafters, travel, or the galactic map yet — all explicitly post-MVP.
+
+**Definition of done:** a player (or test harness) can gather a resource with a random quality roll, refine it using a chosen refiner tier, and craft it into a finished item using a chosen schematic and crafter tier — with output quality at every step matching Section 3's formulas, verifiable against known test inputs.
+
+### MVP Content (already decided — do not invent alternatives)
+
+| Resource | Type | Purity | Density | Potency | Durability | Rarity |
+|---|---|---|---|---|---|---|
+| Igneous Ore | Solid | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Hydrogen Gas | Gas | ✓ | ✓ | ✓ | **N/A** | ✓ |
+| Autunite Crystal | Radioactive crystal | **N/A** | ✓ | ✓ | ✓ | ✓ |
+
+- **Refining recipe:** 2× Igneous Ore + 1× Autunite Crystal → 1× **Radiant Alloy Bar**.
+- **Crafting recipe + schematic:** 1× Radiant Alloy Bar (durability 60+ recommended) + 1× Hydrogen Gas → 1× **Ion-Forged Hull Plate**, schematic at a testable tier (e.g., Blue).
+- **Planet:** **Delta Rigelus** — id/name + producible resource list only. No modifiers, seasons, or tier. Deliberately thin; not load-bearing.
+
+### The Five MVP Build Steps
+
+1. Hardcoded planet (Delta Rigelus), 2–3 resource types with applicable qualities defined.
+2. Resource generation: random 1–100 quality roll per applicable quality, mapped to the 7-tier scale.
+3. One refining recipe, fully working end-to-end.
+4. One crafting recipe + one schematic, fully working end-to-end.
+5. **Checkpoint, not a build step** — once 1–4 are working and tunable, real galaxy/planet generation begins.
+
+---
+
+## 5. AI Agent Development Plan
+
+The MVP is built by 7 specialized agents, each with a narrow responsibility and an explicit **contract** (what it reads, what it must produce, what it must never do, and its definition of done) — created in dependency order, Data Schema first and Integration last. See `docs/agents/README.md` for the full index, creation order, and cross-cutting rules that bind every agent; individual contracts live in `docs/agents/agent-0[1-7]-*.md`.
+
+---
+
+## 6. What's Explicitly Out of Scope Right Now
+
+Do not build these yet — they're sequenced after the MVP, though their design decisions are already recorded in `docs/profitable-design-questions.md` for when their turn comes:
+
+- Galaxy/planet generation (beyond the single hardcoded Delta Rigelus)
+- The trading market — per-planet markets, the global market, the two-tier buy/sell model, tier 6–7 exclusivity, the galactic trade map (seasons/emergencies)
+- NPC crew crafters (hiring crafters into your crew)
+- Travel
+- Multiplayer (planned future evolution, single-player only for now)
+
+---
+
+## 7. Reference Documents
+
+- `docs/profitable-design-questions.md` — full design rationale, every decision and why, plus remaining open questions split into "Must Be Answered for MVP" (currently empty — all resolved) and "Can Wait Until After MVP."
+- `docs/profitable-mvp-gdd.md` — the MVP Game Design Document (this file's source for Sections 3 and 4 above).
+- `docs/agents/README.md` — agent contract index and cross-cutting rules in full.
+- `docs/agents/agent-0[1-7]-*.md` — individual agent contracts.

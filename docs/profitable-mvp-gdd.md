@@ -1,6 +1,6 @@
 # Profitable — MVP Game Design Document
 
-Status: MVP scope locked. All Must-Answer-for-MVP questions resolved (see `profitable-design-questions.md`). This document defines what gets built, in what order, and which AI agents build it.
+Status: MVP scope locked. All Must-Answer-for-MVP questions resolved (see `docs/profitable-design-questions.md`). This document defines what gets built, in what order, and which AI agents build it.
 
 ---
 
@@ -26,7 +26,7 @@ The MVP proves the **quality math** end-to-end before any procedural generation,
 
 ## 3. Core Systems Reference
 
-Full detail and rationale lives in `profitable-design-questions.md`; this section summarizes only what the MVP needs to implement.
+Full detail and rationale lives in `docs/profitable-design-questions.md`; this section summarizes only what the MVP needs to implement.
 
 ### 3.1 The 5 Qualities
 - Purity, density, potency, durability, rarity. Universal, but not all apply to every resource type (non-applicable = `null`, never `0`).
@@ -128,7 +128,7 @@ Agents are created and run in this order. Each later agent depends on artifacts 
 **1. Data Schema Agent**
 
 - **Responsibility:** Define the canonical data shapes for the whole project — resource types, the 5 qualities, tier tables (color breakpoints, refiner/crafter variance table, refund chance table, penalty curve, schematic tier table), recipes, and schematics.
-- **Inputs:** This GDD (Section 3) and `profitable-design-questions.md`.
+- **Inputs:** This GDD (Section 3) and `docs/profitable-design-questions.md`.
 - **Outputs:**
   - TypeScript type definitions (interfaces) for every data shape referenced above.
   - JSON schema files for validating config data against those types.
@@ -208,4 +208,4 @@ These apply to every agent above, not just one:
 
 ## 6. Open Items
 
-All Must-Answer-for-MVP questions are resolved (see `profitable-design-questions.md`). Anything still open in that document is explicitly post-MVP and does not block this build plan.
+All Must-Answer-for-MVP questions are resolved (see `docs/profitable-design-questions.md`). Anything still open in that document is explicitly post-MVP and does not block this build plan.
