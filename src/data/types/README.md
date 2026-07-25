@@ -10,5 +10,7 @@ curve, schematic tier contribution).
 No formula logic, gameplay behavior, or rendering — shapes only. Every other
 agent imports types from here rather than re-declaring them.
 
-**Status:** `tierColor.ts` (the `TierColor` union) is defined. Everything else in
-GDD §3 is still outstanding.
+**Status:** `tierColor.ts` (the `TierColor` union), `quality.ts` (the `Quality`
+union + `QualityMap`/`QualityRoll`), and `resource.ts` (the `Resource` shape)
+are defined. `Recipe`, `Schematic`, `Planet`, and the remaining GDD §3 tables
+are still outstanding.

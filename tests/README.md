@@ -23,7 +23,14 @@ obviously to the module it covers.
 
 **Status:** `simulation/tierColor.test.ts` covers `getTierColor`'s boundary
 table exactly (all 13 breakpoint values plus out-of-range rejection).
-Everything else in Agent 3's coverage list is still outstanding.
+`simulation/rollQuality.test.ts` covers range/integer correctness, null (not
+zero) exclusion for both MVP resources with a non-applicable quality
+(Hydrogen Gas/durability, Autunite Crystal/purity), and exact behavior under
+an injected deterministic random function. `fixtures/resources.ts` holds
+reusable `Resource` test fixtures for the three MVP resources (Igneous Ore,
+Hydrogen Gas, Autunite Crystal) — not authoritative content, just shapes for
+exercising Agent 2's functions ahead of Agent 6's real config. Everything
+else in Agent 3's coverage list is still outstanding.
 
 **Import specifiers:** use the literal `.ts` extension (not `.js`) for
 relative imports in test/source files — Node's native type-stripping on this
