@@ -125,6 +125,15 @@ different loading mechanism — Vite/Node native JSON import attributes vs.
 reading files off disk) loads the real content with no errors and caches
 across repeated calls.
 
+`integration/mvpLoop.test.ts` is Agent 7's own verification, distinct from
+Agent 3's unit tests: it reads the *real* `content/*.json` files (not
+fixtures), loads them through the real `loadContent()`, and confirms a
+hand-calculated expected value for both `refine()` and `craft()` against
+that real content, at a fixed random seed — proving Agent 6's specific
+values, through Agent 1's schemas, produce correct results in Agent 2's
+formulas with no gap hiding in the wiring. Also confirms a resource can be
+gathered on the real Delta Rigelus with a real `rollQuality()` call.
+
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how
 the full gather → refine → craft loop, including the threshold-penalty and
