@@ -181,6 +181,23 @@ coordinate. `content/mvpContent.test.ts` gained an explicit
 backward-compatibility test confirming the real, unmodified Delta Rigelus
 record (zero Phase 2 fields) still loads through the extended schema.
 
+`data/phase3Constants.test.ts` covers the Agent 1 Phase 3 amendment's
+tunable constants: `LISTING_EXPIRY_HOURS`, `BASELINE_DRIFT_PERCENT`,
+`PRICE_FLOOR_PERCENT`/`PRICE_CEILING_PERCENT`,
+`GLOBAL_MARKET_MARKUP_PERCENT`/`GLOBAL_MARKET_DISCOUNT_PERCENT`,
+`TRANSACTION_FEE_PERCENT`, and `GLOBAL_LISTABLE_MAX_ITEM_TIER`/
+`MAX_ITEM_TIER`, each asserted independently against Phase 3 GDD §2 exactly
+(same non-circular pattern as the MVP/Phase 2 tables), plus an explicit
+check that tiers 6-7 fall above the global-listable ceiling while tier 5
+does not. `data/schemas.test.ts` gained matching schema-level tests: valid/
+invalid `itemTier` on `resource.schema.json` (in range, out of range, and a
+pre-Phase-3 resource with no `itemTier` still validating unchanged), a
+planet-market and a global-market `listing.schema.json` example, the
+contract's explicitly-named negative-`pricePerUnit` rejection, an invalid
+`location` value, `planetMarketState.schema.json` accepting a valid state
+and rejecting a zero `basePrice`, and `wallet.schema.json` accepting a valid
+wallet and rejecting negative `credits`.
+
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how
 the full gather → refine → craft loop, including the threshold-penalty and

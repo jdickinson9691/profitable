@@ -33,3 +33,25 @@ table row shapes), and `planet.ts`'s `Planet` extended with 5 new fields
 **all optional**, so MVP-era content (Delta Rigelus) still validates with
 zero changes to that data. The original 3 MVP fields (`id`, `name`,
 `producibleResourceIds`) are unchanged.
+
+**Phase 3 amendment** (`docs/agents/agent-01-amendment-phase3-schema.md`):
+`listing.ts` (`Listing`, plus the `MarketLocation` union), `planetMarketState.ts`
+(`PlanetMarketState`), and `wallet.ts` (`Wallet`) — the 3 new trading types.
+Timestamps (`createdAt`/`expiresAt`) are plain `number` (epoch ms), matching
+this codebase's existing `Date.now()` convention rather than introducing a
+new date/time type.
+
+Also `resource.ts`'s `Resource` extended with one new **optional** field,
+`itemTier?: number` (1-7) — **a necessary completion, not literally named in
+the Phase 3 GDD's own text.** GDD §2.1/the amendment's contract describe the
+global market's sell restriction as "reusing existing tier-numbering
+conventions already in the schema," but no such numbering existed:
+`TierColor` is the quality-*color* tier (7-band, from a straight average of
+the 5 qualities), a different concept from the raw/refined/crafted item-tier
+numbering (1-7) that CLAUDE.md §3.1 describes and that the restriction
+actually needs. `itemTier` closes that gap, placed on `Resource` because
+raw, refined, and crafted outputs are all represented as `Resource` entries
+already (see `refiningRecipe.ts`'s and `recipe.ts`'s `outputResourceId`) —
+there's no separate "item" type to hang this on. Optional for the same
+backward-compatibility reason as the Phase 2 `Planet` fields: MVP/Phase 2
+content sets no `itemTier` and still validates unchanged.

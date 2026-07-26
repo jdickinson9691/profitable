@@ -1,6 +1,6 @@
 # Profitable — Phase 2 Game Design Document: Galaxy & Planet Generation
 
-Status: design locked (see `profitable-design-questions.md`, "Galaxy & Planet Generation" section — fully resolved). This document defines what gets built for Phase 2, in what order, and which AI agents build it. It extends `profitable-mvp-gdd.md`; MVP scope and formulas are unchanged and not restated here except where Phase 2 touches them directly.
+Status: **Phase 2 complete and verified** (Agent 1 amendment, Agent 8, Agent 9, and Agent 10 all delivered; full roster committed). This document remains the historical record of the Phase 2 build; see `CLAUDE.md` for current project status and the next milestone (the trading loop).
 
 ---
 

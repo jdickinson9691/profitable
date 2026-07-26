@@ -35,3 +35,18 @@ MVP content validates unchanged (verified against the *real* Delta Rigelus
 record in `tests/content/mvpContent.test.ts`, not just a synthetic example).
 `loadContent.ts` registers `planetType.schema.json` in its Ajv instance
 since `planet.schema.json` now `$ref`s it.
+
+**Phase 3 amendment:** `listing.schema.json`, `planetMarketState.schema.json`,
+and `wallet.schema.json` (new) for the 3 trading types, plus
+`resource.schema.json` updated with one new optional property, `itemTier`
+(integer 1-7) — see `src/data/types/README.md` for why this was a necessary
+completion rather than something the Phase 3 GDD named directly. These 3 new
+schema files are **not** registered in `loadContent.ts`'s `SECTIONS` list —
+`Listing`/`Wallet` are runtime state created by player actions, not static
+config Agent 6/14 author ahead of time, so they don't belong to that
+content-loading pipeline. `tests/data/schemas.test.ts` still covers all
+three directly (it loads every `*.schema.json` file in this directory
+automatically via `readdirSync`, not an explicit list), per the amendment's
+own testing requirement to validate representative valid/invalid examples
+for each new type — including the explicitly-named negative-`pricePerUnit`
+rejection case.

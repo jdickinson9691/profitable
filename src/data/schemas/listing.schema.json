@@ -1,0 +1,40 @@
+{
+  "$id": "listing.schema.json",
+  "title": "Listing",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "itemId": { "type": "string", "minLength": 1 },
+    "quantity": { "type": "integer", "minimum": 1 },
+    "pricePerUnit": { "type": "number", "exclusiveMinimum": 0 },
+    "marketTier": { "$ref": "tierColor.schema.json" },
+    "location": {
+      "oneOf": [
+        { "const": "global" },
+        {
+          "type": "object",
+          "properties": {
+            "planetId": { "type": "string", "minLength": 1 }
+          },
+          "required": ["planetId"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "createdByPlayerId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "integer", "minimum": 0 },
+    "expiresAt": { "type": "integer", "minimum": 0 }
+  },
+  "required": [
+    "id",
+    "itemId",
+    "quantity",
+    "pricePerUnit",
+    "marketTier",
+    "location",
+    "createdByPlayerId",
+    "createdAt",
+    "expiresAt"
+  ],
+  "additionalProperties": false
+}

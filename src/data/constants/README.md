@@ -38,3 +38,13 @@ every other tier table — a planet isn't a skill investment; also exports
 `SPECIALTY_QUALITY_MODIFIER = 15`), and `resourceSubsetPercentage.ts`
 (`RESOURCE_SUBSET_PERCENTAGE`, by planet tier). Same independent-assertion
 test pattern applies — see `tests/data/phase2Constants.test.ts`.
+
+**Phase 3 amendment:** `tradingConfig.ts` — the trading loop's tunable
+scalars, all explicitly documented as starting defaults rather than locked
+values (per the design doc's own framing): `LISTING_EXPIRY_HOURS` (72),
+`BASELINE_DRIFT_PERCENT` (0.02), `PRICE_FLOOR_PERCENT`/`PRICE_CEILING_PERCENT`
+(0.5/1.5), `GLOBAL_MARKET_MARKUP_PERCENT`/`GLOBAL_MARKET_DISCOUNT_PERCENT`
+(0.1/0.1), `TRANSACTION_FEE_PERCENT` (0.05), and
+`GLOBAL_LISTABLE_MAX_ITEM_TIER`/`MAX_ITEM_TIER` (5/7 — the item-tier range
+that `Resource.itemTier` validates against). Same independent-assertion test
+pattern — see `tests/data/phase3Constants.test.ts`.

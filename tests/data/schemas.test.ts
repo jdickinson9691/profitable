@@ -247,6 +247,157 @@ test("planetType.schema.json only accepts the 4 documented planet types", () => 
   assert.equal(validate("Moon"), false);
 });
 
+test("resource.schema.json accepts an itemTier in range 1-7 (Phase 3)", () => {
+  const validate = getValidator("resource.schema.json");
+  const valid = validate({
+    id: "ion-forged-hull-plate",
+    name: "Ion-Forged Hull Plate",
+    category: "crafted-item",
+    applicableQualities: {
+      purity: true,
+      density: true,
+      potency: true,
+      durability: true,
+      rarity: true,
+    },
+    itemTier: 5,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("resource.schema.json rejects an itemTier outside 1-7", () => {
+  const validate = getValidator("resource.schema.json");
+  const valid = validate({
+    id: "x",
+    name: "X",
+    category: "solid",
+    applicableQualities: {
+      purity: true,
+      density: true,
+      potency: true,
+      durability: true,
+      rarity: true,
+    },
+    itemTier: 8,
+  });
+  assert.equal(valid, false);
+});
+
+test("resource.schema.json still accepts a pre-Phase-3 resource with no itemTier (backward compat)", () => {
+  const validate = getValidator("resource.schema.json");
+  const valid = validate({
+    id: "igneous-ore",
+    name: "Igneous Ore",
+    category: "solid",
+    applicableQualities: {
+      purity: true,
+      density: true,
+      potency: true,
+      durability: true,
+      rarity: true,
+    },
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("listing.schema.json accepts a valid planet-market listing", () => {
+  const validate = getValidator("listing.schema.json");
+  const valid = validate({
+    id: "listing-1",
+    itemId: "radiant-alloy-bar",
+    quantity: 5,
+    pricePerUnit: 12.5,
+    marketTier: "Blue",
+    location: { planetId: "delta-rigelus" },
+    createdByPlayerId: "player-1",
+    createdAt: 1000,
+    expiresAt: 1000 + 72 * 60 * 60 * 1000,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("listing.schema.json accepts a valid global-market listing", () => {
+  const validate = getValidator("listing.schema.json");
+  const valid = validate({
+    id: "listing-2",
+    itemId: "igneous-ore",
+    quantity: 1,
+    pricePerUnit: 3,
+    marketTier: "Grey",
+    location: "global",
+    createdByPlayerId: "player-1",
+    createdAt: 0,
+    expiresAt: 1,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("listing.schema.json rejects a negative pricePerUnit", () => {
+  const validate = getValidator("listing.schema.json");
+  const valid = validate({
+    id: "listing-3",
+    itemId: "igneous-ore",
+    quantity: 1,
+    pricePerUnit: -5,
+    marketTier: "Grey",
+    location: "global",
+    createdByPlayerId: "player-1",
+    createdAt: 0,
+    expiresAt: 1,
+  });
+  assert.equal(valid, false);
+});
+
+test("listing.schema.json rejects an invalid location value", () => {
+  const validate = getValidator("listing.schema.json");
+  const valid = validate({
+    id: "listing-4",
+    itemId: "igneous-ore",
+    quantity: 1,
+    pricePerUnit: 5,
+    marketTier: "Grey",
+    location: "moon-base",
+    createdByPlayerId: "player-1",
+    createdAt: 0,
+    expiresAt: 1,
+  });
+  assert.equal(valid, false);
+});
+
+test("planetMarketState.schema.json accepts a valid market state", () => {
+  const validate = getValidator("planetMarketState.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    itemId: "igneous-ore",
+    currentPrice: 12,
+    basePrice: 10,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("planetMarketState.schema.json rejects a zero or negative basePrice", () => {
+  const validate = getValidator("planetMarketState.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    itemId: "igneous-ore",
+    currentPrice: 12,
+    basePrice: 0,
+  });
+  assert.equal(valid, false);
+});
+
+test("wallet.schema.json accepts a valid wallet", () => {
+  const validate = getValidator("wallet.schema.json");
+  const valid = validate({ playerId: "player-1", credits: 500 });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("wallet.schema.json rejects negative credits", () => {
+  const validate = getValidator("wallet.schema.json");
+  const valid = validate({ playerId: "player-1", credits: -10 });
+  assert.equal(valid, false);
+});
+
 test("quality.schema.json and tierColor.schema.json only accept their documented enum values", () => {
   const quality = getValidator("quality.schema.json");
   const tier = getValidator("tierColor.schema.json");
