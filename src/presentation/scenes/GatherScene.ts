@@ -1,8 +1,9 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
+import { startingPlanet } from "../galaxyState.ts";
 import { addBatch, totalQuantity } from "../inventory.ts";
-import { rollQuality } from "../../simulation/rollQuality.ts";
+import { rollQualityOnPlanet } from "../../galaxy/rollQualityOnPlanet.ts";
 import { formatQualityRoll, formatQualityLabel } from "../display.ts";
 import type { Resource } from "../../data/types/resource.ts";
 
@@ -17,14 +18,25 @@ export class GatherScene extends Phaser.Scene {
   create(): void {
     renderNav(this, SCENE_KEYS.gather);
 
-    this.add.text(16, 64, `Gather — ${content.planets[0]?.name ?? "Delta Rigelus"}`, {
+    this.add.text(16, 64, `Gather — ${startingPlanet.name}`, {
       fontFamily: "monospace",
       fontSize: "24px",
       color: "#ffffff",
     });
 
+    const specialtyResource = content.resources.find(
+      (r) => r.id === startingPlanet.specialtyResourceId,
+    );
+    const tierLine = `${startingPlanet.tier ?? "?"} tier` +
+      (specialtyResource ? ` — specialty: ${specialtyResource.name}` : "");
+    this.add.text(16, 90, tierLine, {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#ffd700",
+    });
+
     const resources = this.getGatherableResources();
-    let y = 110;
+    let y = 120;
     for (const resource of resources) {
       const button = this.add.text(16, y, `> Gather ${resource.name}`, {
         fontFamily: "monospace",
@@ -52,14 +64,14 @@ export class GatherScene extends Phaser.Scene {
   }
 
   private getGatherableResources(): Resource[] {
-    const producibleIds = content.planets[0]?.producibleResourceIds ?? [];
+    const producibleIds = startingPlanet.producibleResourceIds;
     return producibleIds
       .map((id) => content.resources.find((resource) => resource.id === id))
       .filter((resource): resource is Resource => resource !== undefined);
   }
 
   private gather(resource: Resource): void {
-    const roll = rollQuality(resource);
+    const roll = rollQualityOnPlanet(resource, startingPlanet);
     const inventory = addBatch(getInventory(), {
       resourceId: resource.id,
       quantity: 1,

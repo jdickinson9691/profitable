@@ -2,13 +2,37 @@
 
 Owned by the **Presentation Agent** (GDD §5.2, agent 5).
 
-Renderable scenes for the MVP loop: the map screen (trivial for one
-hardcoded planet), and animated screens for resource collection, refining,
-and crafting. Calls `src/simulation`'s public functions and renders their
-output — never reimplements or duplicates formula logic locally. Goes
-through `src/adapters` for persistence/audio, never `localStorage`/Web Audio
-directly. No DOM-based UI — everything renders inside the canvas (grep-verified:
-no `createElement`/`innerHTML`/`appendChild`/etc. anywhere in this folder).
+Renderable scenes for the MVP loop: the map screen, and animated screens for
+resource collection, refining, and crafting. Calls `src/simulation`'s public
+functions and renders their output — never reimplements or duplicates
+formula logic locally. Goes through `src/adapters` for persistence/audio,
+never `localStorage`/Web Audio directly. No DOM-based UI — everything
+renders inside the canvas (grep-verified: no
+`createElement`/`innerHTML`/`appendChild`/etc. anywhere in this folder).
+
+**Phase 2 integration (Agent 10):** the map/gather screens no longer show a
+single hardcoded planet (Delta Rigelus) — they show a real planet drawn
+from a generated galaxy.
+- `galaxyState.ts` — the integration point. Loads a previously-stored
+  galaxy seed via `saveSystem` (key `profitable:galaxySeed`), or generates
+  and persists a new one on first run, then calls Agent 8's
+  `generateGalaxy(PLANET_COUNT, content.resources, seed)`. `PLANET_COUNT`
+  is a small fixed 5 — enough to prove real generation without redesigning
+  the single-planet MVP UI into a multi-planet one (out of scope for this
+  agent; see its own contract). Exports `galaxy` and `startingPlanet` (the
+  first generated planet, with `discovered` forced to `true` — Agent 8
+  always generates planets as undiscovered, since picking/revealing a
+  starting planet is explicitly this agent's integration concern, not
+  Agent 8's).
+- `MapScene.ts` / `GatherScene.ts` — swapped their planet source from
+  `content.planets[0]` (Agent 6's hardcoded content) to `startingPlanet`,
+  and `GatherScene`'s gather roll from `rollQuality()` to Agent 8's
+  `rollQualityOnPlanet()` so the planet's tier/specialty modifiers actually
+  apply. `GatherScene` also displays the planet's tier and specialty
+  resource (when it has one) so the modifier's effect is visible to a
+  player, not just a silent internal number. `RefineScene`/`CraftScene`
+  are untouched — they only ever operated on inventory batches, never on
+  planet data.
 
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
@@ -81,3 +105,15 @@ survives a real page reload (`localStorage`), and confirmed the
 craft-rejection rollback path with an injected low-durability batch: the
 craft was rejected and the materials were still there afterward, not
 destroyed.
+
+**Phase 2 manual playtest (Agent 10):** re-driven live via `npm run dev` +
+a real Chrome tab after the `galaxyState.ts` wiring above. MapScene showed
+a real generated planet name (not the old hardcoded Delta Rigelus).
+Landing on it and switching to GatherScene showed the planet's tier
+("Grey tier") and correctly offered only the one resource eligible for
+that planet's generated type (Hydrogen Gas — a Gas-only planet type, per
+Agent 8's category filter), not all MVP resources. Gathering rolled
+visibly tier-shifted values (Density/Potency/Rarity all landed in the
+Grey band) with Hydrogen Gas's null durability still preserved as `N/A`,
+confirming `rollQualityOnPlanet()`'s modifier is actually wired into the
+live gather action rather than just unit-tested in isolation.

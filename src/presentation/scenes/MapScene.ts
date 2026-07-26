@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
-import { content } from "../gameState.ts";
+import { startingPlanet } from "../galaxyState.ts";
 
 export class MapScene extends Phaser.Scene {
   constructor() {
@@ -16,15 +16,13 @@ export class MapScene extends Phaser.Scene {
       color: "#ffffff",
     });
 
-    const planet = content.planets[0];
-
-    this.add.text(16, 110, planet ? planet.name : "No planet loaded", {
+    this.add.text(16, 110, startingPlanet.name, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffd700",
     });
 
-    const landButton = this.add.text(16, 150, `> Land on ${planet?.name ?? "planet"}`, {
+    const landButton = this.add.text(16, 150, `> Land on ${startingPlanet.name}`, {
       fontFamily: "monospace",
       fontSize: "18px",
       color: "#4caf50",

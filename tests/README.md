@@ -134,9 +134,16 @@ values, through Agent 1's schemas, produce correct results in Agent 2's
 formulas with no gap hiding in the wiring. Also confirms a resource can be
 gathered on the real Delta Rigelus with a real `rollQuality()` call.
 
-`galaxy/` covers Agent 8 (Galaxy/Planet Generation Core), owned in spirit
-by the not-yet-separately-implemented Agent 9 the same way Agent 3 tested
-Agent 2 during the MVP. `seededRandom.test.ts` covers determinism (same
+`galaxy/` covers Agent 8 (Galaxy/Planet Generation Core) and Agent 9
+(Phase 2 Validation/Test) together, the same relationship Agent 3 had to
+Agent 2 during the MVP. `agent9PhaseValidation.test.ts` specifically
+closes the two Agent 9 requirements Agent 8's own bundled tests only
+partially covered: each of the 7 tier modifiers (Grey through Gold)
+applied exactly through `rollQualityOnPlanet()` (not just the constant
+table's values, which `data/phase2Constants.test.ts` already asserts), and
+the Planet Type hard filter confirmed across 200 generated planets rather
+than one hand-picked example (a Gas Giant never producing the solid-only
+resource, a Terrestrial never producing the gas-only resource). `seededRandom.test.ts` covers determinism (same
 seed → identical sequence, different seeds → different sequences), the
 [0,1) range, and that `generateRandomSeed()` varies per call.
 `generatePlanet.test.ts` tests each decomposed stage independently:
