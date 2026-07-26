@@ -55,14 +55,30 @@ provides `queueRandom()` for pinning down an exact sequence of random()
 calls. None of this is authoritative content — just shapes for exercising
 Agent 2's functions ahead of Agent 6's real config.
 
-`adapters/saveSystem.test.ts` covers Agent 4's `SaveSystem` testing
-requirements: a save/load round-trip, confirmation that `save()` actually
-writes through the injected `StorageLike` backend (not a parallel
-structure), `load()` returning `null` for a missing key, and an automated
-architectural check that no `.ts` file outside `src/adapters/` references
-`localStorage` directly (walks `src/`, asserts zero matches — this is a
-regression guard, not a one-time manual grep). `fixtures/storage.ts`
-provides `createMemoryStorage()`, an in-memory stand-in for `localStorage`.
+`adapters/saveSystem.test.ts` covers Agent 4's `SaveSystem` behavior: a
+save/load round-trip, confirmation that `save()` actually writes through
+the injected `StorageLike` backend (not a parallel structure), and `load()`
+returning `null` for a missing key. `fixtures/storage.ts` provides
+`createMemoryStorage()`, an in-memory stand-in for `localStorage`.
+
+`adapters/audioManager.test.ts` covers `AudioManager`: `play()` creates and
+starts a fresh voice, a second `play()` on the same sound stops the first
+voice before starting a new one (real `AudioBufferSourceNode`s are
+one-shot), `stop()` stops the active voice and is a safe no-op when nothing
+is playing, and `play()` throws for an unregistered sound id.
+`fixtures/audio.ts` provides `createTrackedRegistry()`, a fake
+`SoundRegistry` whose voices record whether they were started/stopped.
+
+`adapters/networkAdapter.test.ts` confirms the stub's three methods are
+callable no-ops (that's the entire contract for MVP — no WebSocket-backed
+implementation is required yet).
+
+`adapters/browserApiIsolation.test.ts` is Agent 4's shared architectural
+check (covers both `SaveSystem` and `AudioManager` in one pass rather than
+duplicating the file-walk per adapter): walks `src/` via
+`fixtures/sourceFiles.ts`'s `collectTsFiles()` and asserts nothing outside
+`src/adapters/` references `localStorage`, `new Audio(`, or `AudioContext`
+— a regression guard, not a one-time manual grep.
 
 `data/schemas.test.ts` covers Agent 1's JSON-schema testing requirement:
 loads every `src/data/schemas/*.schema.json` file into one Ajv instance and
