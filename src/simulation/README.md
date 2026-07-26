@@ -16,14 +16,33 @@ Rules:
 - Deterministic given a fixed random seed.
 - No hardcoded numeric constant that already exists in `src/data/constants`.
 
-**Status:** all four GDD §5.2 Agent 2 functions are implemented:
+**Status:** all five GDD §5.2 Agent 2 functions are implemented:
 `getTierColor()` (`tierColor.ts`), `rollQuality()` (`rollQuality.ts`),
-`refine()` + `computeBaseAverages()` (`refine.ts`), and `craft()`
-(`craft.ts`), plus `tierVariance.ts`/`refundChance.ts`/`schematicTier.ts`/
-`penaltyCurve.ts` lookup helpers alongside the data-layer tables they read.
-`clamp()` (`clamp.ts`) is the single shared implementation both `refine()`
-and `craft()` call, using `src/data/constants/quality.ts`'s
-`QUALITY_MIN`/`QUALITY_MAX` rather than each hardcoding `1, 100`.
+`refine()` + `computeBaseAverages()` (`refine.ts`), `craft()` (`craft.ts`),
+and `loadContent()` (`loadContent.ts`), plus `tierVariance.ts`/
+`refundChance.ts`/`schematicTier.ts`/`penaltyCurve.ts` lookup helpers
+alongside the data-layer tables they read. `clamp()` (`clamp.ts`) is the
+single shared implementation both `refine()` and `craft()` call, using
+`src/data/constants/quality.ts`'s `QUALITY_MIN`/`QUALITY_MAX` rather than
+each hardcoding `1, 100`.
+
+**`loadContent(rawConfig): LoadedContent`** — added mid-build (per
+CLAUDE.md §5 / this agent's contract) to close a gap where Agent 5 and
+Agent 6 both referenced "Agent 2's loading path" before it existed. Takes
+an object of five `unknown[]` arrays (`resources`, `recipes`,
+`refiningRecipes`, `schematics`, `planets` — every section is an array,
+including `planets`, even though MVP only ever has one, so multi-planet
+content later doesn't need a shape change), validates every item against
+Agent 1's JSON schemas (via `ajv`, schemas imported statically as JSON
+modules — not file I/O performed by this function itself), and returns
+typed arrays. Collects *every* invalid item across every section into one
+error message (not fail-fast on the first problem), naming the section and
+index, e.g. `resources[0]: /applicableQualities must have required
+property 'purity'`. `refiningRecipes` is included alongside `recipes`
+even though it wasn't part of the `loadContent` signature as originally
+specified — `RefiningRecipe` (this agent's own earlier gap-fill addition)
+needs somewhere to load into, since Agent 6 does produce refining-recipe
+content.
 
 **Two underspecified GDD points were resolved by explicit user decision**
 (not silently guessed) and are documented here so they aren't re-litigated:

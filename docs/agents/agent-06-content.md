@@ -42,4 +42,4 @@ Populate the actual MVP content as config data: the 3 resource type definitions,
 ## Definition of Done
 
 - All four config files (resources, planet, refining recipe, crafting recipe + schematic) exist and validate against schema.
-- Agent 7 (Integration) can load this content through Agent 2's loading path with no errors and no missing fields.
+- Agent 7 (Integration) can load this content through Agent 2's `loadContent()` function with no errors and no missing fields.

@@ -38,6 +38,12 @@ Pure functions, each taking typed data in and returning typed data out, with no 
 5. Clamp final result to 1–100.
 6. If a recipe references a quality that is `null`/N/A on a given input, that quality reference must be excluded from the threshold check and from the formula entirely — it must never be treated as a failing/zero value.
 
+### `loadContent(rawConfig: unknown): { resources: Resource[], recipes: Recipe[], schematics: Schematic[], planets: Planet[] }`
+- **Added to close a contract gap** discovered during MVP build-out: Agent 5 and Agent 6's contracts both reference "Agent 2's loading path" for content, but no such function was originally defined here. This is that function.
+- Takes already-read raw JSON (matching Agent 1's schemas) in, and returns the typed `Resource`/`Recipe`/`Schematic`/`Planet` objects the rest of Simulation Core and Presentation consume — parsing/validation logic only.
+- **No file I/O inside this function.** Reading the JSON off disk/network is the caller's job (or a thin wrapper elsewhere); this function's contract is data-in, typed-data-out, consistent with every other function in this agent.
+- This is the path Agent 5 must use to access Agent 6's content — Agent 5 must never import or parse Agent 6's raw JSON files directly (see Agent 5's Must NOT Do).
+
 ## Must NOT Do
 
 - Must not import or reference Phaser, PixiJS, the DOM, `localStorage`, Web Audio, or any browser API.
@@ -52,6 +58,7 @@ Pure functions, each taking typed data in and returning typed data out, with no 
 
 ## Definition of Done
 
-- `rollQuality`, `getTierColor`, `refine`, and `craft` are implemented exactly per GDD Sections 3.2–3.3.
-- Given the MVP content (Igneous Ore, Hydrogen Gas, Autunite Crystal, the Radiant Alloy Bar recipe, and the Ion-Forged Hull Plate recipe), all four functions run correctly end-to-end with no unhandled `null` cases.
+- `rollQuality`, `getTierColor`, `refine`, `craft`, and `loadContent` are implemented exactly per GDD Sections 3.2–3.3 (and the loading-path amendment above).
+- Given the MVP content (Igneous Ore, Hydrogen Gas, Autunite Crystal, the Radiant Alloy Bar recipe, and the Ion-Forged Hull Plate recipe), all functions run correctly end-to-end with no unhandled `null` cases.
+- `loadContent` correctly parses Agent 6's config JSON into typed objects with no errors or missing fields, and is the only sanctioned path other agents use to access content.
 - Zero imports from any rendering, DOM, or browser-API library anywhere in this agent's files.

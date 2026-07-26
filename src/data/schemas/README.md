@@ -22,6 +22,8 @@ agent's contract calls out (a quality value of 101, a negative threshold).
 NodeNext typing gap). Use the named import instead: `import { Ajv } from
 "ajv"`.
 
-No actual "load content from disk and validate it" runtime path exists yet
-— these schemas are proven correct via tests, but wiring them into a real
-loader is still Agent 6/7's job.
+These schemas are also the validation backbone of `src/simulation/loadContent.ts`
+(Agent 2's content-loading path) — imported there as static JSON modules and
+compiled into the same kind of Ajv instance used by this folder's own tests.
+Reading the actual config JSON off disk is still the caller's job (Agent
+6/7); `loadContent()` takes already-parsed JSON in.

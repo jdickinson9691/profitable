@@ -8,7 +8,7 @@ Build the Phaser/PixiJS scenes for the MVP loop: a map screen (trivial, since th
 
 ## Inputs
 
-- Agent 2's public functions (`rollQuality`, `getTierColor`, `refine`, `craft`) — called, never duplicated or reimplemented.
+- Agent 2's public functions (`rollQuality`, `getTierColor`, `refine`, `craft`, `loadContent`) — called, never duplicated or reimplemented.
 - Agent 4's `SaveSystem` and `AudioManager` interfaces — used for any persistence or sound, never bypassed.
 - GDD Section 3.4 (MVP Content) for what's actually being displayed: Delta Rigelus (the planet), Igneous Ore / Hydrogen Gas / Autunite Crystal (resources), the Radiant Alloy Bar refining recipe, and the Ion-Forged Hull Plate crafting recipe.
 
@@ -25,7 +25,7 @@ Build the Phaser/PixiJS scenes for the MVP loop: a map screen (trivial, since th
 - Must not call `localStorage` or Web Audio directly — must go through Agent 4's `SaveSystem`/`AudioManager`.
 - Must not build any DOM-based UI (HTML/CSS overlays) — all UI must render inside the Phaser/PixiJS canvas.
 - Must not use URL parameters, cookies, or browser routing for game state.
-- Must not read Agent 2's internal/private helpers or Agent 6's raw JSON content files directly — content should be accessed through Agent 2's loading path, not read independently.
+- Must not read Agent 2's internal/private helpers or Agent 6's raw JSON content files directly — content must be accessed exclusively through Agent 2's `loadContent()` function, never parsed or imported independently.
 
 ## Testing Requirements
 

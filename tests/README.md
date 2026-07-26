@@ -80,6 +80,13 @@ duplicating the file-walk per adapter): walks `src/` via
 `src/adapters/` references `localStorage`, `new Audio(`, or `AudioContext`
 — a regression guard, not a one-time manual grep.
 
+`simulation/loadContent.test.ts` covers `loadContent()`: a fully valid
+MVP-shaped config parses into typed objects, an all-empty config is
+accepted, an invalid item produces an error naming its section and index
+(e.g. `resources[0]`), multiple invalid items across different sections are
+*all* reported in one error (not just the first), and malformed/non-object
+`rawConfig` is rejected.
+
 `data/schemas.test.ts` covers Agent 1's JSON-schema testing requirement:
 loads every `src/data/schemas/*.schema.json` file into one Ajv instance and
 confirms each accepts a real MVP-shaped example and rejects invalid data —

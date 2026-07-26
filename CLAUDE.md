@@ -176,7 +176,24 @@ The MVP proves the quality math end-to-end on **one hardcoded planet**, before i
 
 ## 5. AI Agent Development Plan
 
-The MVP is built by 7 specialized agents, each with a narrow responsibility and an explicit **contract** (what it reads, what it must produce, what it must never do, and its definition of done) — created in dependency order, Data Schema first and Integration last. See `docs/agents/README.md` for the full index, creation order, and cross-cutting rules that bind every agent; individual contracts live in `docs/agents/agent-0[1-7]-*.md`.
+The MVP is built by 7 specialized agents, each with a narrow responsibility and an explicit **contract** (what it reads, what it must produce, what it must never do, and its definition of done). Full contracts live in `docs/agents/`; this is the index.
+
+**Creation order — each depends on artifacts from the one(s) before it:**
+
+1. **Data Schema Agent** (`docs/agents/agent-01-data-schema.md`) — types, JSON schemas, all constant tables from Section 3. Everything else depends on this. Produces shapes/constants only, no logic.
+2. **Simulation Core Agent** (`docs/agents/agent-02-simulation-core.md`) — `rollQuality`, `getTierColor`, `refine`, `craft`, and `loadContent(rawConfig)` as pure, framework-agnostic functions. Zero Phaser/DOM/browser API. **`loadContent` is the single sanctioned path** for turning Agent 6's raw JSON into typed objects — added mid-build to close a contract gap where Agent 5 and Agent 6 both referenced "Agent 2's loading path" before it was ever defined as an output.
+3. **Validation/Test Agent** (`docs/agents/agent-03-validation-test.md`) — created alongside #2, runs continuously. Tests Agent 2's output against Section 3's documented tables exactly. Reports discrepancies; never patches Agent 2 itself.
+4. **Infrastructure/Adapter Agent** (`docs/agents/agent-04-infrastructure-adapter.md`) — `SaveSystem`, `AudioManager`, stub `NetworkAdapter`. Independent of Agents 2/3's internals; must exist before Agent 5.
+5. **Presentation Agent** (`docs/agents/agent-05-presentation.md`) — Phaser/PixiJS scenes (map, gather, refine, craft). Depends on Agents 2 and 4. Never duplicates formula logic; never touches browser APIs directly; no DOM UI.
+6. **Content Agent** (`docs/agents/agent-06-content.md`) — writes the actual MVP config data (Section 4's resources/planet/recipes) as JSON validated against Agent 1's schemas. Data-only, no code.
+7. **Integration Agent** (`docs/agents/agent-07-integration.md`) — created last. Wires everything together, verifies the full MVP loop, and attributes any gap to the specific upstream agent whose contract wasn't met. Does not introduce new logic or content to patch around problems.
+
+### Cross-Cutting Rules (bind every agent)
+
+- **No agent hardcodes a number that already exists in Agent 1's output.** Change it in exactly one place.
+- **No agent reaches "downward" past its declared inputs** (e.g., Presentation may call Simulation Core's public functions, but never its internals, and never Content's raw JSON directly).
+- **Every agent's output must be independently reviewable against its own Definition of Done**, without needing to understand any other agent's internals.
+- **Mismatches between agents are integration bugs, not license to freelance** — report and attribute, don't silently patch around.
 
 ---
 
