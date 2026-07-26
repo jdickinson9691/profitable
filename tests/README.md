@@ -134,6 +134,32 @@ values, through Agent 1's schemas, produce correct results in Agent 2's
 formulas with no gap hiding in the wiring. Also confirms a resource can be
 gathered on the real Delta Rigelus with a real `rollQuality()` call.
 
+`galaxy/` covers Agent 8 (Galaxy/Planet Generation Core), owned in spirit
+by the not-yet-separately-implemented Agent 9 the same way Agent 3 tested
+Agent 2 during the MVP. `seededRandom.test.ts` covers determinism (same
+seed → identical sequence, different seeds → different sequences), the
+[0,1) range, and that `generateRandomSeed()` varies per call.
+`generatePlanet.test.ts` tests each decomposed stage independently:
+`rollPlanetTier` boundaries (mirroring `getTierColor`'s own boundary
+tests), `choosePlanetType`'s uniform distribution, `getEligibleResources`'
+hard filter (never a refined/crafted resource for any Planet Type),
+`computeSubsetCount`'s exact per-tier percentage and its `max(1, ...)`
+floor with a small pool, `selectResourceSubset`'s reserved-slot rule
+(White+ always gets exactly one specialty, Grey never does, the specialty
+is never crowded out even at count 1, never duplicated into the remaining
+slots), and full `generatePlanet()` determinism/id-scheme/throw-on-no-
+eligible-resources. `generateGalaxy.test.ts` covers exact planet count,
+same-seed reproducibility, unique ids, and the generate-and-return-a-seed
+path. `rollQualityOnPlanet.test.ts` covers the tier modifier, the
+Green-is-neutral case, the specialty bonus stacking additively (not
+replacing) on top of the tier modifier, clamping at 100, null preservation
+for non-applicable qualities, and a no-tier (pre-Phase-2) planet applying
+zero modifier — identical output to calling `rollQuality()` directly.
+`regressionCheck.test.ts` re-runs the exact hand-calculated `refine()`/
+`craft()` cases already proven correct pre-Phase-2, as a dedicated marker
+that Phase 2's hard boundary (GDD §2.6) held — neither function was
+touched.
+
 `data/phase2Constants.test.ts` covers the Agent 1 Phase 2 amendment's
 testing requirements: every row of `PLANET_TIER_MODIFIER`,
 `RESOURCE_SUBSET_PERCENTAGE`, and `PLANET_TYPE_ELIGIBILITY` asserted
