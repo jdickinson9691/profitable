@@ -1,0 +1,13 @@
+{
+  "$id": "schematic.schema.json",
+  "title": "Schematic",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "recipeId": { "type": "string", "minLength": 1 },
+    "tier": { "$ref": "tierColor.schema.json" }
+  },
+  "required": ["id", "name", "recipeId", "tier"],
+  "additionalProperties": false
+}

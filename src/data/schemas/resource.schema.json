@@ -1,0 +1,24 @@
+{
+  "$id": "resource.schema.json",
+  "title": "Resource",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "category": { "type": "string", "minLength": 1 },
+    "applicableQualities": {
+      "type": "object",
+      "properties": {
+        "purity": { "type": "boolean" },
+        "density": { "type": "boolean" },
+        "potency": { "type": "boolean" },
+        "durability": { "type": "boolean" },
+        "rarity": { "type": "boolean" }
+      },
+      "required": ["purity", "density", "potency", "durability", "rarity"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "name", "category", "applicableQualities"],
+  "additionalProperties": false
+}

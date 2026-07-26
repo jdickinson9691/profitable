@@ -1,0 +1,6 @@
+{
+  "$id": "quality.schema.json",
+  "title": "Quality",
+  "type": "string",
+  "enum": ["purity", "density", "potency", "durability", "rarity"]
+}

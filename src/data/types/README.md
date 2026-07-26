@@ -14,6 +14,13 @@ agent imports types from here rather than re-declaring them.
 `quality.ts`, `resource.ts`, `resourceInstance.ts`, `refineResult.ts`,
 `tierVariance.ts`, `refundChance.ts`, `random.ts`, `recipe.ts`,
 `schematicEntity.ts` (the `Schematic` item, distinct from `schematicTier.ts`'s
-formula table), `craftResult.ts`, `penaltyCurve.ts`, and `schematicTier.ts`.
-Only `Planet` (GDD §3.4, needed once Content/Presentation start) remains
-outstanding.
+formula table), `craftResult.ts`, `penaltyCurve.ts`, `schematicTier.ts`, and
+`planet.ts` (minimal per GDD §3.4 — id/name/producible resource ids only, no
+modifiers/seasons/tier).
+
+Also `refiningRecipe.ts` — **not** one of Agent 1's originally-listed 6
+types, added because Agent 6's contract requires a "refining recipe config"
+and nothing else covers that shape (`refine()` itself takes no recipe
+parameter at all — it just averages whatever `ResourceInstance[]` it's
+given; this type exists purely for content/presentation purposes: which
+specific resources combine, in what quantities, into what output).

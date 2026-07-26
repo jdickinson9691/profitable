@@ -1,0 +1,6 @@
+{
+  "$id": "tierColor.schema.json",
+  "title": "TierColor",
+  "type": "string",
+  "enum": ["Grey", "White", "Green", "Blue", "Purple", "Orange", "Gold"]
+}

@@ -64,6 +64,14 @@ architectural check that no `.ts` file outside `src/adapters/` references
 regression guard, not a one-time manual grep). `fixtures/storage.ts`
 provides `createMemoryStorage()`, an in-memory stand-in for `localStorage`.
 
+`data/schemas.test.ts` covers Agent 1's JSON-schema testing requirement:
+loads every `src/data/schemas/*.schema.json` file into one Ajv instance and
+confirms each accepts a real MVP-shaped example and rejects invalid data —
+including the two cases the contract names explicitly (a quality value of
+101, a negative threshold), plus schema-specific cases (unknown/missing
+object keys, an invalid enum value, a zero-quantity recipe input,
+`thresholdQuality` without a matching `thresholdValue`).
+
 **Import specifiers:** use the literal `.ts` extension (not `.js`) for
 relative imports in test/source files — Node's native type-stripping on this
 project's Node version resolves the specifier as-is against the filesystem,
