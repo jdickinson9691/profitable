@@ -1,0 +1,7 @@
+[
+  {
+    "id": "delta-rigelus",
+    "name": "Delta Rigelus",
+    "producibleResourceIds": ["igneous-ore", "hydrogen-gas", "autunite-crystal"]
+  }
+]

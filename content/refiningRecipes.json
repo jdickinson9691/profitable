@@ -1,0 +1,12 @@
+[
+  {
+    "id": "radiant-alloy-bar",
+    "name": "Radiant Alloy Bar",
+    "inputs": [
+      { "resourceId": "igneous-ore", "quantity": 2 },
+      { "resourceId": "autunite-crystal", "quantity": 1 }
+    ],
+    "outputResourceId": "radiant-alloy-bar",
+    "outputQuantity": 1
+  }
+]

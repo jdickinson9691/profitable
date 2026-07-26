@@ -1,0 +1,62 @@
+[
+  {
+    "id": "igneous-ore",
+    "name": "Igneous Ore",
+    "category": "solid",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    }
+  },
+  {
+    "id": "hydrogen-gas",
+    "name": "Hydrogen Gas",
+    "category": "gas",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": false,
+      "rarity": true
+    }
+  },
+  {
+    "id": "autunite-crystal",
+    "name": "Autunite Crystal",
+    "category": "radioactive crystal",
+    "applicableQualities": {
+      "purity": false,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    }
+  },
+  {
+    "id": "radiant-alloy-bar",
+    "name": "Radiant Alloy Bar",
+    "category": "refined-metal",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    }
+  },
+  {
+    "id": "ion-forged-hull-plate",
+    "name": "Ion-Forged Hull Plate",
+    "category": "crafted-item",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    }
+  }
+]

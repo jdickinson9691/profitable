@@ -87,6 +87,14 @@ accepted, an invalid item produces an error naming its section and index
 *all* reported in one error (not just the first), and malformed/non-object
 `rawConfig` is rejected.
 
+`content/mvpContent.test.ts` covers Agent 6's testing requirements against
+the *real* `content/` files (not synthetic fixtures): they load through the
+real `loadContent()` with no errors, the null-quality branches are actually
+exercised (Autunite Crystal/purity, Hydrogen Gas/durability), the crafting
+threshold is a real violable value, the schematic tier is deliberately
+neither Grey nor Gold, and every cross-referenced id (planet → resources,
+recipes → resources, schematic → recipe) resolves to a real entry.
+
 `data/schemas.test.ts` covers Agent 1's JSON-schema testing requirement:
 loads every `src/data/schemas/*.schema.json` file into one Ajv instance and
 confirms each accepts a real MVP-shaped example and rejects invalid data —

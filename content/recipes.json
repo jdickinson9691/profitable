@@ -1,0 +1,12 @@
+[
+  {
+    "id": "ion-forged-hull-plate",
+    "name": "Ion-Forged Hull Plate",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 60 },
+      { "category": "gas", "quantity": 1 }
+    ],
+    "outputResourceId": "ion-forged-hull-plate",
+    "outputQuantity": 1
+  }
+]
