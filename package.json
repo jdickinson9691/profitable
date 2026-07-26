@@ -3,19 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Quality-driven resource gathering, refining, and crafting systems engine (see docs/design/profitable-mvp-gdd.md).",
+  "description": "Quality-driven resource gathering, refining, and crafting systems engine (see docs/profitable-mvp-gdd.md).",
   "engines": {
     "node": ">=23.6.0"
   },
   "scripts": {
     "test": "node --test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "vite",
+    "build": "vite build"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
   },
   "dependencies": {
-    "ajv": "^8.20.0"
+    "ajv": "^8.20.0",
+    "phaser": "^4.2.1"
   }
 }

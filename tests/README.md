@@ -103,6 +103,34 @@ including the two cases the contract names explicitly (a quality value of
 object keys, an invalid enum value, a zero-quantity recipe input,
 `thresholdQuality` without a matching `thresholdValue`).
 
+`presentation/inventory.test.ts` covers the pure inventory module: empty
+creation, immutable `addBatch()`, `totalQuantity()` summing only the
+requested resource, `consume()` removing a batch exactly, splitting a batch
+when only part is needed, FIFO ordering (oldest batch consumed first,
+preserving each batch's own rolled qualities), leaving other resources'
+batches untouched, throwing when there isn't enough, and a no-op at
+amount 0.
+
+`presentation/display.test.ts` covers the pure display-formatting helpers:
+`formatQualityRoll()`/`formatQualityLabel()` map every dimension to its
+value+tier (preserving `null` as `N/A`, not `0`), `describeRefineResult()`
+mentions a refund only when units were actually refunded (singular vs.
+plural), `computeAggregateTier()` averages only non-null dimensions and
+returns `null` when every dimension is null, and `describeCraftResult()`
+reports either the rejection reason or the aggregate tier.
+
+`presentation/loadMvpContent.test.ts` confirms the bundled-JSON-import path
+(distinct from `content/mvpContent.test.ts`'s fs-read path, since this is a
+different loading mechanism — Vite/Node native JSON import attributes vs.
+reading files off disk) loads the real content with no errors and caches
+across repeated calls.
+
+**Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
+aren't exercised by `node:test` — see `src/presentation/README.md` for how
+the full gather → refine → craft loop, including the threshold-penalty and
+craft-rejection-rollback branches, was verified live against a running
+`npm run dev` instance in a real browser.
+
 **Import specifiers:** use the literal `.ts` extension (not `.js`) for
 relative imports in test/source files — Node's native type-stripping on this
 project's Node version resolves the specifier as-is against the filesystem,
