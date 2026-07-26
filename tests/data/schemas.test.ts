@@ -186,6 +186,67 @@ test("planet.schema.json rejects an empty producibleResourceIds list", () => {
   assert.equal(valid, false);
 });
 
+test("planet.schema.json accepts a fully Phase-2-populated planet", () => {
+  const validate = getValidator("planet.schema.json");
+  const valid = validate({
+    id: "planet-1",
+    name: "Planet-1",
+    producibleResourceIds: ["igneous-ore"],
+    planetType: "Terrestrial",
+    tier: "Blue",
+    position: { x: 12, y: -4 },
+    specialtyResourceId: "igneous-ore",
+    discovered: false,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("planet.schema.json accepts a null specialtyResourceId (Grey-tier planets)", () => {
+  const validate = getValidator("planet.schema.json");
+  const valid = validate({
+    id: "planet-2",
+    name: "Planet-2",
+    producibleResourceIds: ["igneous-ore"],
+    planetType: "GasGiant",
+    tier: "Grey",
+    position: { x: 0, y: 0 },
+    specialtyResourceId: null,
+    discovered: false,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("planet.schema.json rejects an invalid planetType value", () => {
+  const validate = getValidator("planet.schema.json");
+  const valid = validate({
+    id: "x",
+    name: "X",
+    producibleResourceIds: ["igneous-ore"],
+    planetType: "Moon",
+  });
+  assert.equal(valid, false);
+});
+
+test("planet.schema.json rejects a position missing a coordinate", () => {
+  const validate = getValidator("planet.schema.json");
+  const valid = validate({
+    id: "x",
+    name: "X",
+    producibleResourceIds: ["igneous-ore"],
+    position: { x: 5 },
+  });
+  assert.equal(valid, false);
+});
+
+test("planetType.schema.json only accepts the 4 documented planet types", () => {
+  const validate = getValidator("planetType.schema.json");
+  assert.equal(validate("Terrestrial"), true);
+  assert.equal(validate("SuperEarth"), true);
+  assert.equal(validate("Neptunian"), true);
+  assert.equal(validate("GasGiant"), true);
+  assert.equal(validate("Moon"), false);
+});
+
 test("quality.schema.json and tierColor.schema.json only accept their documented enum values", () => {
   const quality = getValidator("quality.schema.json");
   const tier = getValidator("tierColor.schema.json");

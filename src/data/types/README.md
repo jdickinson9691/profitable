@@ -24,3 +24,12 @@ and nothing else covers that shape (`refine()` itself takes no recipe
 parameter at all — it just averages whatever `ResourceInstance[]` it's
 given; this type exists purely for content/presentation purposes: which
 specific resources combine, in what quantities, into what output).
+
+**Phase 2 amendment** (`docs/agents/agent-01-amendment-phase2-schema.md`):
+`planetType.ts` (the `PlanetType` enum), `planetTypeEligibility.ts`,
+`planetTierModifier.ts`, `resourceSubsetPercentage.ts` (the 3 new lookup/
+table row shapes), and `planet.ts`'s `Planet` extended with 5 new fields
+(`planetType`, `tier`, `position`, `specialtyResourceId`, `discovered`) —
+**all optional**, so MVP-era content (Delta Rigelus) still validates with
+zero changes to that data. The original 3 MVP fields (`id`, `name`,
+`producibleResourceIds`) are unchanged.

@@ -27,3 +27,11 @@ These schemas are also the validation backbone of `src/simulation/loadContent.ts
 compiled into the same kind of Ajv instance used by this folder's own tests.
 Reading the actual config JSON off disk is still the caller's job (Agent
 6/7); `loadContent()` takes already-parsed JSON in.
+
+**Phase 2 amendment:** `planetType.schema.json` (new) plus `planet.schema.json`
+updated with 5 new optional properties (`planetType`, `tier`, `position`,
+`specialtyResourceId`, `discovered`) — optional specifically so existing
+MVP content validates unchanged (verified against the *real* Delta Rigelus
+record in `tests/content/mvpContent.test.ts`, not just a synthetic example).
+`loadContent.ts` registers `planetType.schema.json` in its Ajv instance
+since `planet.schema.json` now `$ref`s it.

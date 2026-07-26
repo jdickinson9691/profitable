@@ -134,6 +134,20 @@ values, through Agent 1's schemas, produce correct results in Agent 2's
 formulas with no gap hiding in the wiring. Also confirms a resource can be
 gathered on the real Delta Rigelus with a real `rollQuality()` call.
 
+`data/phase2Constants.test.ts` covers the Agent 1 Phase 2 amendment's
+testing requirements: every row of `PLANET_TIER_MODIFIER`,
+`RESOURCE_SUBSET_PERCENTAGE`, and `PLANET_TYPE_ELIGIBILITY` asserted
+independently against Phase 2 GDD §2 (same non-circular pattern as the MVP
+tables), an explicit check that Green — not Grey — is the tier modifier's
+neutral point (the one detail that inverts every other tier table's
+convention), and a hard-filter check (Gas Giant never lists Solid as
+eligible). `data/schemas.test.ts` gained matching schema-level tests: a
+fully Phase-2-populated planet, a null `specialtyResourceId` (Grey-tier
+planets), an invalid `planetType` value, and a `position` missing a
+coordinate. `content/mvpContent.test.ts` gained an explicit
+backward-compatibility test confirming the real, unmodified Delta Rigelus
+record (zero Phase 2 fields) still loads through the extended schema.
+
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how
 the full gather → refine → craft loop, including the threshold-penalty and

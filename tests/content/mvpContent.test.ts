@@ -26,6 +26,27 @@ test("the real content/ files load through loadContent() with no errors", () => 
   assert.equal(loaded.planets.length, 1);
 });
 
+test("Delta Rigelus (pre-Phase-2 content) still loads unchanged through the Phase-2-extended planet schema", () => {
+  // Confirms the Agent 1 Phase 2 amendment is genuinely additive: this
+  // MVP-era planet record has none of the new fields (planetType, tier,
+  // position, specialtyResourceId, discovered) and still validates/loads
+  // with no changes to the file itself.
+  const planets = readJson("planets.json") as Array<{ id: string; planetType?: unknown }>;
+  const deltaRigelus = planets.find((p) => p.id === "delta-rigelus");
+  assert.ok(deltaRigelus, "Delta Rigelus must still be present");
+  assert.equal(deltaRigelus?.planetType, undefined);
+
+  const loaded = loadContent({
+    resources: readJson("resources.json"),
+    recipes: readJson("recipes.json"),
+    refiningRecipes: readJson("refiningRecipes.json"),
+    schematics: readJson("schematics.json"),
+    planets: readJson("planets.json"),
+  });
+  assert.equal(loaded.planets.length, 1);
+  assert.equal(loaded.planets[0]?.id, "delta-rigelus");
+});
+
 test("content exercises the null-quality branch for both the refining and crafting recipes", () => {
   const resources = readJson("resources.json") as Array<{
     id: string;

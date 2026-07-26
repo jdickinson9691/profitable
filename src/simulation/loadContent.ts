@@ -13,6 +13,7 @@ import recipeSchema from "../data/schemas/recipe.schema.json" with { type: "json
 import refiningRecipeSchema from "../data/schemas/refiningRecipe.schema.json" with { type: "json" };
 import schematicSchema from "../data/schemas/schematic.schema.json" with { type: "json" };
 import planetSchema from "../data/schemas/planet.schema.json" with { type: "json" };
+import planetTypeSchema from "../data/schemas/planetType.schema.json" with { type: "json" };
 
 // Compiled once at module load (a static import, not file I/O performed by
 // loadContent() itself) -- consistent with this function's data-in,
@@ -26,6 +27,7 @@ for (const schema of [
   refiningRecipeSchema,
   schematicSchema,
   planetSchema,
+  planetTypeSchema,
 ]) {
   ajv.addSchema(schema);
 }

@@ -110,6 +110,63 @@ The penalty steepens the further below threshold an input falls (5% → 10% → 
 - Schematic fragments that must be combined to unlock the full recipe.
 - Player-discovered variants from unusual crafting quality combinations.
 
+## Galaxy & Planet Generation
+
+**Status: MVP complete, this is the active phase.** The MVP used one hardcoded planet (Delta Rigelus) with no modifiers, seasons, or tier — deliberately thin, per Agent 1's minimal `Planet` type. This section is where that gets replaced with real generation.
+
+**Carried over from Resources & Qualities:** qualities roll randomly on gathering, further modified by the planet the resource is gathered from — full mechanics were deferred to here.
+
+**Carried over from Trading Market:** seasons (for the eventual galactic trade map) are determined at planet generation, based on the planet's tier — planet tier itself is now resolved (see Decided below).
+
+### Decided
+
+- **Planet tier quality roll modifier:** a flat additive modifier applied to the base 1-100 roll before clamping, tied to the same 7-tier structure used everywhere else:
+
+| Planet Tier | Quality Roll Modifier |
+|---|---|
+| Grey | -15 |
+| White | -8 |
+| Green | +0 |
+| Blue | +8 |
+| Purple | +15 |
+| Orange | +22 |
+| Gold | +30 |
+
+`rollQuality()` rolls 1-100 as normal, then this modifier is added before the final clamp to 1-100. Unlike the refiner/crafter/schematic tables (where Grey = no bonus, since those represent skill/equipment investment with a real zero state), **Green is the neutral point here** — a planet isn't something you level up, it's just a place, and most places should be unremarkable. Grey planets carry a genuine penalty, making Gold-tier planets real destinations worth traveling for (ties into the same exploration/exclusivity theme as tier 6-7 crafted goods and unique schematics). The scale is roughly double the refiner/crafter tables' spread since it stacks with (not replaces) those modifiers — a flatter planet modifier would barely register once refiner/crafter/schematic bonuses are also in play.
+- **Planet tier determination:** planet tier is assigned via a **random roll (1-100) at generation time, mapped through the existing tier breakpoint table** (Grey 1-40 / White 41-60 / Green 61-75 / Blue 76-85 / Purple 86-91 / Orange 92-96 / Gold 97-100) — the same mechanism already used everywhere else (`getTierColor()`), rather than inventing a separate planet-rarity system. Because the tier bands are unequal width, this naturally produces mostly Grey/White/Green planets with rare Gold ones, without needing a separately designed distribution curve. Also keeps the color-tier mental model consistent for players across resource quality, refiner/crafter skill, and now planet quality.
+- **Resource distribution across planets:** each planet has a **subset** of producible resources (matches the MVP's `Planet.producibleResourceIds` list shape — a list, not a "produces everything" flag), not a universal "every planet produces everything" model. This creates real reasons to explore/trade, consistent with the exclusivity theme already used for tier 6-7 crafted goods and unique schematics.
+- **Planet type system (governs which resource categories are eligible on a given planet):** adapted from **NASA's real exoplanet classification system** (public-domain science, not fictional IP) rather than an invented or franchise-borrowed system. NASA groups exoplanets into four types — Gas Giant, Neptunian, Super-Earth, and Terrestrial — which map cleanly onto composition, and therefore onto which of the game's resource categories (solid/gas/crystal) a planet can produce:
+
+| Planet Type (NASA-based) | Eligible Resource Categories |
+|---|---|
+| Terrestrial | Solid, Crystal |
+| Super-Earth | Solid, Crystal, (occasionally Gas) |
+| Neptunian | Gas, Crystal (icy) |
+| Gas Giant | Gas |
+
+  Planet Type is a **hard filter** on eligible categories, not a bias — a Gas Giant cannot roll a solid resource. Within the eligible categories for a given planet, a **random subset** of actual resources is drawn to populate that planet's `producibleResourceIds` list, and **the size of that subset scales with planet tier** (a Grey-tier Terrestrial world might get 1-2 solid/crystal resources; a Gold-tier one might get most or all of them) — giving tier a second axis of value (selection, not just quality roll) and reinforcing "Gold planets are real destinations" without a separate mechanic. Planet Type also sets up "specialties" (still open below) as a natural next layer rather than a competing system.
+- **Resource subset selection rule:** subset size is **percentage-based (not a flat count)**, scaled by planet tier, applied against the number of resources eligible for that planet's type — consistent with the ±10% percentage-based approach already used for refining/crafting variance, so the rule doesn't need re-tuning as the resource roster grows:
+
+| Planet Tier | % of eligible resources available |
+|---|---|
+| Grey | 20% |
+| White | 35% |
+| Green | 50% |
+| Blue | 65% |
+| Purple | 80% |
+| Orange | 90% |
+| Gold | 100% (all eligible) |
+
+  `count = max(1, ceil(percentage × number_of_eligible_resources_for_this_planet_type))` — the `max(1, ...)` floor guarantees no planet ever has zero producible resources, and Gold at 100% means a Gold-tier planet of a given type is guaranteed to have every eligible resource for that type. **Selection within that count is a uniform random draw, no weighting** — there's no "common vs. rare resource" flag in the data model yet (only category and quality qualities), so weighting isn't possible without adding one; that would be a separate, smaller decision on the `Resource` type itself if wanted later.
+- **Galaxy structure:** a **fixed, finite set of planets generated once** (not an infinitely expandable/streaming procedural system) — a fixed count is far simpler to test and balance, and nothing in the current design requires live/on-demand generation. Each planet gets a **simple position (e.g., x/y coordinate) at generation time**, even though travel is still post-MVP — cheap to add now, expensive to retrofit later, same reasoning as building the `NetworkAdapter` stub before multiplayer was in scope. **No formal "region" data structure yet** — a flat list of planets, each with a coordinate, is sufficient; regions/sectors (if wanted later, e.g. for trade map flavor) can be derived from coordinates after the fact rather than requiring a hierarchy to be designed now.
+- **Planet specialties (Option A — per-resource specialty):** planets **tier White or higher** get exactly **one** specialty resource, randomly selected from their eligible pool, which receives a **flat +15 quality modifier** on top of the planet's regular tier modifier — roughly one full planet-tier step, so a specialty feels like "this planet is effectively one tier better, but only for this one resource." **Grey-tier planets never get a specialty**, keeping Grey genuinely unremarkable (consistent with Grey also having no refund chance and a quality penalty elsewhere in the design). Solves the "does the specialty always make it into the random subset" problem via a **reserved-slot rule** rather than inflating the subset count: the specialty is selected first, occupies one of the slots the existing percentage-based count formula already produces (unchanged), and the remaining `count - 1` slots are filled via the normal uniform random draw from the eligible pool minus the already-placed specialty. This keeps subset size a pure function of tier — a specialty planet doesn't quietly produce more resources overall than a non-specialty planet of the same tier, only a better version of one.
+- **Planet tier scope: gathering only.** Planet tier's mechanical effect (the quality roll modifier, and the specialty bonus) applies **exclusively to the gather roll** — the refining and crafting formulas remain planet-agnostic, with no additional planet-tier stacking on top of the already-capped crafter tier + schematic tier (+18% combined). This keeps each tier system scoped to one job (planet tier → resource generation, refiner tier → refining, crafter/schematic tier → crafting), avoiding a fourth stacking modifier that would complicate an already carefully-tuned cap. Planet tier still drives real strategic decisions — better planets produce better raw inputs, which then flow through the unchanged downstream formulas — it just doesn't get re-applied at every step. Where to build refining/crafting operations becomes a logistics/convenience question (proximity, travel time, market modifiers) rather than a formula question.
+- **Generation seed and naming:** galaxy/planet generation is **seeded by default**, consistent with Agent 2's existing contract requirement that every random function (`rollQuality`, `refine`, `craft`) be seedable/deterministic for testing — treating galaxy generation as an exception to that rule would be an inconsistency, not a stylistic choice. If no seed is supplied, one is generated randomly and **stored** (not discarded) so the resulting galaxy can be reproduced later — this also gives deterministic testing and debugging for free, and leaves room for a future "share this galaxy" or "new game with code" feature without re-architecting. **Name generation is explicitly deferred** — unlike the seed, it's pure content/flavor with zero mechanical dependencies (nothing else in the design reads or reasons about a planet's name), so building a real procedural name generator now would be scope creep. Use placeholder-style names for now (e.g., `"Planet-{id}"` or a short hardcoded list) to unblock generation logic; a real name generator can be its own isolated task later.
+- **Discovery state:** a simple `discovered: boolean` field is added to the `Planet` type now, defaulting to `false` for every planet except the starting planet — same reasoning as the position/seed fields: cheap to add at generation time, more disruptive to retrofit onto every existing planet record once the trade map actually needs it later. The field carries **no behavior yet** — nothing reads or acts on it until travel/map features exist — it's just present and ready for when they do.
+- **Planet generation attributes needed beyond the MVP's minimal type:** with tier, Planet Type, quality-modifier data, position/coordinate, and discovery state now decided above, the `Planet` type's full MVP-of-this-phase shape is settled — no remaining open attribute questions.
+
+**Section status: all open questions resolved.** Galaxy & Planet Generation is ready to move from design into agent contracts.
+
 ## Trading Market
 
 **Decided:**
@@ -141,11 +198,12 @@ The penalty steepens the further below threshold an input falls (5% → 10% → 
   3. One refining recipe end-to-end (Option A, refund chance, refiner tier).
   4. One crafting recipe + one schematic end-to-end (full unified crafting formula).
   5. Only after 1-4 are working and tunable — move to real galaxy/planet generation.
-- **Tech stack: web stack now (TypeScript + Phaser or PixiJS), migrating to Unity later**, once the design has stabilized through iteration. Driven by wanting AI agents to do heavy lifting on development **for as long as possible** — a plain-text, framework-light web stack is far more agent-friendly (huge training data, automatable browser-based testing, no GUI-editor dependency) than Unity or Godot's editor-driven workflows. Unity was chosen as the eventual migration target over Godot, in part because Unity/C# is also comparatively agent-friendly (larger training data than Godot/GDScript), which helps keep agents effective even after the migration.
+- **Tech stack: web stack now (TypeScript + Phaser), migrating to Unity later**, once the design has stabilized through iteration. Driven by wanting AI agents to do heavy lifting on development **for as long as possible** — a plain-text, framework-light web stack is far more agent-friendly (huge training data, automatable browser-based testing, no GUI-editor dependency) than Unity or Godot's editor-driven workflows. Unity was chosen as the eventual migration target over Godot, in part because Unity/C# is also comparatively agent-friendly (larger training data than Godot/GDScript), which helps keep agents effective even after the migration.
+- **Renderer: Phaser, not PixiJS.** PixiJS is a rendering layer only (no scene management, input abstraction, tweening, or asset pipeline) — Phaser is a full 2D game framework built on similar rendering capability. Chosen because: (1) Phaser's `Scene` class maps directly onto the MVP's four screens (map/gather/refine/craft), giving every agent touching presentation code the same consistent pattern rather than inventing scene structure from scratch; (2) built-in tweening covers the "simple animated 2D screens" requirement natively; (3) built-in input handling (`setInteractive()`, pointer events) is the idiomatic way to satisfy the "no raw DOM input" architectural mandate; (4) larger, more game-specific training data (2D game tutorials/examples, not just rendering primitives), which matters given the agent-first development priority. PixiJS would win only if heavy custom rendering (particle systems, shaders, bespoke effects) were needed — not called for by the MVP's four straightforward screens, though Phaser doesn't preclude Pixi-style custom rendering later if needed (e.g., for the galactic trade map's visual polish).
 - **Migration trigger: tied to the status of the initial (MVP) loop.** Once the hardcoded-planet, quality-roll, refining, and crafting vertical slice (see MVP scope below) is working and feels right, that's the signal to evaluate migrating to Unity — rather than a fixed calendar date or a specific unrelated technical wall. Exact "done" criteria for the initial loop still to be defined (see below).
-- **Architectural mandate:** to keep the eventual Unity migration a *port* rather than a *rewrite*, the game must be built with a **hard separation between simulation and presentation** from day one. All core game logic (quality-roll formulas, refining/crafting math, market state, planet data) should live in plain, framework-agnostic TypeScript — pure functions/data structures with no Phaser/PixiJS objects touching them directly. Phaser/PixiJS code should only handle rendering, animation, input, and the map screen. Everything in the MVP scope above (quality rolls, refining formula, crafting formula) belongs in this framework-agnostic core.
+- **Architectural mandate:** to keep the eventual Unity migration a *port* rather than a *rewrite*, the game must be built with a **hard separation between simulation and presentation** from day one. All core game logic (quality-roll formulas, refining/crafting math, market state, planet data) should live in plain, framework-agnostic TypeScript — pure functions/data structures with no Phaser objects touching them directly. Phaser code should only handle rendering, animation, input, and the map screen. Everything in the MVP scope above (quality rolls, refining formula, crafting formula) belongs in this framework-agnostic core.
 - **Web-only capabilities: isolate, don't eliminate.** The goal isn't avoiding browser APIs entirely (some, like the canvas surface, are just what running in a browser means) — it's making sure they never leak into game logic:
-  - **Avoid entirely:** DOM-based UI (HTML/CSS overlays for menus, market, inventory — render all UI inside the Phaser/PixiJS canvas instead), URL params/cookies/browser routing for game state, and raw DOM input event handling (use the engine's built-in input abstraction instead).
+  - **Avoid entirely:** DOM-based UI (HTML/CSS overlays for menus, market, inventory — render all UI inside the Phaser canvas instead), URL params/cookies/browser routing for game state, and raw DOM input event handling (use the engine's built-in input abstraction instead).
   - **Isolate behind a single swappable adapter each:** persistence (a `SaveSystem` interface wrapping localStorage, swapped for Unity's `PlayerPrefs`/file I/O at migration), audio playback (an `AudioManager` interface wrapping Web Audio, swapped for Unity's audio system later), and eventually networking (a thin interface over WebSockets, built even before multiplayer is in scope, so it costs nothing now and saves a rewrite later).
   - **Fine as-is:** the canvas rendering surface itself — not a migration risk, since Unity also renders to a surface conceptually similarly.
 
@@ -173,8 +231,7 @@ These directly block building the MVP's five steps (hardcoded planet → resourc
 
 These depend on systems explicitly sequenced after the MVP (galaxy/planet generation, trading, crew, travel, map) or on features called out as deferred/post-launch.
 
-**Resources & Qualities (Planets-dependent):**
-- How does planet generation modify quality rolls (per-planet bonus/penalty ranges, planet "specialties," resource availability by planet type)?
+**Resources & Qualities (Planets-dependent — see new Galaxy & Planet Generation section below for the full breakout):**
 - Can qualities be improved after extraction (e.g., a purification step before refining), or are they locked at the point of harvest?
 
 **Refining:**
@@ -202,5 +259,5 @@ These depend on systems explicitly sequenced after the MVP (galaxy/planet genera
 **Engine/Systems Architecture:**
 - What form future multiplayer would take (shared economy across all players, per-world/session economy, something else) — worth flagging early since it could influence how much the single-player architecture should anticipate it, but not required to start MVP work.
 - Exact "done" criteria for the initial loop that would trigger evaluating the Unity migration (e.g., specific playtest/feel benchmarks, or simply "steps 1-4 of the MVP are complete and tunable").
-- Asset pipeline continuity for the eventual Unity migration — sprites/animations built for Phaser/PixiJS generally need reformatting for Unity's import system; worth budgeting for and possibly a reason to keep 2D art simple/atlas-based early so re-import is mechanical rather than a redo.
+- Asset pipeline continuity for the eventual Unity migration — sprites/animations built for Phaser generally need reformatting for Unity's import system; worth budgeting for and possibly a reason to keep 2D art simple/atlas-based early so re-import is mechanical rather than a redo.
 - Whether AI-agent-driven development continues after the Unity migration (decided: yes, as long as possible) raises the same GUI-editor friction concerns flagged for Unity/Godot generally — worth revisiting Unity-specific agent workflows (e.g., scripting via code-first packages, avoiding hand-edited scene/prefab files) closer to migration time.

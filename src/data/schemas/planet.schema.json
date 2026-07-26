@@ -9,7 +9,22 @@
       "type": "array",
       "minItems": 1,
       "items": { "type": "string", "minLength": 1 }
-    }
+    },
+    "planetType": { "$ref": "planetType.schema.json" },
+    "tier": { "$ref": "tierColor.schema.json" },
+    "position": {
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["x", "y"],
+      "additionalProperties": false
+    },
+    "specialtyResourceId": {
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+    },
+    "discovered": { "type": "boolean" }
   },
   "required": ["id", "name", "producibleResourceIds"],
   "additionalProperties": false

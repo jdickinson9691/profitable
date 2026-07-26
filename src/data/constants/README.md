@@ -30,3 +30,11 @@ against itself) — see `tests/simulation/refine.test.ts` and
 `craft.test.ts`'s per-tier `TIER_VARIANCE`/`REFUND_CHANCE`/
 `SCHEMATIC_TIER_CONTRIBUTION` assertions, which hardcode expected values
 independently of these files so a typo here would be caught.
+
+**Phase 2 amendment:** `planetTypeEligibility.ts` (`PLANET_TYPE_ELIGIBILITY`
+— a hard filter per Planet Type, not a bias), `planetTierModifier.ts`
+(`PLANET_TIER_MODIFIER`, whose neutral point is **Green**, not Grey like
+every other tier table — a planet isn't a skill investment; also exports
+`SPECIALTY_QUALITY_MODIFIER = 15`), and `resourceSubsetPercentage.ts`
+(`RESOURCE_SUBSET_PERCENTAGE`, by planet tier). Same independent-assertion
+test pattern applies — see `tests/data/phase2Constants.test.ts`.

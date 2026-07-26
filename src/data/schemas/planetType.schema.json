@@ -1,0 +1,6 @@
+{
+  "$id": "planetType.schema.json",
+  "title": "PlanetType",
+  "type": "string",
+  "enum": ["Terrestrial", "SuperEarth", "Neptunian", "GasGiant"]
+}
