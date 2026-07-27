@@ -76,3 +76,30 @@ the amendment's own contract explicitly forbids guessing this one: the
 exact idle-vs-active output rate is still an open design question, not
 merely an unspecified tunable. Agent 16 must treat it as "not yet
 available," not default to a guessed fraction.
+
+**Phase 5 amendment:** `shipsAndTravelConfig.ts` — like Phase 4, the design
+doc documents the *shape* of each table without example numbers, so these
+are originated defaults, not formalized examples.
+`DISTANCE_TO_TRAVEL_HOURS_PER_UNIT` (0.01) converts raw Euclidean distance
+between two planets' `{x,y}` positions into a base travel time in hours —
+chosen so the maximum possible distance under `generateGalaxy.ts`'s
+`POSITION_RANGE` (±1000, i.e. a ~2828-unit corner-to-corner diagonal)
+yields a base travel time (~28 hours) in the same tens-of-hours range
+every other Phase 4 timing tunable already uses.
+`SHIP_TIER_SPEED_MODIFIER` is a 7-row table of per-tier
+`travelTimeMultiplier`s, strictly decreasing from Grey (`1.0`, exactly
+baseline — no bonus) to Gold (`0.45`, "meaningfully faster" per the design
+doc) — tested for the monotonic-decrease invariant, not hardcoded
+absolute values nobody specified.
+`SHIPYARD_POOL_SIZE_PER_PLANET` (3) and `SHIPYARD_POOL_REFRESH_INTERVAL_HOURS`
+(24) mirror Phase 4's `CREW_POOL_SIZE_PER_PLANET`/`CREW_POOL_REFRESH_INTERVAL_HOURS`
+exactly, applied to ships instead of crew. Tested for structural
+invariants (positive, monotonic by tier) — see `tests/data/phase5Constants.test.ts`.
+
+**`SHIP_PURCHASE_COST_BY_TIER` — a necessary completion.** Agent 20's
+contract requires `purchaseShip()` to deduct "the appropriate cost (cost
+curve is a tunable, same pattern as NPC crew acquisition)," but the GDD's
+own Section 3 constant list never names this table. Added here, keyed by
+the ship's *derived* tier, same tier-scales-cost shape as
+`CREW_HIRE_COST_BY_TIER`, scaled up to reflect a whole ship being a bigger
+investment than a single crew hire.

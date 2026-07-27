@@ -132,3 +132,39 @@ reasoning on each:
 included a corresponding function despite Phase 4 GDD §2.4 deciding the
 mechanic. The function itself (`purchaseCapacity()`) lives in
 `src/crew/`, not presentation — see `src/crew/README.md`.
+
+**Phase 5 amendment** (`docs/agents/agent-01-amendment-phase5-schema.md`):
+`componentCategory.ts` (`ComponentCategory`, the 4-value union), `shipComponent.ts`
+(`ShipComponent`), `ship.ts` (`Ship`), `shipyardPool.ts` (`ShipyardPool`), and
+`voyage.ts` (`Voyage`) — the core new Phase 5 types. `ShipComponent.qualities`
+reuses the existing `QualityRoll` shape directly (components are ordinary
+crafted items, no separate stat system).
+
+Also two necessary additions beyond the amendment's own literal pseudocode:
+- `shipCandidate.ts` (`ShipCandidate`) — a **correction**, same category as
+  Phase 4's `CrewCandidate`/`CrewMember` split: the amendment's pseudocode
+  typed `ShipyardPool.availableShips` as `Ship[]`, but `Ship.ownerId` is
+  required and meaningless for a ship still sitting unpurchased in a
+  shipyard pool. `ShipCandidate` omits only `ownerId`; `shipyardPool.ts`'s
+  `availableShips` field now holds `ShipCandidate[]`.
+- `componentRecipe.ts` (`ComponentRecipe`) — a **necessary completion**
+  closing a genuine gap the amendment's own testing requirement asked it
+  to check for: "confirm the existing `Recipe` type is sufficient... if a
+  gap is found, report it rather than redesigning `Recipe` unilaterally."
+  `Recipe` *is* sufficient, unmodified, for a component recipe's input
+  side (category + threshold inputs — no change needed). A real gap
+  exists on the output side: `Recipe.outputResourceId` is designed to
+  reference a `Resource` (feeding `craft()`'s `applicableQualities`), but
+  `ShipComponent` isn't a `Resource` — nothing links a recipe id to which
+  `ComponentCategory` its `craft()` output should become. `ComponentRecipe`
+  is that small link table (`recipeId` → `category`), populated by Agent
+  23 alongside each component recipe, read by Agent 20's ship-assembly
+  path — `Recipe` itself stays completely untouched.
+
+Also `shipTierSpeedModifier.ts` (`ShipTierSpeedModifier`) and
+`shipPurchaseCost.ts` (`ShipPurchaseCostByTier`) — row shapes for the two
+new tier-keyed constant tables (see `src/data/constants/README.md`).
+`ShipTierSpeedModifier` is deliberately a single multiplier per tier, not
+an asymmetric negative/positive pair like `TierVariance` — travel time has
+no random roll to narrow, so ship tier applies a flat, deterministic
+modifier rather than a variance range.

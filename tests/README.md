@@ -259,6 +259,26 @@ examples and a missing-tier rejection, a valid/rejecting `crewCapacity`
 record, and a `planetCrewPool` example (including one whose nested
 `availableHires` entry is itself invalid, confirming the `$ref` catches it).
 
+`data/phase5Constants.test.ts` covers the Agent 1 Phase 5 amendment's
+tunable constants, same structural-invariant approach as Phase 4's:
+`DISTANCE_TO_TRAVEL_HOURS_PER_UNIT` is a small positive number,
+`SHIP_TIER_SPEED_MODIFIER` covers all 7 tiers with Grey pinned to exactly
+`1.0` (baseline) and each successive tier strictly shortening travel time,
+`SHIPYARD_POOL_SIZE_PER_PLANET`/`SHIPYARD_POOL_REFRESH_INTERVAL_HOURS` are
+positive, and `SHIP_PURCHASE_COST_BY_TIER` covers all 7 tiers and strictly
+increases by tier. `data/schemas.test.ts` gained matching schema-level
+tests: `componentCategory.schema.json`'s 4-value enum,
+`qualityRoll.schema.json` accepting a full roll with a null dimension and
+rejecting a `0` value (never valid), a valid `shipComponent` and rejection
+of an invalid category, a fully-assembled `ship` (all 4 slots filled), the
+amendment's own explicitly-named ship-under-construction case (all 4
+slots `null`), rejection of a missing `ownerId`, a valid `shipCandidate`
+(no `ownerId` field), a `shipyardPool` example whose nested candidate is
+invalid (confirming the `$ref` catches it, same as Phase 4's crew pool
+correction), a `voyage` with real cargo and with an empty cargo array,
+rejection of a zero-quantity cargo entry, and a valid/invalid
+`componentRecipe` link.
+
 `crew/` covers Agent 16 (Crew Core) and Agent 17 (Phase 4 Validation/
 Test) together, the same relationship Agent 9 had to Agent 8 and Agent 12
 to Agent 11. `refreshCrewPool.test.ts` covers the exact pool size,

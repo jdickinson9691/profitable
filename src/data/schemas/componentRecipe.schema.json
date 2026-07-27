@@ -1,0 +1,11 @@
+{
+  "$id": "componentRecipe.schema.json",
+  "title": "ComponentRecipe",
+  "type": "object",
+  "properties": {
+    "recipeId": { "type": "string", "minLength": 1 },
+    "category": { "$ref": "componentCategory.schema.json" }
+  },
+  "required": ["recipeId", "category"],
+  "additionalProperties": false
+}

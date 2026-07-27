@@ -500,6 +500,179 @@ test("planetCrewPool.schema.json rejects a pool containing an invalid crew candi
   assert.equal(valid, false);
 });
 
+function baseQualityRoll(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { purity: 50, density: 50, potency: 50, durability: 50, rarity: 50, ...overrides };
+}
+
+function baseShipComponent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "component-1",
+    category: "engine",
+    qualities: baseQualityRoll(),
+    tier: "Blue",
+    ...overrides,
+  };
+}
+
+function emptyComponentSlots(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return { weapon: null, engine: null, shield: null, cargoHold: null, ...overrides };
+}
+
+test("componentCategory.schema.json only accepts the 4 documented categories", () => {
+  const validate = getValidator("componentCategory.schema.json");
+  assert.equal(validate("weapon"), true);
+  assert.equal(validate("engine"), true);
+  assert.equal(validate("shield"), true);
+  assert.equal(validate("cargoHold"), true);
+  assert.equal(validate("sensor"), false);
+});
+
+test("qualityRoll.schema.json accepts a full roll and preserves null for non-applicable qualities", () => {
+  const validate = getValidator("qualityRoll.schema.json");
+  const valid = validate(baseQualityRoll({ durability: null }));
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("qualityRoll.schema.json rejects a value of 0 (never a valid quality value)", () => {
+  const validate = getValidator("qualityRoll.schema.json");
+  const valid = validate(baseQualityRoll({ purity: 0 }));
+  assert.equal(valid, false);
+});
+
+test("shipComponent.schema.json accepts a valid component", () => {
+  const validate = getValidator("shipComponent.schema.json");
+  const valid = validate(baseShipComponent());
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("shipComponent.schema.json rejects an invalid category", () => {
+  const validate = getValidator("shipComponent.schema.json");
+  const valid = validate(baseShipComponent({ category: "sensor" }));
+  assert.equal(valid, false);
+});
+
+test("ship.schema.json accepts a fully-assembled ship", () => {
+  const validate = getValidator("ship.schema.json");
+  const valid = validate({
+    id: "ship-1",
+    name: "Ship-1",
+    ownerId: "player-1",
+    tier: "Blue",
+    components: emptyComponentSlots({
+      weapon: baseShipComponent({ id: "weapon-1", category: "weapon" }),
+      engine: baseShipComponent({ id: "engine-1", category: "engine" }),
+      shield: baseShipComponent({ id: "shield-1", category: "shield" }),
+      cargoHold: baseShipComponent({ id: "cargo-1", category: "cargoHold" }),
+    }),
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("ship.schema.json accepts a ship under construction with all four component slots null", () => {
+  const validate = getValidator("ship.schema.json");
+  const valid = validate({
+    id: "ship-2",
+    name: "Ship-2",
+    ownerId: "player-1",
+    tier: "Grey",
+    components: emptyComponentSlots(),
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("ship.schema.json rejects a missing ownerId", () => {
+  const validate = getValidator("ship.schema.json");
+  const valid = validate({
+    id: "ship-3",
+    name: "Ship-3",
+    tier: "Grey",
+    components: emptyComponentSlots(),
+  });
+  assert.equal(valid, false);
+});
+
+test("shipCandidate.schema.json accepts a valid pool candidate (no ownerId field)", () => {
+  const validate = getValidator("shipCandidate.schema.json");
+  const valid = validate({
+    id: "candidate-1",
+    name: "Ship-candidate-1",
+    tier: "Green",
+    components: emptyComponentSlots(),
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("shipyardPool.schema.json accepts a valid pool and rejects one containing an invalid candidate", () => {
+  const validate = getValidator("shipyardPool.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    availableShips: [{ id: "candidate-1", name: "Ship-candidate-1", tier: "Green", components: emptyComponentSlots() }],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+
+  const invalid = validate({
+    planetId: "delta-rigelus",
+    availableShips: [{ id: "candidate-1", name: "Ship-candidate-1", tier: "NotATier", components: emptyComponentSlots() }],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(invalid, false);
+});
+
+test("voyage.schema.json accepts a valid voyage with cargo", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-1",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [{ itemId: "ion-forged-hull-plate", quantity: 1 }],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json accepts an empty cargo array", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-2",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json rejects a zero-quantity cargo entry", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-3",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [{ itemId: "ion-forged-hull-plate", quantity: 0 }],
+  });
+  assert.equal(valid, false);
+});
+
+test("componentRecipe.schema.json accepts a valid recipe-to-category link", () => {
+  const validate = getValidator("componentRecipe.schema.json");
+  const valid = validate({ recipeId: "recipe-engine-mk1", category: "engine" });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("componentRecipe.schema.json rejects an invalid category", () => {
+  const validate = getValidator("componentRecipe.schema.json");
+  const valid = validate({ recipeId: "recipe-engine-mk1", category: "sensor" });
+  assert.equal(valid, false);
+});
+
 test("quality.schema.json and tierColor.schema.json only accept their documented enum values", () => {
   const quality = getValidator("quality.schema.json");
   const tier = getValidator("tierColor.schema.json");

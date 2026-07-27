@@ -83,3 +83,35 @@ Covered directly by `tests/data/schemas.test.ts`: valid tier-3-5/tier-6-7
 `crewCandidate` examples, a missing-tier rejection, and a `planetCrewPool`
 example whose nested candidate is invalid, confirming the `$ref` still
 catches it.
+
+**Phase 5 amendment:** `componentCategory.schema.json` (new 4-value enum),
+`shipComponent.schema.json`, `ship.schema.json`, `shipyardPool.schema.json`,
+and `voyage.schema.json` (new) for the core Phase 5 types — same
+not-in-any-content-pipeline situation as Phase 4's crew schemas (ship/
+voyage records are runtime state Agent 20 creates, and there's no
+separate Content pipeline consuming them). Also `qualityRoll.schema.json`
+(new) — the first schema in this project to validate a full 5-key
+`QualityRoll` object (each quality independently `null` or an integer
+1-100); `ShipComponent.qualities` is the first schema-validated type that
+needed one, since prior phases' schema-validated types (`Listing`, etc.)
+only ever stored a derived `marketTier`, never the full underlying
+quality data.
+
+**Agent 20 correction (mirroring Agent 16's `CrewCandidate` precedent
+exactly):** `shipCandidate.schema.json` (new) and `shipyardPool.schema.json`
+updated to `$ref` it instead of `ship.schema.json` for `availableShips` —
+an unpurchased shipyard candidate has no real `ownerId` yet, so it can't
+satisfy `Ship`'s required fields. Covered by `tests/data/schemas.test.ts`:
+a fully-assembled `Ship` (all 4 component slots filled), a ship-under-
+construction example (all 4 slots `null` — the amendment's own
+explicitly-named test case), rejection of a missing `ownerId`, a valid
+`ShipCandidate` (no `ownerId` field at all), and a `shipyardPool` example
+whose nested candidate is invalid, confirming the `$ref` still catches it.
+
+**`componentRecipe.schema.json` (new)** — validates the necessary-
+completion link table described in `src/data/types/README.md`'s Phase 5
+section (`Recipe` itself is confirmed sufficient and stays unmodified;
+this small schema validates the separate `recipeId` → `ComponentCategory`
+mapping instead). `voyage.schema.json` covers both a voyage carrying real
+cargo and one with an empty cargo array, plus rejection of a
+zero-quantity cargo entry.
