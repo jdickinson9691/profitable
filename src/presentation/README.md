@@ -198,6 +198,30 @@ gating on "does an unresolved voyage record exist for this ship at all"
 (`shipVoyages.length > 0`) rather than checking `arrivesAt` — a voyage
 record only leaves the list once `resolveArrival()` succeeds.
 
+**Galactic Map milestone (Agent 25 — Map Verification):** no new scenes or
+state files — this milestone audits the existing Phase 3/5 map rather than
+building anything (see `docs/profitable-map-gdd.md` Section 1). Live
+playtest evidence recorded here for the one property (2.4, "existing map
+sufficient at current scale") that isn't provable by `node:test` alone,
+per this file's own standing note that Phaser scenes need a real browser:
+driven via `npm run dev` + `window.__game`, measuring `TradeMapScene`'s
+actual rendered content bounds against the 800×500 canvas.
+- A **freshly-cleared session** (`localStorage.clear()`, zero player
+  actions taken — the minimum possible content) already renders past the
+  bottom of the canvas: content extends to y=615 against a 500px-tall
+  canvas, 115px unreachable with no scrolling mechanism. After purchasing
+  a ship and resolving one voyage (an ordinary post-Phase-5 state, not a
+  contrived edge case), the overflow grows to y=636.
+- Separately, `scenes/nav.ts`'s shared nav bar (present on all 10 scenes)
+  overflows horizontally by 32px (x=832 against 800px wide) — Phase 3, 4,
+  and 5 each added entries without any of them revisiting the bar's
+  layout budget.
+- Neither is evidence a new galaxy-wide/zoom-out view is needed (a
+  different problem — navigating *many* planets — that 2 discovered
+  planets doesn't present); both are plain legibility/overflow bugs in
+  the existing screen(s), present before this milestone and reported as
+  such. Full write-up: `docs/profitable-map-gdd.md` Section 6.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"

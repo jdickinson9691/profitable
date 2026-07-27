@@ -1,6 +1,6 @@
 # Profitable — Phase 5 Game Design Document: Ships & Travel
 
-Status: design locked (see `profitable-design-questions.md`, "Ships" and "Travel" sections — both fully resolved). This document defines what gets built for Phase 5, in what order, and which AI agents build it. It extends `profitable-mvp-gdd.md`, `profitable-phase2-gdd.md`, `profitable-phase3-gdd.md`, and `profitable-phase4-gdd.md`; all prior scope/formulas are unchanged and not restated here except where Phase 5 touches them directly.
+Status: **Phase 5 complete and verified** (Agent 1 amendment, Agents 20-24 all delivered; full roster committed, 397/397 tests passing, Definition of Done confirmed both live and via automated integration test). This document remains the historical record of the Phase 5 build; see `CLAUDE.md` for current project status and the next milestone (the galactic map).
 
 ---
 

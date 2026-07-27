@@ -450,6 +450,28 @@ references), all 4 Planet Types have a preference entry, and
 `resources.json`'s `itemTier` values reflect the raw(1) < refined(2) <
 crafted(3+) pipeline-depth ordering.
 
+`integration/mapVerification.test.ts` is Agent 25's own verification evidence
+for the Galactic Map milestone (`docs/profitable-map-gdd.md` Section 6) —
+unlike every other `integration/*.test.ts` file, this one audits for the
+*absence* of things rather than chaining a working feature end-to-end,
+mirroring `adapters/browserApiIsolation.test.ts`'s own "scan `src/` for a
+forbidden pattern" shape. Confirms no `scanner`/`probe` code exists
+anywhere, confirms `discovered: true` is written in exactly the one
+documented bootstrap-override file and nowhere else (a regression guard
+that also encodes this milestone's own finding: arrival never extends
+discovery beyond the two hardcoded planets), confirms no `season`/
+`emergency` mechanic exists in real code anywhere (comments are stripped
+before matching, since `TradeMapScene.ts`'s own header comment legitimately
+narrates that eventual intent without implementing it), and confirms
+`getGlobalPrice()` reads live state with no internal caching (two calls
+with different market-state inputs return different, non-memoized
+results) and that `PlanetMarketState` carries no staleness/timestamp
+field. See the GDD's Section 6 for the full narrative report, including
+the two genuine gaps this audit surfaced (seasons/emergencies were never
+implemented; discovery-by-travel isn't wired up) and a live-measured
+canvas-overflow finding that isn't covered by an automated test (Phaser
+scenes aren't exercised by `node:test` — see the note below).
+
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how
 the full gather → refine → craft loop, including the threshold-penalty and

@@ -53,6 +53,13 @@ Phase 4 is complete; these extend the roster for the ships-and-travel milestone.
 27. [`agent-23-ships-travel-content.md`](agent-23-ships-travel-content.md) — writes example component recipes (one per category). Depends on the Phase 5 schema amendment only; can run in parallel with 20–22.
 28. [`agent-24-phase5-integration.md`](agent-24-phase5-integration.md) — wires component crafting through ship assembly, purchase, travel, and voyage resolution into the existing extended loop, and confirms Phase 3's deferred remote-sale travel mechanic now works for real. Created last.
 
+## Galactic Map
+
+Phase 5 is complete. Unlike every prior phase, this milestone's design questions all resolved to "the existing system already does this" — so this is a **verification phase, not a construction phase**. No schema amendment, no Core/Presentation/Content agents. Full scope: `profitable-map-gdd.md`.
+
+29. [`agent-25-map-verification.md`](agent-25-map-verification.md) — audits the existing Phase 3 (trade layer) and Phase 5 (travel layer) implementation against four decided properties (no advance emergency warning, no map staleness, no scanner mechanic, existing map sufficient at current scale). Produces evidence, not new production code.
+30. [`agent-26-map-confirmation.md`](agent-26-map-confirmation.md) — produces the final milestone report, confirms none of the four deferred future ideas were implemented, and routes any gap found to the correct upstream agent as a bug report. Created last.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:
@@ -65,6 +72,7 @@ These rules aren't restated in full in every file, but every agent above is boun
 - **(Phase 3) The same boundary extends to Trading.** Nothing in Phase 3 may modify Agent 2's `refine()`/`craft()` or Agent 8's galaxy/planet generation logic to accommodate market data. Trading reads from and writes to its own new data shapes, never reaching into the simulation core's internals. No agent implements market manipulation *detection* logic — explicitly deferred to whenever multiplayer is built (see `profitable-phase3-gdd.md` Section 2.11).
 - **(Phase 4) The same boundary extends to Crew.** Nothing in Phase 4 may modify Agent 2's `refine()`/`craft()` internals, Agent 8's generation logic, or Agent 11's trading logic to accommodate crew data — Crew Core *calls* `craft()` multiple times simultaneously but never alters what it does. No agent implements combat, travel-hazard, poaching, or any random/permadeath crew-loss mechanic — explicitly deferred to a future travel/danger milestone that doesn't exist yet (see `profitable-phase4-gdd.md` Section 2.7).
 - **(Phase 5) The same boundary extends to Ships & Travel.** Nothing in Phase 5 may modify Agent 2's `refine()`/`craft()`, Agent 8's generation logic, Agent 11's trading logic, or Agent 16's crew logic to accommodate ship/travel data. No agent implements encounters, combat, or any travel-hazard mechanic — explicitly deferred (see `profitable-phase5-gdd.md` Section 2.9). The Phase 3 remote tier 6-7 sale mechanic must resolve through a real `Voyage`, not a stub — Agent 24's integration report must confirm this connection actually works.
+- **(Galactic Map) No agent may implement any of the four deferred future ideas** (emergency advance warning, map data staleness, a scanner/probe mechanic, a new galaxy-wide/zoom-out view) under any framing, including "just a small version while I'm in here." This milestone's job is to verify the existing map already works as designed, not to add features to it (see `profitable-map-gdd.md` Section 2.5). A discrepancy found during verification is a bug against the agent that built the affected system, not new scope for the verification agents to fix directly.
 
 ## Relationship to the GDD
 

@@ -12,10 +12,10 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: the galactic map ready to start.** MVP, Phase 2 (galaxy/planet generation), Phase 3 (trading loop), Phase 4 (crew crafters), and Phase 5 (ships & travel) are all complete and verified. **Next milestone: the galactic map** — see Section 6 below.
+**Current phase: Galactic Map verification milestone — complete.** MVP, Phase 2, Phase 3, Phase 4, Phase 5, and the Galactic Map verification pass are all done. The Galactic Map's design questions all resolved to "the existing system already does this," so this milestone verified that claim (Agents 25/26) rather than building new features — verification surfaced **3 attributable bugs in the Phase 3/5 implementation**, carried forward as open work, not new scope. See `profitable-map-gdd.md` Sections 6-7 and Section 6 below.
 
-**Full development order:**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here]**.
+**Full development order (all planned phases complete):**
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here — verification complete, 3 open bugs to address]**.
 
 ---
 
@@ -202,12 +202,19 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 ## 6. Current Milestone & What's Still Out of Scope
 
-**Phase 5 (Ships & Travel) is complete and verified.** Agent 24 (Phase 5 Integration) confirmed the GDD Section 1 Definition of Done in full: a player can craft a ship component of every category (weapon/engine/shield/cargo hold) via the existing crafting system, purchase a whole ship from a generated planet's shipyard pool, see its tier correctly derived from its installed components, select a discovered destination on the existing (now travel-extended) trade map — no second map screen — see a travel time reflecting both distance and ship tier, and initiate/resolve a voyage that delivers the ship to its destination. Verified two ways: live end-to-end via `npm run dev` (see `src/presentation/README.md`'s Phase 5 playtest section, including a hand-verified travel-time example matched to the real generated planet positions), and via `tests/integration/phase5Loop.test.ts` (non-mocked, chaining the real Agent 20 functions with real content). The Phase 3 remote tier 6-7 sale mechanic — deferred at the time to "the Travel milestone" — is now confirmed working through a real `Voyage`: the item travels rather than teleporting, and only becomes an active planet-market `Listing` after `resolveArrival()` actually delivers it, never before (same test file, dedicated case, using a synthetic tier-6 fixture since no shipped MVP item reaches tier 6). `refine()`/`craft()` (Agent 2), galaxy generation (Agent 8), trading core (Agent 11), and crew core (Agent 16) remain provably unmodified — `git status` shows zero changes to those files/directories across the whole of Phase 5.
+**Galactic Map verification is complete.** Agent 25 audited the existing Phase 3 (trade layer) + Phase 5 (travel layer) map against the four decided properties (`docs/profitable-map-gdd.md` Section 2); Agent 26 confirmed the milestone's own Definition of Done is met — the milestone's job was "verify and report," not "make everything perfect," and that verification is done. Two properties passed cleanly (no staleness; no scanner/probe code exists). Two surfaced **real, attributed bugs in the underlying Phase 3/5 implementation** — not new Galactic Map scope, and not fixed by this milestone per its own "report, don't patch" rule:
 
-**Next up (ready to start): the galactic map**, beyond what trading and travel already needed. No agent contracts exist for this yet.
+1. **Seasons and emergencies were never implemented** — only baseline drift exists as a live trade-map data layer, despite the Phase 3 GDD's own Definition of Done naming all three. Bug against Agents 1/11/12/15.
+2. **Discovery is never extended by travel** — only the 2 planets hardcoded at session bootstrap (`galaxyState.ts`) are ever `discovered: true`; arriving at a planet via a real `Voyage` never marks it discovered. Bug against Agents 22/24.
+3. **`TradeMapScene` and the shared nav bar (`scenes/nav.ts`) both overflow the 800×500 canvas** at the current real scale (live-measured, not hypothetical) — no scrolling mechanism exists. Bug against Agents 13/18/22.
+
+Full evidence and per-property detail: `docs/profitable-map-gdd.md` Sections 6-7. **These three items are the natural next work**, if/when picked up — plain bug fixes against existing agents' own contracts, not a new milestone requiring new design questions or a new agent roster.
+
+**No further phase is currently planned beyond this.** The originally-scoped development order (galaxy → planets → resources → crafting → trading → crew → ships/travel → galactic map) is now fully built and verified.
 
 **Still explicitly out of scope:**
 
+- The four recorded-but-deferred map ideas (emergency advance warning, map staleness, a scanner/probe mechanic, a new galaxy-wide view) — until a real need for one emerges
 - Encounters during travel, combat, and any travel-hazard mechanic (deferred; intended shape recorded in the design doc, not built)
 - Multiplayer (planned future evolution, single-player only for now)
 
