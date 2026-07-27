@@ -104,3 +104,23 @@ a fixed enum the design hasn't decided — the same must-not-invent rule
 this amendment's contract applies to the background/idle rate constant —
 `Profession` is a free-form string for now; a real enum can replace it
 without changing `CrewMember`'s shape once the taxonomy is decided.
+
+**Agent 16 (Crew Core) additions** — discovered while implementing
+`docs/agents/agent-16-crew-core.md`; see `src/crew/README.md` for the full
+reasoning on each:
+- `crewCandidate.ts` (`CrewCandidate`) — a **correction**, not a pure
+  addition: `PlanetCrewPool.availableHires` was typed as `CrewMember[]` by
+  the amendment, but an unhired pool candidate has no real
+  `hiredByPlayerId`/`hiredAt`/`wageAmount`/`lastPaidAt` yet.
+  `planetCrewPool.ts`'s `availableHires` field now holds `CrewCandidate[]`.
+- `craftAction.ts` (`CraftAction`) — bundles the inputs/recipe/schematic
+  tier a crafter (player or crew member) is working, so `assignToCraft()`/
+  `resolveBackgroundCrafting()` have something concrete to pass to
+  `craft()` alongside the crafter's own tier.
+- `hireResult.ts`, `assignResult.ts`, `backgroundResult.ts`,
+  `paymentResult.ts`, `attritionResult.ts`, `dismissResult.ts` — the
+  return types Agent 16's contract names for each of its 7 functions but
+  that the amendment never defined. The first three mirror the existing
+  `CraftResult`/`PurchaseResult` discriminated-union pattern (a rejected
+  hire, a not-yet-available background rate, etc. are normal business
+  outcomes the caller must always handle).

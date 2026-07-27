@@ -6,7 +6,7 @@
     "planetId": { "type": "string", "minLength": 1 },
     "availableHires": {
       "type": "array",
-      "items": { "$ref": "crewMember.schema.json" }
+      "items": { "$ref": "crewCandidate.schema.json" }
     },
     "lastRefreshedAt": { "type": "integer", "minimum": 0 }
   },

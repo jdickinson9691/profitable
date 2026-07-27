@@ -232,9 +232,45 @@ guessing — rather than silently defaulted to some fraction.
 `data/schemas.test.ts` gained matching schema-level tests: a valid tier
 3-5 crew member (`profession: null`), a valid tier 6-7 crew member with a
 profession set, an active-vs-idle example, rejection of a non-positive
-`wageAmount` and an invalid `status`, a valid/rejecting `crewCapacity`
+`wageAmount` and an invalid `status`, valid tier 3-5/6-7 `crewCandidate`
+examples and a missing-tier rejection, a valid/rejecting `crewCapacity`
 record, and a `planetCrewPool` example (including one whose nested
 `availableHires` entry is itself invalid, confirming the `$ref` catches it).
+
+`crew/` covers Agent 16 (Crew Core) and Agent 17 (Phase 4 Validation/
+Test) together, the same relationship Agent 9 had to Agent 8 and Agent 12
+to Agent 11. `refreshCrewPool.test.ts` covers the exact pool size,
+determinism given a seed (and genuine variation without one), unique
+candidate ids, and — across 50 generated pools, not one hand-picked
+example — that tier 6-7 candidates always have a profession and tier 3-5
+never do. `hireCrew.test.ts` covers the exact tier-scaled cost deduction,
+the resulting `CrewMember`'s exact shape, rejection for a candidate not in
+the pool, rejection at capacity, and rejection on insufficient funds.
+`assignToCraft.test.ts` covers the status/`assignedCraftId` transition and
+confirms the crafted output matches the same hand-calculated value already
+proven in `tests/trading/regressionCheck.test.ts` (Green crafter tier +
+Blue schematic), proving `craft()` is called for real, not reimplemented.
+`simultaneity.test.ts` is Agent 17's explicit requirement: the player's
+own craft plus three differently-tiered crew members' crafts are computed
+in the same pass and produce three genuinely distinct results — proving
+nothing is silently serialized into a single-crafter-at-a-time queue.
+`resolveBackgroundCrafting.test.ts` covers the not-yet-available path
+(the real default, since `BACKGROUND_IDLE_OUTPUT_RATE` is `null`), that
+`lastCheckedAt` still advances even then, the exact unit-count computation
+when a rate is supplied, that elapsed time comes only from the two real
+timestamps (no caller-supplied duration exists to override it with), and
+that a simulated week-long absence is still capped at
+`ELAPSED_TIME_CAP_HOURS` rather than credited in full. `payUpkeep.test.ts`
+covers the not-due/paid/insufficient-funds paths and the exact wage
+deduction. `checkAttrition.test.ts` covers the grace-period boundary
+exactly (not before, not after), that the clock runs from `lastPaidAt` not
+`hiredAt`, and that repeated calls with identical inputs always produce
+the identical result (no hidden randomness anywhere in attrition).
+`dismissCrew.test.ts` covers success for the real owner and rejection for
+a non-owner. `regressionCheck.test.ts` re-runs the same hand-calculated
+`refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()` cases proven
+correct pre-Phase-4, confirming Agents 2, 8, and 11 remain untouched now
+that crew core exists alongside them.
 
 `simulation/aggregateTier.test.ts` is a light direct check at the layer
 that now owns `computeAggregateTier()` (moved from `src/presentation/`, see

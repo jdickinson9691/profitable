@@ -71,6 +71,15 @@ directly by `tests/data/schemas.test.ts` (auto-discovered, same as every
 other schema here) with valid tier-3-5 (`profession: null`) and tier-6-7
 (`profession` set) examples, an active-vs-idle example, and rejection
 cases for a non-positive `wageAmount` and an invalid `status` value.
-`planetCrewPool.schema.json`'s `availableHires` array `$ref`s
-`crewMember.schema.json` directly, so an invalid nested crew member is
-caught the same way an invalid nested object would be anywhere else.
+`planetCrewPool.schema.json`'s `availableHires` array originally `$ref`d
+`crewMember.schema.json` directly, per the amendment's own pseudocode.
+
+**Agent 16 correction:** `crewCandidate.schema.json` (new) and
+`planetCrewPool.schema.json` updated to `$ref` it instead of
+`crewMember.schema.json` for `availableHires` — see
+`src/data/types/README.md`'s Agent 16 section for why (an unhired pool
+candidate can't satisfy `CrewMember`'s required hire-specific fields).
+Covered directly by `tests/data/schemas.test.ts`: valid tier-3-5/tier-6-7
+`crewCandidate` examples, a missing-tier rejection, and a `planetCrewPool`
+example whose nested candidate is invalid, confirming the `$ref` still
+catches it.

@@ -444,6 +444,24 @@ test("crewMember.schema.json rejects an invalid status value", () => {
   assert.equal(valid, false);
 });
 
+test("crewCandidate.schema.json accepts a valid tier 3-5 candidate (profession null)", () => {
+  const validate = getValidator("crewCandidate.schema.json");
+  const valid = validate({ id: "candidate-1", tier: "Blue", profession: null });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewCandidate.schema.json accepts a valid tier 6-7 candidate with a profession", () => {
+  const validate = getValidator("crewCandidate.schema.json");
+  const valid = validate({ id: "candidate-1", tier: "Gold", profession: "unspecified-profession-1" });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewCandidate.schema.json rejects a missing tier", () => {
+  const validate = getValidator("crewCandidate.schema.json");
+  const valid = validate({ id: "candidate-1", profession: null });
+  assert.equal(valid, false);
+});
+
 test("crewCapacity.schema.json accepts a valid capacity record", () => {
   const validate = getValidator("crewCapacity.schema.json");
   const valid = validate({ playerId: "player-1", baseCapacity: 2, purchasedSlots: 1 });
@@ -456,11 +474,11 @@ test("crewCapacity.schema.json rejects a negative purchasedSlots", () => {
   assert.equal(valid, false);
 });
 
-test("planetCrewPool.schema.json accepts a valid pool with crew member entries", () => {
+test("planetCrewPool.schema.json accepts a valid pool with crew candidate entries", () => {
   const validate = getValidator("planetCrewPool.schema.json");
   const valid = validate({
     planetId: "delta-rigelus",
-    availableHires: [baseCrewMember({ id: "candidate-1" })],
+    availableHires: [{ id: "candidate-1", tier: "Blue", profession: null }],
     lastRefreshedAt: 0,
   });
   assert.equal(valid, true, JSON.stringify(validate.errors));
@@ -472,11 +490,11 @@ test("planetCrewPool.schema.json accepts an empty pool", () => {
   assert.equal(valid, true, JSON.stringify(validate.errors));
 });
 
-test("planetCrewPool.schema.json rejects a pool containing an invalid crew member", () => {
+test("planetCrewPool.schema.json rejects a pool containing an invalid crew candidate", () => {
   const validate = getValidator("planetCrewPool.schema.json");
   const valid = validate({
     planetId: "delta-rigelus",
-    availableHires: [baseCrewMember({ status: "hired" })],
+    availableHires: [{ id: "candidate-1", tier: "NotATier", profession: null }],
     lastRefreshedAt: 0,
   });
   assert.equal(valid, false);
