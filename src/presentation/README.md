@@ -60,10 +60,13 @@ dev` / `npm run build`).
   `refine()`/`craft()` see each batch's real rolled qualities.
 - `display.ts` — pure "what should this show" formatting (tier labels,
   refund/reject summaries, the tier-3-7 aggregate-color stub from GDD
-  §3.1 — a display concern per the GDD's own wording, computed by calling
-  the real `getTierColor()`, never reimplementing breakpoint logic).
-  Directly unit-tested — this is where "does the displayed number match
-  what Agent 2 actually computed" is provable without a renderer.
+  §3.1, computed by calling the real `getTierColor()`, never reimplementing
+  breakpoint logic). Directly unit-tested — this is where "does the
+  displayed number match what Agent 2 actually computed" is provable
+  without a renderer. **Phase 3 note:** `computeAggregateTier()` itself now
+  lives in `src/simulation/aggregateTier.ts` (Agent 11's `Listing.marketTier`
+  needs the same formula, and trading core can't depend on presentation) —
+  `display.ts` re-exports it, so this file's own usage is unchanged.
 - `scenes/nav.ts`, `scenes/tierSelector.ts` — shared UI helpers (persistent
   nav bar; the 7-tier picker used by both Refine and Craft).
 - `scenes/MapScene.ts`, `GatherScene.ts`, `RefineScene.ts`, `CraftScene.ts`

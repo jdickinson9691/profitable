@@ -44,6 +44,15 @@ specified — `RefiningRecipe` (this agent's own earlier gap-fill addition)
 needs somewhere to load into, since Agent 6 does produce refining-recipe
 content.
 
+**Phase 3 addition:** `aggregateTier.ts` (`computeAggregateTier()`) — moved
+here from `src/presentation/display.ts`, where it originally lived as a
+display-only concern (GDD §3.1's straight-average-to-tier stub). Relocated
+because `src/trading` (Agent 11)'s `Listing.marketTier` (Phase 3 GDD §2.4)
+needs the identical formula, and trading core must not import from
+`src/presentation` — presentation depends on the simulation/trading layer,
+never the reverse. `display.ts` now re-exports it rather than keeping a
+second copy, so existing callers are unaffected.
+
 **Two underspecified GDD points were resolved by explicit user decision**
 (not silently guessed) and are documented here so they aren't re-litigated:
 

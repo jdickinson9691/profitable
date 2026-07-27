@@ -19,6 +19,16 @@ export const BASELINE_DRIFT_PERCENT = 0.02;
 export const PRICE_FLOOR_PERCENT = 0.5;
 export const PRICE_CEILING_PERCENT = 1.5;
 
+// §2.6 -- necessary completion, added while implementing Agent 11
+// (applyRecovery): the GDD says prices "drift back toward base over time
+// when untraded" and that the rate is tunable, but names no distinct
+// recovery-rate constant of its own (only BASELINE_DRIFT_PERCENT, which
+// §2.6's own text ties specifically to "each unit sold/bought," a
+// per-trade effect, not a per-time-elapsed one). Recovery needs its own
+// rate since it moves toward basePrice on the clock, not on trade volume.
+// Fraction of the remaining gap to basePrice closed per elapsed hour.
+export const PRICE_RECOVERY_PERCENT_PER_HOUR = 0.01;
+
 // §2.7 -- global price is derived from the best live planet price, never
 // better for the player: buy = lowest planet sell price + markup, sell =
 // highest planet buy price - discount.

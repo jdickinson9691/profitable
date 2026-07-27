@@ -48,3 +48,10 @@ values (per the design doc's own framing): `LISTING_EXPIRY_HOURS` (72),
 `GLOBAL_LISTABLE_MAX_ITEM_TIER`/`MAX_ITEM_TIER` (5/7 — the item-tier range
 that `Resource.itemTier` validates against). Same independent-assertion test
 pattern — see `tests/data/phase3Constants.test.ts`.
+
+Also `PRICE_RECOVERY_PERCENT_PER_HOUR` (0.01) — added while implementing
+Agent 11 (Trading Core), not part of the original amendment: `applyRecovery`
+needs its own tunable rate distinct from `BASELINE_DRIFT_PERCENT` (which
+GDD §2.6 ties specifically to per-unit-traded volume, not elapsed time), and
+none existed. Added here, the single source every trading formula reads,
+rather than embedded in Agent 11's own logic file.

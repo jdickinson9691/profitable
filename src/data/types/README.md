@@ -55,3 +55,20 @@ already (see `refiningRecipe.ts`'s and `recipe.ts`'s `outputResourceId`) —
 there's no separate "item" type to hang this on. Optional for the same
 backward-compatibility reason as the Phase 2 `Planet` fields: MVP/Phase 2
 content sets no `itemTier` and still validates unchanged.
+
+**Agent 11 (Trading Core) additions** — 3 more necessary completions,
+discovered while implementing `docs/agents/agent-11-trading-core.md`
+against the Phase 3 amendment above; see `src/trading/README.md` for the
+full reasoning on each:
+- `tradeDirection.ts` (`TradeDirection = "buy" | "sell"`), shared by
+  `applyDrift`, `getGlobalPrice`, and `purchaseListing` rather than each
+  retyping the same union independently.
+- `purchaseResult.ts` (`PurchaseResult`, a discriminated union over
+  `success` — `PurchaseSucceeded`/`PurchaseRejected`), the return type
+  Agent 11's contract names for `purchaseListing()` but that the amendment
+  never defined. Modeled on the existing `CraftResult` pattern, since a
+  rejected purchase (self-trade, insufficient quantity) is a normal
+  business outcome the caller must always handle, not an exceptional case.
+- `listingExpiry.ts` (`ReturnAction`, `ListingExpiryResult`), the return
+  shape Agent 11's contract names for `expireListings()` but that the
+  amendment never defined.

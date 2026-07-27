@@ -4,6 +4,9 @@ import type { RefineResult } from "../data/types/refineResult.ts";
 import type { CraftResult } from "../data/types/craftResult.ts";
 import { QUALITIES } from "../data/types/quality.ts";
 import { getTierColor } from "../simulation/tierColor.ts";
+import { computeAggregateTier } from "../simulation/aggregateTier.ts";
+
+export { computeAggregateTier };
 
 // Pure "what should this show" helpers, kept separate from any Phaser
 // object so they're directly unit-testable (no canvas/renderer needed).
@@ -53,21 +56,6 @@ export function describeRefineResult(result: RefineResult): string {
   }
   const unitWord = result.refundUnits === 1 ? "unit" : "units";
   return `Output tier: ${result.outputTier} (+${result.refundUnits} refunded ${unitWord})`;
-}
-
-// GDD SS3.1: tiers 3-7 (crafted items) aggregate the 5 qualities into one
-// overall display tier -- "exact aggregation formula is post-MVP, stub
-// with a straight average for now." That stub is a display concern (used
-// "at-a-glance," per the GDD), so it lives here rather than in Agent 2 --
-// but it calls the real getTierColor() rather than reimplementing any
-// breakpoint logic itself.
-export function computeAggregateTier(qualities: QualityRoll): TierColor | null {
-  const values = QUALITIES.map((quality) => qualities[quality]).filter(
-    (value): value is number => value !== null,
-  );
-  if (values.length === 0) return null;
-  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return getTierColor(average);
 }
 
 export function describeCraftResult(result: CraftResult): string {

@@ -198,6 +198,44 @@ contract's explicitly-named negative-`pricePerUnit` rejection, an invalid
 and rejecting a zero `basePrice`, and `wallet.schema.json` accepting a valid
 wallet and rejecting negative `credits`.
 
+`simulation/aggregateTier.test.ts` is a light direct check at the layer
+that now owns `computeAggregateTier()` (moved from `src/presentation/`, see
+that file's own comment) — `presentation/display.test.ts` still covers it
+too, via `display.ts`'s re-export, so this isn't duplicate coverage of the
+same call path.
+
+`trading/` covers Agent 11 (Trading Core) and Agent 12 (Phase 3 Validation/
+Test) together, the same relationship Agent 9 had to Agent 8.
+`createListing.test.ts` covers the tier 6-7 global-listing rejection (and
+that tiers 1-5 work on both markets), a missing `itemTier` treated as
+unrestricted, `marketTier` matching a hand-calculated
+straight-average-to-tier value, `expiresAt` derived from
+`LISTING_EXPIRY_HOURS`, and trade attribution. `purchaseListing.test.ts`
+covers self-trade rejection (tested explicitly and directly, per the
+contract's own instruction not to just infer it from other tests), partial
+purchases decrementing without closing, a purchase that exhausts quantity
+closing the listing, the flat fee deducted exactly and confirmed to net
+zero against `totalPaid` (neither paid to buyer nor seller), the
+required/forbidden pairing of a `PlanetMarketState` with planet vs. global
+listings, and that a planet purchase triggers `applyDrift` in the `'buy'`
+direction. `drift.test.ts` covers `applyDrift`'s exact per-unit percentage,
+that successive units diminish rather than move linearly, the floor/ceiling
+holding under a 1000-unit stress test, and `applyRecovery`'s exact
+gap-decay formula in both directions (including that it approaches but
+never overshoots `basePrice`). `globalPrice.test.ts` covers the exact
+markup/discount arithmetic, that only matching `itemId` entries are
+considered, the explicit no-planet-trades-this-item case, and the
+contract's "critical invariant" test — 200 randomized planet-price states
+each for buy and sell, confirming the global price never structurally
+beats the best live planet price. `expireListings.test.ts` covers the
+planet-market held-for-pickup case, the global-market return-to-inventory
+case, an unexpired listing being left alone, and an already-sold-out
+listing having nothing to return. `regressionCheck.test.ts` re-runs the
+same hand-calculated `refine()`/`craft()` cases proven correct pre-Phase-3
+plus a `generateGalaxy()` same-seed-reproduces-same-galaxy check, confirming
+Agents 2 and 8 remain untouched now that trading core exists alongside
+them.
+
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how
 the full gather → refine → craft loop, including the threshold-penalty and
