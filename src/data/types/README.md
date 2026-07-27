@@ -124,3 +124,11 @@ reasoning on each:
   `CraftResult`/`PurchaseResult` discriminated-union pattern (a rejected
   hire, a not-yet-available background rate, etc. are normal business
   outcomes the caller must always handle).
+
+**Agent 18 (Crew Presentation) addition** — `purchaseCapacityResult.ts`
+(`PurchaseCapacityResult`), discovered while implementing
+`docs/agents/agent-18-crew-presentation.md`: its contract requires a UI
+"option to purchase additional capacity," but Agent 16's contract never
+included a corresponding function despite Phase 4 GDD §2.4 deciding the
+mechanic. The function itself (`purchaseCapacity()`) lives in
+`src/crew/`, not presentation — see `src/crew/README.md`.

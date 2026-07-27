@@ -6,6 +6,7 @@ import { CraftScene } from "./scenes/CraftScene.ts";
 import { MarketScene } from "./scenes/MarketScene.ts";
 import { GlobalMarketScene } from "./scenes/GlobalMarketScene.ts";
 import { TradeMapScene } from "./scenes/TradeMapScene.ts";
+import { CrewScene } from "./scenes/CrewScene.ts";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -13,7 +14,7 @@ const game = new Phaser.Game({
   width: 800,
   height: 500,
   backgroundColor: "#111111",
-  scene: [MapScene, GatherScene, RefineScene, CraftScene, MarketScene, GlobalMarketScene, TradeMapScene],
+  scene: [MapScene, GatherScene, RefineScene, CraftScene, MarketScene, GlobalMarketScene, TradeMapScene, CrewScene],
 });
 
 // Dev-only debug hook -- lets the running game be inspected/driven from

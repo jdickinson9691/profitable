@@ -267,10 +267,14 @@ exactly (not before, not after), that the clock runs from `lastPaidAt` not
 `hiredAt`, and that repeated calls with identical inputs always produce
 the identical result (no hidden randomness anywhere in attrition).
 `dismissCrew.test.ts` covers success for the real owner and rejection for
-a non-owner. `regressionCheck.test.ts` re-runs the same hand-calculated
-`refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()` cases proven
-correct pre-Phase-4, confirming Agents 2, 8, and 11 remain untouched now
-that crew core exists alongside them.
+a non-owner. `purchaseCapacity.test.ts` (added during Agent 18 — see
+`src/crew/README.md`'s note on why this function lives in Agent 16's
+module) covers the exact base cost for the first purchased slot, that
+each successive slot costs more per the documented multiplier curve, and
+rejection on insufficient funds. `regressionCheck.test.ts` re-runs the
+same hand-calculated `refine()`/`craft()`/`generateGalaxy()`/
+`purchaseListing()` cases proven correct pre-Phase-4, confirming Agents
+2, 8, and 11 remain untouched now that crew core exists alongside them.
 
 `simulation/aggregateTier.test.ts` is a light direct check at the layer
 that now owns `computeAggregateTier()` (moved from `src/presentation/`, see

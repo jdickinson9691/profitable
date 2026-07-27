@@ -90,6 +90,29 @@ loop on top of Phase 2's generated galaxy.
 - `scenes/nav.ts` gained 3 entries (Market/Global/TradeMap);
   `main.ts` registers the 3 new scenes alongside the original 4.
 
+**Phase 4 (Agent 18 — Crew Presentation):** adds crew hiring/management
+on top of Phase 3's market loop.
+- `crewState.ts` — Agent 18's own cross-scene state (same role
+  `tradingState.ts` plays for Phase 3), scoped to `startingPlanet` only,
+  same boundary Agent 13 already drew: `CrewCapacity`, the player's
+  `CrewMember[]` roster, and one `PlanetCrewPool` (seeded via Agent 16's
+  `refreshCrewPool()` on first run). Reuses Phase 3's `Wallet`/`PLAYER_ID`
+  from `tradingState.ts` rather than duplicating either.
+- `scenes/CrewScene.ts` — one combined screen (hiring + management +
+  capacity), mirroring how `MarketScene` already combines browsing and
+  selling in one screen rather than splitting every GDD "output" bullet
+  into its own scene. Lists the pool (hire), the player's roster (assign/
+  check background/pay upkeep/dismiss), and capacity usage with a
+  purchase option. Crew members draw from the same shared player
+  inventory as the player's own crafting — there's no separate
+  per-crafter stockpile. On every redraw, runs `checkAttrition()` for
+  each crew member and actually removes any that have departed, showing
+  which — this only reflects what Agent 16 already computed, never a
+  fabricated risk warning (Section 2.7 has no random-loss mechanic, and
+  the UI must not imply one exists).
+- `scenes/nav.ts` gained a Crew entry; `main.ts` registers `CrewScene`
+  alongside the other 7.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"
@@ -235,3 +258,32 @@ refine → craft → list → purchase against real content with hand-verified
 values at every Phase 3-specific step — a stronger check than a live
 click-through already luck-dependent on what a given seed's planet
 produces.
+
+**Phase 4 manual playtest (Agent 18):** re-driven live via `npm run dev` +
+a real Chrome tab, continuing the persisted session above (real materials
+gathered/carried over, no reset needed). Confirmed the full sequence:
+- Crew pool showed 3 real candidates from `refreshCrewPool()` (Grey/Blue/
+  Grey, with hire costs of 50cr/350cr/50cr matching `CREW_HIRE_COST_BY_TIER`
+  exactly). Hired the cheapest: wallet 494 → 444cr, capacity 0/2 → 1/2,
+  the hired candidate removed from the pool, and the new roster entry's
+  wage (5cr) matched `CREW_WAGE_BY_TIER`'s Grey row exactly.
+- With insufficient materials, "Assign to Craft" correctly showed a
+  rejection rather than silently doing nothing or fabricating a result.
+  After adding real Radiant Alloy Bar + Hydrogen Gas to inventory, the
+  same action succeeded: the Grey-tier crew member's status flipped to
+  `active`, and a real Ion-Forged Hull Plate landed in inventory at
+  quality 75 on every dimension — hand-verified against `craft()`'s real
+  formula (Grey crafter + Blue schematic: ceiling raise capped at 13%,
+  raised ceiling 79.1, durability input at the recipe's 60 threshold with
+  10 points to spare so no penalty applies; 75 falls inside the
+  resulting valid roll range), confirming this was a genuine `craft()`
+  call, not a placeholder.
+- "Pay Upkeep" correctly reported not-due (no interval had elapsed yet)
+  without touching the wallet — the not-due path isn't a failure, just a
+  documented no-op.
+- "Purchase Slot" deducted exactly `CREW_CAPACITY_EXPANSION_BASE_COST`
+  (200cr) and moved capacity from 1/2 to 1/3.
+- "Dismiss" removed the crew member and freed the roster slot (1/3 → 0/3).
+- Confirmed via grep: no DOM UI anywhere in `CrewScene.ts`, and no
+  random-loss/"risk of losing this crew member" messaging exists in the
+  actual rendered text (Section 2.7 has no such mechanic).

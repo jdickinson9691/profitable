@@ -8,6 +8,7 @@ export const SCENE_KEYS = {
   market: "Market",
   globalMarket: "GlobalMarket",
   tradeMap: "TradeMap",
+  crew: "Crew",
 } as const;
 
 const NAV_ITEMS: Array<{ key: string; label: string }> = [
@@ -18,6 +19,7 @@ const NAV_ITEMS: Array<{ key: string; label: string }> = [
   { key: SCENE_KEYS.market, label: "Market" },
   { key: SCENE_KEYS.globalMarket, label: "Global" },
   { key: SCENE_KEYS.tradeMap, label: "TradeMap" },
+  { key: SCENE_KEYS.crew, label: "Crew" },
 ];
 
 // Persistent nav bar on every scene, so the player can move freely between

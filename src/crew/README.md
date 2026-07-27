@@ -82,6 +82,16 @@ here rather than silently made:
   (`RandomFn`, `now`). A real caller with no override correctly hits the
   "not yet available" result; tests can still exercise the full
   computation by supplying an explicit rate.
+- **`purchaseCapacity.ts`, added while implementing Agent 18.** Agent
+  18's contract requires a UI "option to purchase additional capacity"
+  (Phase 4 GDD §2.4), but Agent 16's own contract never listed a
+  corresponding function — §2.4 decided the mechanic, `agent-16-crew-
+  core.md`'s Outputs section just never included it. Since Agent 18 must
+  never implement crew logic itself, this function lives here, not in
+  presentation: the Nth purchased slot costs
+  `CREW_CAPACITY_EXPANSION_BASE_COST * CREW_CAPACITY_EXPANSION_COST_MULTIPLIER^N`,
+  matching `crewConfig.ts`'s own documented curve, and rejects on
+  insufficient funds the same way `hireCrew()`/`payUpkeep()` do.
 
 ## Boundary confirmed
 
