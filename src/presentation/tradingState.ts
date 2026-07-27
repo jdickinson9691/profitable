@@ -1,5 +1,5 @@
 import { content, saveSystem } from "./gameState.ts";
-import { startingPlanet } from "./galaxyState.ts";
+import { galaxy, startingPlanet } from "./galaxyState.ts";
 import { loadTradingContent } from "../trading/loadTradingContent.ts";
 import type { LoadedTradingContent } from "../trading/loadTradingContent.ts";
 import { createListing } from "../trading/createListing.ts";
@@ -56,15 +56,27 @@ function loadOrCreateWallet(): Wallet {
   return wallet;
 }
 
+// Agent 15 (Integration): seeded across the whole generated galaxy, not
+// just startingPlanet -- Agent 13 deliberately scoped itself to the one
+// discovered planet (see this file's git history / src/presentation
+// README's Phase 3 note) and left full multi-planet seeding as this
+// agent's job. A background economy exists galaxy-wide whether or not the
+// player has discovered a given planet yet (no travel system exists to
+// visit them in Phase 3, but their price data still legitimately feeds
+// getGlobalPrice()'s cross-planet computation) -- TradeMapScene still
+// correctly filters its own display to discovered planets only.
 function loadOrCreateMarketStates(): PlanetMarketState[] {
   const stored = saveSystem.load(MARKET_STATES_SAVE_KEY) as PlanetMarketState[] | null;
   if (stored) return stored;
-  const states: PlanetMarketState[] = getTradingContent().tradingBasePrices.map((entry) => ({
-    planetId: startingPlanet.id,
-    itemId: entry.itemId,
-    currentPrice: entry.basePrice,
-    basePrice: entry.basePrice,
-  }));
+  const basePrices = getTradingContent().tradingBasePrices;
+  const states: PlanetMarketState[] = galaxy.planets.flatMap((planet) =>
+    basePrices.map((entry) => ({
+      planetId: planet.id,
+      itemId: entry.itemId,
+      currentPrice: entry.basePrice,
+      basePrice: entry.basePrice,
+    })),
+  );
   saveSystem.save(MARKET_STATES_SAVE_KEY, states);
   return states;
 }

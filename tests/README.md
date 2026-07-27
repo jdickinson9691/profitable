@@ -136,6 +136,23 @@ values, through Agent 1's schemas, produce correct results in Agent 2's
 formulas with no gap hiding in the wiring. Also confirms a resource can be
 gathered on the real Delta Rigelus with a real `rollQuality()` call.
 
+`integration/phase3Loop.test.ts` is Agent 15's own verification, same
+relationship to Agent 12's unit tests that `mvpLoop.test.ts` had to Agent
+3's: real `content/*.json` and `content/trading*.json`, a real generated
+galaxy (`generateGalaxy()`, not a fixture), and the real Agent 11 trading
+functions, chained gather → refine → craft → list → purchase in one test —
+including confirming the crafted item's real rolled qualities survive all
+the way to the buyer's copy, not just each phase's own qualities in
+isolation. A separate test hand-verifies one complete pricing example
+(3 units bought against a real base price of 5cr → exactly `5 × 1.02³ =
+5.30604`, with fee/proceeds split exactly 18/0.9/17.1) and another
+hand-verifies the global-price invariant against 3 real generated planets
+independently drifted to different prices (not Agent 12's synthetic
+randomized states), confirming the exact expected buy/sell values and that
+neither ever beats the best real planet price. A final test re-asserts the
+same hand-calculated MVP/Phase 2 cases proven elsewhere, as this agent's
+own regression marker.
+
 `galaxy/` covers Agent 8 (Galaxy/Planet Generation Core) and Agent 9
 (Phase 2 Validation/Test) together, the same relationship Agent 3 had to
 Agent 2 during the MVP. `agent9PhaseValidation.test.ts` specifically

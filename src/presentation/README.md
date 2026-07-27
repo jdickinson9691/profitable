@@ -55,7 +55,14 @@ loop on top of Phase 2's generated galaxy.
   without this a purchased item's actual rolled qualities would be lost at
   the point of sale — a direct violation of CLAUDE.md §3.1's "qualities
   persist at every tier, never relabeled." This is that "elsewhere" the
-  type's own comment refers to.
+  type's own comment refers to. **Agent 15 (Integration):**
+  `PlanetMarketState` seeding was extended from just `startingPlanet` to
+  every planet in the generated galaxy — Agent 13 deliberately scoped
+  itself to the one discovered planet and left full multi-planet seeding
+  as Agent 15's job (see this file's own prior comment). A background
+  economy exists galaxy-wide regardless of what the player has discovered;
+  `TradeMapScene` still correctly filters its own display to discovered
+  planets only.
 - `scenes/MarketScene.ts` — the planet-local market at `startingPlanet`:
   browse/buy active listings there (including partial purchase via
   "Buy 1" vs. "Buy All"), and list any inventory batch for sale. Every
@@ -139,8 +146,10 @@ dev` / `npm run build`).
 - **Phase 3:** `purchaseListing()`'s `proceedsToSeller` isn't credited to
   a real `Wallet` when the seller is `"seed-market"` (a bootstrap
   counterparty with no wallet of its own, not a real player) — only the
-  buyer's `Wallet` is ever updated in this minimal wiring. A real
-  multi-party economy is Agent 15's job. `tradingState.ts`'s
+  buyer's `Wallet` is ever updated in this minimal wiring. Remains true
+  after Agent 15's integration pass too: a real multi-party economy needs
+  actual multiplayer (explicitly out of scope through Phase 3), so there's
+  no second real wallet to credit yet. `tradingState.ts`'s
   `replaceListing()` also removes a listing from the active array outright
   once its quantity reaches 0, rather than keeping a `"closed"` record
   around — nothing in this minimal wiring reads closed listings, so there
@@ -204,3 +213,25 @@ sequence in one session:
 - Listed a unit of Igneous Ore globally as the real player, then attempted
   to buy it back: rejected with the exact self-trade reason
   `purchaseListing()` returns — confirmed live, not just unit-tested.
+
+**Phase 3 manual playtest (Agent 15):** a *fresh* session (`localStorage`
+cleared first) to prove the extended loop from a cold start, not
+continuing state left over from Agent 13's session above. Landed on a
+newly generated planet, gathered real Igneous Ore (rolled Purity 30/Grey,
+Density 18/Grey, Potency 60/White, Durability 32/Grey, Rarity 33/Grey),
+and listed it on that planet's market — the listing's `marketTier` came
+out `Grey`, matching a hand-calculated average of those exact 5 values
+((30+18+60+32+33)/5 = 34.6, within Grey's 1-40 band) and confirming the
+gathered item's *real* qualities (not a placeholder) drove the listing.
+Bought 1 unit from the seed listing in the same fresh session: wallet
+500 → 494cr. The refine/craft legs of the chain aren't forced through this
+specific live session — this randomly generated planet only produces
+Igneous Ore, so Autunite Crystal/Hydrogen Gas simply aren't available to
+gather there without a travel system (out of scope through Phase 3), same
+constraint any real player would hit. That portion of the chain is instead
+proven by `tests/integration/phase3Loop.test.ts`, which chains gather
+(via a real generated planet's real `rollQualityOnPlanet()` roll) →
+refine → craft → list → purchase against real content with hand-verified
+values at every Phase 3-specific step — a stronger check than a live
+click-through already luck-dependent on what a given seed's planet
+produces.
