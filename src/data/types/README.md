@@ -168,3 +168,20 @@ new tier-keyed constant tables (see `src/data/constants/README.md`).
 an asymmetric negative/positive pair like `TierVariance` — travel time has
 no random roll to narrow, so ship tier applies a flat, deterministic
 modifier rather than a variance range.
+
+**Agent 20 (Ships & Travel Core) additions** — discovered while
+implementing `docs/agents/agent-20-ships-travel-core.md`; see
+`src/ships/README.md` for the full reasoning on each:
+- **`Ship.currentPlanetId` — a correction to the amendment's own `Ship`
+  type**, not a pure addition: nothing recorded where a ship currently is,
+  yet `resolveArrival()`'s contract requires delivering "the ship... to
+  the destination planet." Added as a required `string`, set at purchase
+  time and updated only on a successful arrival. `ship.schema.json` and
+  every test constructing a `Ship` were updated to include it.
+- `purchaseShipResult.ts` (`PurchaseShipResult`) and `arrivalResult.ts`
+  (`ArrivalResult`) — the return types Agent 20's contract names for
+  `purchaseShip()` and `resolveArrival()` but that the amendment never
+  defined. Both mirror the existing `CraftResult`/`PurchaseResult`/
+  `HireResult` discriminated-union pattern. `ArrivalResult` deliberately
+  only *reports* delivered cargo — it does not itself represent activating
+  a Phase 3 `Listing`, since Agent 20 must never touch Agent 11's logic.

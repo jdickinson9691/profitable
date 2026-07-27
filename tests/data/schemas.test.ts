@@ -558,6 +558,7 @@ test("ship.schema.json accepts a fully-assembled ship", () => {
     name: "Ship-1",
     ownerId: "player-1",
     tier: "Blue",
+    currentPlanetId: "delta-rigelus",
     components: emptyComponentSlots({
       weapon: baseShipComponent({ id: "weapon-1", category: "weapon" }),
       engine: baseShipComponent({ id: "engine-1", category: "engine" }),
@@ -575,6 +576,7 @@ test("ship.schema.json accepts a ship under construction with all four component
     name: "Ship-2",
     ownerId: "player-1",
     tier: "Grey",
+    currentPlanetId: "delta-rigelus",
     components: emptyComponentSlots(),
   });
   assert.equal(valid, true, JSON.stringify(validate.errors));
@@ -585,6 +587,19 @@ test("ship.schema.json rejects a missing ownerId", () => {
   const valid = validate({
     id: "ship-3",
     name: "Ship-3",
+    tier: "Grey",
+    currentPlanetId: "delta-rigelus",
+    components: emptyComponentSlots(),
+  });
+  assert.equal(valid, false);
+});
+
+test("ship.schema.json rejects a missing currentPlanetId", () => {
+  const validate = getValidator("ship.schema.json");
+  const valid = validate({
+    id: "ship-4",
+    name: "Ship-4",
+    ownerId: "player-1",
     tier: "Grey",
     components: emptyComponentSlots(),
   });
