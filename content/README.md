@@ -70,3 +70,48 @@ Both new files validate against `itemBasePrice.schema.json`/
 `planetMarketPreference.schema.json` via `loadTradingContent()`
 (`src/trading/loadTradingContent.ts`) — see
 `tests/content/tradingContent.test.ts`.
+
+**Phase 5 (Agent 23 — Ships & Travel Content):**
+
+- `resources.json` gained 4 new entries — `weapon-component`,
+  `engine-component`, `shield-component`, `cargo-hold-component` — the
+  crafting outputs for the 4 ship component categories. Necessary,
+  same reasoning as the MVP's own `radiant-alloy-bar`/
+  `ion-forged-hull-plate` additions: `Recipe.outputResourceId` needs a
+  real `Resource` entry to resolve to (`ShipComponent` itself isn't a
+  `Resource` — see `componentRecipe.ts`'s own comment on that gap). Each
+  entry's `category` field is set to its exact `ComponentCategory` string
+  (`"weapon"`, `"engine"`, `"shield"`, `"cargoHold"`) rather than
+  something more descriptive, so a category-based lookup (the same
+  pattern `CraftScene`/`CrewScene` already use to resolve a recipe slot to
+  a resource) works without any special-casing. All four are `itemTier: 3`
+  (first-order crafted, same reasoning as `ion-forged-hull-plate`).
+- `recipes.json` gained one recipe per component category — each takes
+  1x Radiant Alloy Bar (with a threshold on `potency` for weapon/engine,
+  `durability` for shield/cargo hold) plus one existing raw MVP resource
+  as a category-flavored second input (Autunite Crystal for weapon/
+  shield, Hydrogen Gas for engine, Igneous Ore for cargo hold) — reusing
+  the existing 4-resource roster entirely, no new raw resources invented,
+  per the contract's own instruction. `ion-forged-hull-plate` stays first
+  in the array, preserving `CraftScene`/`CrewScene`'s existing
+  `content.recipes[0]` assumption.
+- `componentRecipes.json` (new) — the `recipeId` → `ComponentCategory`
+  link data for the necessary-completion `ComponentRecipe` type (see
+  `src/data/types/componentRecipe.ts`). Validated via `loadShipsContent()`
+  (`src/ships/loadShipsContent.ts`, mirroring `loadTradingContent()`'s
+  exact shape) — a necessary completion of its own, since Agent 22's
+  contract forbids reading Agent 23's raw content directly and nothing in
+  Agent 20's contract named a loading path for it.
+- `tradingBasePrices.json` gained a base price for all 4 new component
+  resources (Phase 5 GDD §2.2: "components... flow into the existing
+  trading market automatically"), each priced above its own recipe's raw
+  input cost combined, same internal-consistency rule already applied to
+  `radiant-alloy-bar`/`ion-forged-hull-plate`.
+
+Validated by `tests/content/shipsContent.test.ts`: the real
+`componentRecipes.json` loads with no errors, every category has exactly
+one recipe link (no more, no fewer), every link references a real recipe
+and a real output resource (no dangling references), and — the
+contract's own explicit Definition of Done — every component recipe is
+actually craftable end-to-end via the real `craft()` using only existing
+resources.

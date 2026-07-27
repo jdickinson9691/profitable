@@ -19,8 +19,11 @@ test("the real content/ files load through loadContent() with no errors", () => 
     planets: readJson("planets.json"),
   });
 
-  assert.equal(loaded.resources.length, 5);
-  assert.equal(loaded.recipes.length, 1);
+  // 5 MVP resources + 4 Phase 5 ship component outputs (weapon/engine/
+  // shield/cargoHold); 1 MVP recipe + 4 Phase 5 component recipes -- see
+  // content/README.md's Phase 5 section.
+  assert.equal(loaded.resources.length, 9);
+  assert.equal(loaded.recipes.length, 5);
   assert.equal(loaded.refiningRecipes.length, 1);
   assert.equal(loaded.schematics.length, 1);
   assert.equal(loaded.planets.length, 1);

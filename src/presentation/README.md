@@ -132,6 +132,72 @@ same single mechanism rather than a separate, also-broken code path.
 Confirmed live post-fix: a purchase confirmation and a background-check
 result both now persist on screen after their triggering action.
 
+**Phase 5 (Agent 22 — Ships & Travel Presentation):** adds ship purchasing,
+component crafting/assembly, and travel on top of Phase 4's crew loop.
+- `galaxyState.ts` gained `secondaryDiscoveredPlanet` — a necessary
+  integration choice, not a new mechanic: no "discover a planet by
+  traveling/scanning" system exists yet (still out of scope per CLAUDE.md
+  Section 6), so without a second planet marked discovered the same way
+  Agent 10 already marks `startingPlanet`, the travel layer below would
+  have zero selectable destinations in a fresh session. Mirrors
+  `startingPlanet`'s own override exactly, one planet further into the
+  generated list.
+- `shipsState.ts` (new) — Agent 22's own cross-scene state, same pattern
+  `crewState.ts`/`tradingState.ts` already established: a `ShipyardPool`
+  seeded at `startingPlanet` via Agent 20's `refreshShipyardPool()`, the
+  player's owned `Ship[]` roster, and active `Voyage[]` — none of the
+  latter two are planet-scoped, since an owned ship and its voyages belong
+  to the player, not to any one planet. Also owns `getShipsContent()`,
+  statically importing `content/componentRecipes.json` and handing it to
+  Agent 20's `loadShipsContent()` (mirrors `tradingState.ts`'s
+  `getTradingContent()` exact shape).
+- `scenes/ShipyardScene.ts` (new) — browse the shipyard pool at
+  `startingPlanet` and purchase a candidate via Agent 20's real
+  `purchaseShip()`; every number shown (tier, cost) is sourced directly
+  from its return values and `SHIP_PURCHASE_COST_BY_TIER`, never
+  recomputed here.
+- `scenes/ShipAssemblyScene.ts` (new) — craft a component in place and
+  install it, mirroring `CrewScene.onAssign()`'s precedent of calling
+  `craft()` directly against player inventory rather than routing through
+  `CraftScene.ts`. **Necessary completion:** component recipes have no
+  `Schematic` entity behind them (only the MVP's own
+  `ion-forged-hull-plate` recipe does — see `content/README.md`'s Phase 5
+  section), so there's no `schematic.tier` to read the way
+  `CraftScene`/`CrewScene` do; `schematicTier` is instead player-selected
+  directly via a second tier selector, the same way `crafterTier` already
+  is. A successful craft is wrapped into a real `ShipComponent` (id +
+  category from Agent 20's `ComponentRecipe` link data + the craft's
+  qualities + `computeAggregateTier()` for its own tier) and installed via
+  Agent 20's real `assembleShip()`, which recomputes the ship's derived
+  tier on every call — never read off a stale value.
+- `scenes/TradeMapScene.ts` extended (not replaced by a second screen, per
+  the Phase 5 GDD's own "same map, extended" requirement) with a travel
+  section: shows the player's current ship, any voyage in progress with
+  live remaining time, a "Resolve Arrival" action once due, and — only
+  when the ship has no unresolved voyage — a travel-time-and-"Initiate
+  Voyage" row per other discovered planet, computed via Agent 20's real
+  `calculateTravelTime()`/`initiateVoyage()`. Initiated voyages carry
+  empty cargo — a real cargo-carrying voyage (the Phase 3 remote tier 6-7
+  sale connection) is Agent 24's own required integration check, exercised
+  directly against the core functions, not through a cargo-selection UI
+  this contract never asked for. No encounter mechanic is displayed or
+  implied anywhere (deferred, per `docs/profitable-design-questions.md`'s
+  "Travel" section).
+- `scenes/nav.ts` gained 2 entries (Shipyard/Assembly); `main.ts` registers
+  the 2 new scenes alongside the other 8.
+
+**Phase 5 bug found and fixed during this agent's own manual playtest:**
+the travel layer's "does this ship have a voyage in progress" check was
+initially `arrivesAt > Date.now()`, which stopped counting a voyage as
+active the instant its arrival time passed — but a voyage isn't actually
+resolved until the player clicks "Resolve Arrival" (only
+`resolveArrival()` updates `Ship.currentPlanetId`). Between those two
+moments, the destination list reappeared and let a second voyage be
+initiated from a planet the ship hadn't actually reached yet. Fixed by
+gating on "does an unresolved voyage record exist for this ship at all"
+(`shipVoyages.length > 0`) rather than checking `arrivesAt` — a voyage
+record only leaves the list once `resolveArrival()` succeeds.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"
@@ -326,3 +392,49 @@ and dismissed a crew member, both reflected immediately in the roster/
 capacity display. This same session is also where the status-message bug
 above was found and fixed — action results are now actually visible to a
 player, not silently discarded.
+
+**Phase 5 manual playtest (Agent 22):** a *fresh* session (`localStorage`
+cleared first), driven live via `npm run dev` + a real Chrome tab, reading
+back rendered `Phaser.Text` content through `window.__game` (same method
+every prior playtest in this file used). Materials were seeded directly
+into inventory via a direct module import (`import('/src/presentation/
+gameState.ts')`, which Vite serves as real ES modules in dev mode) rather
+than clicking through Gather/Refine repeatedly — the gather/refine path
+itself is already proven live by the Phase 2/3 playtests above; this
+session's job was to prove the new Phase 5 wiring specifically. Confirmed
+the full sequence:
+- Shipyard listed 3 real candidates from `refreshShipyardPool()` (White/
+  Blue/Grey, costs of 600cr/2200cr/300cr matching
+  `SHIP_PURCHASE_COST_BY_TIER` exactly). Purchased the Grey one: wallet
+  500 → 200cr, the candidate removed from the pool, and the new roster
+  entry correctly shown "at" `startingPlanet`.
+- Ship Assembly showed the purchased ship already carrying 4 Grey
+  components (ships purchase pre-assembled, per `refreshShipyardPool()`'s
+  own "components generated to match the resulting tier" design). Selected
+  Gold crafter tier + Gold schematic tier and crafted-and-installed a
+  weapon component from quality-70 (Green) materials: the fresh component
+  landed at Blue tier (70 × 1.18 combined ceiling raise ≈ 82.6, inside
+  Blue's 76-85 band — hand-verified against `craft()`'s real formula), and
+  the ship's own derived tier correctly stayed Grey (`deriveShipTier()`
+  averaging 3 Grey + 1 Blue still falls in Grey's range) — proving the
+  recompute is genuine, not just copying the new component's tier.
+  Installed the remaining 3 components the same way; the ship's derived
+  tier then correctly flipped to Blue once all 4 slots matched.
+- Trade Map's travel section showed the Blue-tier ship's travel time to
+  the second discovered planet as 5.56h, matching a hand calculation
+  against the two planets' real generated `{x,y}` positions (distance
+  741.27 × `DISTANCE_TO_TRAVEL_HOURS_PER_UNIT` 0.01 × Blue's 0.75 speed
+  modifier = 5.5595h) exactly. Initiated the voyage — the destination list
+  correctly disappeared while a voyage was in progress.
+- **Bug found and fixed live** (see this file's own note above): fast-
+  forwarding the voyage's `arrivesAt` into the past to test the arrival
+  path revealed the destination list reappearing before the voyage had
+  actually been resolved, which would have let a second voyage start from
+  a planet the ship hadn't reached yet. Fixed the gating condition, then
+  re-verified: the destination list correctly stayed hidden until
+  "Resolve Arrival" was clicked, at which point the ship's `currentPlanetId`
+  updated to the destination and the return-trip row (same 5.56h,
+  symmetric distance) appeared in its place.
+- Confirmed via grep: no DOM UI anywhere in the 3 new/modified scenes, and
+  no encounter-related messaging exists in the actual rendered text
+  (deferred, not implemented).

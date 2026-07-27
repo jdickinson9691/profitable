@@ -8,5 +8,45 @@
     ],
     "outputResourceId": "ion-forged-hull-plate",
     "outputQuantity": 1
+  },
+  {
+    "id": "weapon-component",
+    "name": "Weapon Component",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 50 },
+      { "category": "radioactive crystal", "quantity": 1 }
+    ],
+    "outputResourceId": "weapon-component",
+    "outputQuantity": 1
+  },
+  {
+    "id": "engine-component",
+    "name": "Engine Component",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 50 },
+      { "category": "gas", "quantity": 1 }
+    ],
+    "outputResourceId": "engine-component",
+    "outputQuantity": 1
+  },
+  {
+    "id": "shield-component",
+    "name": "Shield Component",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 50 },
+      { "category": "radioactive crystal", "quantity": 1 }
+    ],
+    "outputResourceId": "shield-component",
+    "outputQuantity": 1
+  },
+  {
+    "id": "cargo-hold-component",
+    "name": "Cargo Hold Component",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 50 },
+      { "category": "solid", "quantity": 1 }
+    ],
+    "outputResourceId": "cargo-hold-component",
+    "outputQuantity": 1
   }
 ]

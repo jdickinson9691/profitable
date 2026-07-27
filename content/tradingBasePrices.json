@@ -3,5 +3,9 @@
   { "itemId": "hydrogen-gas", "basePrice": 4 },
   { "itemId": "autunite-crystal", "basePrice": 12 },
   { "itemId": "radiant-alloy-bar", "basePrice": 35 },
-  { "itemId": "ion-forged-hull-plate", "basePrice": 60 }
+  { "itemId": "ion-forged-hull-plate", "basePrice": 60 },
+  { "itemId": "weapon-component", "basePrice": 80 },
+  { "itemId": "engine-component", "basePrice": 70 },
+  { "itemId": "shield-component", "basePrice": 80 },
+  { "itemId": "cargo-hold-component", "basePrice": 65 }
 ]

@@ -63,5 +63,57 @@
       "rarity": true
     },
     "itemTier": 3
+  },
+  {
+    "id": "weapon-component",
+    "name": "Weapon Component",
+    "category": "weapon",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    },
+    "itemTier": 3
+  },
+  {
+    "id": "engine-component",
+    "name": "Engine Component",
+    "category": "engine",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    },
+    "itemTier": 3
+  },
+  {
+    "id": "shield-component",
+    "name": "Shield Component",
+    "category": "shield",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    },
+    "itemTier": 3
+  },
+  {
+    "id": "cargo-hold-component",
+    "name": "Cargo Hold Component",
+    "category": "cargoHold",
+    "applicableQualities": {
+      "purity": true,
+      "density": true,
+      "potency": true,
+      "durability": true,
+      "rarity": true
+    },
+    "itemTier": 3
   }
 ]

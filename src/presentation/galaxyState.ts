@@ -33,3 +33,14 @@ export const galaxy: Galaxy = loadOrCreateGalaxy();
 // contract says picking/revealing a starting planet is "Agent 10's
 // integration concern, not this agent's"). This is that concern.
 export const startingPlanet: Planet = { ...galaxy.planets[0]!, discovered: true };
+
+// Phase 5 integration (Agent 22): travel needs at least one real reachable
+// destination to demonstrate against. No "discover a planet by traveling/
+// scanning" mechanic exists yet (out of scope -- CLAUDE.md Section 6, "the
+// galactic map beyond what trading already needed"), so without this,
+// TradeMapScene's travel layer would have zero selectable destinations in
+// a fresh session. Mirrors startingPlanet's own override immediately
+// above, one planet further into the generated list.
+export const secondaryDiscoveredPlanet: Planet | undefined = galaxy.planets[1]
+  ? { ...galaxy.planets[1]!, discovered: true }
+  : undefined;

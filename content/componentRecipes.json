@@ -1,0 +1,6 @@
+[
+  { "recipeId": "weapon-component", "category": "weapon" },
+  { "recipeId": "engine-component", "category": "engine" },
+  { "recipeId": "shield-component", "category": "shield" },
+  { "recipeId": "cargo-hold-component", "category": "cargoHold" }
+]

@@ -16,7 +16,9 @@ test("the real trading content files load through loadTradingContent() with no e
     planetMarketPreferences: readJson("planetMarketPreferences.json"),
   });
 
-  assert.equal(loaded.tradingBasePrices.length, 5);
+  // 5 MVP items + 4 Phase 5 ship component outputs -- see
+  // content/README.md's Phase 5 section.
+  assert.equal(loaded.tradingBasePrices.length, 9);
   assert.equal(loaded.planetMarketPreferences.length, 4);
 });
 
