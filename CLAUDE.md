@@ -12,16 +12,17 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: MVP.** The MVP proves the *quality math* end-to-end on one hardcoded planet, before any procedural generation, trading, or travel systems are built. See Section 4 for exact scope.
+**Current phase: Phase 4 (Crew Crafters) in progress.** MVP, Phase 2 (galaxy/planet generation), and Phase 3 (trading loop) are all complete and verified. **Next milestone after Phase 4: Ships, then Travel** — see Section 6 below; both are captured in the design doc ahead of becoming active, so nothing gets lost while Phase 4 is being built.
 
-**Full development order (only the first four are in scope right now):**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → crafters (NPC crew) → travel → galactic map.
+**Full development order:**
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) **[currently here]** → ships → travel → galactic map.
 
 ---
 
 ## 2. Tech Stack & Architecture
 
-- **Stack:** TypeScript + Phaser or PixiJS, for now.
+- **Stack:** TypeScript + Phaser, for now.
+- **Why Phaser over PixiJS:** PixiJS is a rendering layer only — Phaser is a full 2D game framework (scene management, tweening, input abstraction, asset pipeline) built on similar rendering capability. Phaser's `Scene` class maps directly onto the MVP's four screens, its built-in tweening covers "simple animated 2D screens" natively, and its input handling is the idiomatic way to satisfy the "no raw DOM input" mandate below. PixiJS would only win for heavy custom rendering (particle systems, shaders) — not needed for the MVP's four screens.
 - **Planned migration:** to **Unity**, once the MVP loop is built and feels right. The migration trigger is tied to the status of the initial loop, not a calendar date — evaluate once Section 4's five steps are complete and tunable.
 - **Why this stack, and why Unity as the eventual target:** the project intends to use AI agents to do the heavy lifting of development for as long as possible. A plain-text, framework-light web stack is far more agent-friendly (large training data, automatable browser-based testing, no GUI-editor dependency) than Unity's or Godot's editor-driven workflows. Unity was chosen over Godot as the eventual target in part because Unity/C# is also comparatively agent-friendly.
 
@@ -29,12 +30,12 @@ galaxy generation → planet generation → resource generation → crafting rec
 
 To keep the eventual Unity migration a **port, not a rewrite**, this codebase enforces a hard separation:
 
-- **Simulation layer** (quality-roll formulas, refining/crafting math, market state, planet data): plain, framework-agnostic TypeScript. Pure functions and data structures only. **Zero Phaser/PixiJS objects, zero DOM, zero browser API of any kind may touch this layer.**
-- **Presentation layer** (Phaser/PixiJS scenes): rendering, animation, input, screen flow only. Calls into the simulation layer's public functions — never duplicates or reimplements its math.
+- **Simulation layer** (quality-roll formulas, refining/crafting math, market state, planet data): plain, framework-agnostic TypeScript. Pure functions and data structures only. **Zero Phaser objects, zero DOM, zero browser API of any kind may touch this layer.**
+- **Presentation layer** (Phaser scenes): rendering, animation, input, screen flow only. Calls into the simulation layer's public functions — never duplicates or reimplements its math.
 
 ### Browser API isolation — isolate, don't eliminate
 
-- **Avoid entirely, anywhere in the codebase:** DOM-based UI (HTML/CSS overlays), URL params/cookies/browser routing for game state, raw DOM input event handling. Render all UI inside the Phaser/PixiJS canvas; use the engine's input abstraction.
+- **Avoid entirely, anywhere in the codebase:** DOM-based UI (HTML/CSS overlays), URL params/cookies/browser routing for game state, raw DOM input event handling. Render all UI inside the Phaser canvas; use the engine's input abstraction.
 - **Isolate behind one swappable adapter each** (see `docs/agents/agent-04-infrastructure-adapter.md`):
   - `SaveSystem` — wraps `localStorage`. No other file may call `localStorage` directly.
   - `AudioManager` — wraps Web Audio. No other file may call Web Audio directly.
@@ -146,9 +147,11 @@ Recipes are **not fixed to specific materials** — a recipe specifies a **categ
 
 ---
 
-## 4. MVP Scope — Current Build Target
+## 4. MVP Scope — Complete
 
-The MVP proves the quality math end-to-end on **one hardcoded planet**, before investing in procedural generation. Do not build galaxy/planet generation, the trading market, crew crafters, travel, or the galactic map yet — all explicitly post-MVP.
+**Status: done and verified.** The MVP proved the quality math end-to-end on one hardcoded planet, before any procedural generation, trading, or travel systems were built. This section is kept as the historical record of what was built and verified — do not re-open or re-scope it. See Section 6 for what's next.
+
+The MVP proved the quality math end-to-end on **one hardcoded planet**, before investing in procedural generation.
 
 **Definition of done:** a player (or test harness) can gather a resource with a random quality roll, refine it using a chosen refiner tier, and craft it into a finished item using a chosen schematic and crafter tier — with output quality at every step matching Section 3's formulas, verifiable against known test inputs.
 
@@ -184,7 +187,7 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 2. **Simulation Core Agent** (`docs/agents/agent-02-simulation-core.md`) — `rollQuality`, `getTierColor`, `refine`, `craft`, and `loadContent(rawConfig)` as pure, framework-agnostic functions. Zero Phaser/DOM/browser API. **`loadContent` is the single sanctioned path** for turning Agent 6's raw JSON into typed objects — added mid-build to close a contract gap where Agent 5 and Agent 6 both referenced "Agent 2's loading path" before it was ever defined as an output.
 3. **Validation/Test Agent** (`docs/agents/agent-03-validation-test.md`) — created alongside #2, runs continuously. Tests Agent 2's output against Section 3's documented tables exactly. Reports discrepancies; never patches Agent 2 itself.
 4. **Infrastructure/Adapter Agent** (`docs/agents/agent-04-infrastructure-adapter.md`) — `SaveSystem`, `AudioManager`, stub `NetworkAdapter`. Independent of Agents 2/3's internals; must exist before Agent 5.
-5. **Presentation Agent** (`docs/agents/agent-05-presentation.md`) — Phaser/PixiJS scenes (map, gather, refine, craft). Depends on Agents 2 and 4. Never duplicates formula logic; never touches browser APIs directly; no DOM UI.
+5. **Presentation Agent** (`docs/agents/agent-05-presentation.md`) — Phaser scenes (map, gather, refine, craft). Depends on Agents 2 and 4. Never duplicates formula logic; never touches browser APIs directly; no DOM UI.
 6. **Content Agent** (`docs/agents/agent-06-content.md`) — writes the actual MVP config data (Section 4's resources/planet/recipes) as JSON validated against Agent 1's schemas. Data-only, no code.
 7. **Integration Agent** (`docs/agents/agent-07-integration.md`) — created last. Wires everything together, verifies the full MVP loop, and attributes any gap to the specific upstream agent whose contract wasn't met. Does not introduce new logic or content to patch around problems.
 
@@ -197,14 +200,15 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 ---
 
-## 6. What's Explicitly Out of Scope Right Now
+## 6. Current Milestone & What's Still Out of Scope
 
-Do not build these yet — they're sequenced after the MVP, though their design decisions are already recorded in `docs/profitable-design-questions.md` for when their turn comes:
+**Next up (active now): crew crafters (NPC crew)** — Phase 4, currently being built. Full scope, decisions, and agent contracts live in `docs/profitable-phase4-gdd.md` and `docs/agents/agent-01-amendment-phase4-schema.md`, `agent-16-crew-core.md`, `agent-17-phase4-validation-test.md`, `agent-18-crew-presentation.md`, `agent-19-phase4-integration.md`. Design questions are resolved except two intentionally tracked, non-blocking items (the exact idle-crafting rate, and genuinely-deferred multiplayer-forward questions — see `docs/profitable-design-questions.md`).
 
-- Galaxy/planet generation (beyond the single hardcoded Delta Rigelus)
-- The trading market — per-planet markets, the global market, the two-tier buy/sell model, tier 6–7 exclusivity, the galactic trade map (seasons/emergencies)
-- NPC crew crafters (hiring crafters into your crew)
-- Travel
+**Captured ahead of time, not yet designed or started — Ships and Travel.** These come immediately after Phase 4 per the decided development order. Topics have been logged in `docs/profitable-design-questions.md`'s new "Ships" and "Travel" sections (ship upgrades/purchasing/components/ship market, travel map/distance-unit/ship-engine effects on travel time, and a new "encounters during travel" feature) specifically so they aren't lost while Phase 4 is being built — but none of it is decided yet, and no GDD or agent contracts exist for either.
+
+**Still explicitly out of scope**, sequenced after Ships/Travel, though the relevant decisions already made are recorded in `docs/profitable-design-questions.md`:
+
+- The galactic map beyond what trading already needed
 - Multiplayer (planned future evolution, single-player only for now)
 
 ---
