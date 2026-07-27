@@ -5,6 +5,7 @@ import {
   addBatch,
   totalQuantity,
   consume,
+  removeBatchAt,
 } from "../../src/presentation/inventory.ts";
 import type { Inventory } from "../../src/presentation/inventory.ts";
 
@@ -106,4 +107,27 @@ test("consume() with amount 0 is a no-op", () => {
 
   assert.equal(result.consumed.length, 0);
   assert.equal(totalQuantity(result.inventory, "igneous-ore"), 1);
+});
+
+test("removeBatchAt() removes exactly the batch at that index, leaving same-resource batches with different qualities untouched", () => {
+  const firstBatchQualities = { ...oreQualities, purity: 10 };
+  const secondBatchQualities = { ...oreQualities, purity: 90 };
+  let inventory: Inventory = createEmptyInventory();
+  inventory = addBatch(inventory, { resourceId: "igneous-ore", quantity: 1, qualities: firstBatchQualities });
+  inventory = addBatch(inventory, { resourceId: "igneous-ore", quantity: 1, qualities: secondBatchQualities });
+
+  const result = removeBatchAt(inventory, 0);
+
+  assert.equal(result.length, 1);
+  assert.deepEqual(result[0]?.qualities, secondBatchQualities);
+});
+
+test("removeBatchAt() does not mutate the original array", () => {
+  let inventory: Inventory = createEmptyInventory();
+  inventory = addBatch(inventory, { resourceId: "igneous-ore", quantity: 1, qualities: oreQualities });
+  const snapshot = [...inventory];
+
+  removeBatchAt(inventory, 0);
+
+  assert.deepEqual(inventory, snapshot);
 });

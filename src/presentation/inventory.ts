@@ -27,6 +27,17 @@ export function totalQuantity(inventory: Inventory, resourceId: string): number 
     .reduce((sum, batch) => sum + batch.quantity, 0);
 }
 
+// Phase 3 addition: removes exactly one batch by its position in the
+// array, leaving every other batch (including same-resource ones with
+// different rolled qualities) untouched. `consume()` deliberately can't do
+// this -- it's FIFO-across-batches by resourceId, which is right for
+// refine()/craft() (any batch of the right resource works) but wrong for
+// listing a specific batch a player is looking at on screen, where the
+// displayed qualities must match what actually gets listed.
+export function removeBatchAt(inventory: Inventory, index: number): Inventory {
+  return inventory.filter((_, i) => i !== index);
+}
+
 export interface ConsumeResult {
   inventory: Inventory;
   consumed: InventoryBatch[];

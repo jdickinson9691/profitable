@@ -1,0 +1,22 @@
+[
+  {
+    "planetType": "Terrestrial",
+    "sellsCheap": ["igneous-ore", "autunite-crystal"],
+    "buysAtPremium": ["hydrogen-gas", "ion-forged-hull-plate"]
+  },
+  {
+    "planetType": "SuperEarth",
+    "sellsCheap": ["igneous-ore", "hydrogen-gas", "autunite-crystal"],
+    "buysAtPremium": ["radiant-alloy-bar", "ion-forged-hull-plate"]
+  },
+  {
+    "planetType": "Neptunian",
+    "sellsCheap": ["hydrogen-gas", "autunite-crystal"],
+    "buysAtPremium": ["igneous-ore", "radiant-alloy-bar"]
+  },
+  {
+    "planetType": "GasGiant",
+    "sellsCheap": ["hydrogen-gas"],
+    "buysAtPremium": ["igneous-ore", "autunite-crystal", "radiant-alloy-bar", "ion-forged-hull-plate"]
+  }
+]

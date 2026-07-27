@@ -5,6 +5,9 @@ export const SCENE_KEYS = {
   gather: "Gather",
   refine: "Refine",
   craft: "Craft",
+  market: "Market",
+  globalMarket: "GlobalMarket",
+  tradeMap: "TradeMap",
 } as const;
 
 const NAV_ITEMS: Array<{ key: string; label: string }> = [
@@ -12,6 +15,9 @@ const NAV_ITEMS: Array<{ key: string; label: string }> = [
   { key: SCENE_KEYS.gather, label: "Gather" },
   { key: SCENE_KEYS.refine, label: "Refine" },
   { key: SCENE_KEYS.craft, label: "Craft" },
+  { key: SCENE_KEYS.market, label: "Market" },
+  { key: SCENE_KEYS.globalMarket, label: "Global" },
+  { key: SCENE_KEYS.tradeMap, label: "TradeMap" },
 ];
 
 // Persistent nav bar on every scene, so the player can move freely between

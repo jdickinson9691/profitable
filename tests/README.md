@@ -108,8 +108,10 @@ creation, immutable `addBatch()`, `totalQuantity()` summing only the
 requested resource, `consume()` removing a batch exactly, splitting a batch
 when only part is needed, FIFO ordering (oldest batch consumed first,
 preserving each batch's own rolled qualities), leaving other resources'
-batches untouched, throwing when there isn't enough, and a no-op at
-amount 0.
+batches untouched, throwing when there isn't enough, a no-op at amount 0,
+and (Phase 3) `removeBatchAt()` removing exactly the batch at a given index
+without touching a same-resource batch with different qualities, and not
+mutating its input.
 
 `presentation/display.test.ts` covers the pure display-formatting helpers:
 `formatQualityRoll()`/`formatQualityLabel()` map every dimension to its
@@ -234,7 +236,23 @@ listing having nothing to return. `regressionCheck.test.ts` re-runs the
 same hand-calculated `refine()`/`craft()` cases proven correct pre-Phase-3
 plus a `generateGalaxy()` same-seed-reproduces-same-galaxy check, confirming
 Agents 2 and 8 remain untouched now that trading core exists alongside
-them.
+them. `loadTradingContent.test.ts` mirrors `simulation/loadContent.test.ts`'s
+exact coverage pattern (valid config, all-empty config, one-invalid-item
+error naming section+index, multiple-invalid-items-across-sections, missing
+required array, non-object input) for Agent 11's Phase 3 content-loading
+path.
+
+`content/tradingContent.test.ts` covers Agent 14's testing requirements
+against the *real* `content/tradingBasePrices.json` and
+`content/planetMarketPreferences.json` files (not synthetic fixtures): they
+load through the real `loadTradingContent()` with no errors, every MVP
+resource has a base price, base prices are internally consistent (each
+output tier's price exceeds its raw-input cost combined — hand-verified for
+both Radiant Alloy Bar and Ion-Forged Hull Plate), every referenced resource
+id in the preference config resolves to a real resource (no dangling
+references), all 4 Planet Types have a preference entry, and
+`resources.json`'s `itemTier` values reflect the raw(1) < refined(2) <
+crafted(3+) pipeline-depth ordering.
 
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how

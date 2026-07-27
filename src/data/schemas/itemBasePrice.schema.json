@@ -1,0 +1,11 @@
+{
+  "$id": "itemBasePrice.schema.json",
+  "title": "ItemBasePrice",
+  "type": "object",
+  "properties": {
+    "itemId": { "type": "string", "minLength": 1 },
+    "basePrice": { "type": "number", "exclusiveMinimum": 0 }
+  },
+  "required": ["itemId", "basePrice"],
+  "additionalProperties": false
+}

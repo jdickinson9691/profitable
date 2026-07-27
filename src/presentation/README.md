@@ -34,13 +34,62 @@ from a generated galaxy.
   are untouched — they only ever operated on inventory batches, never on
   planet data.
 
+**Phase 3 (Agent 13 — Trading Presentation):** adds the market/trade-map
+loop on top of Phase 2's generated galaxy.
+- `tradingState.ts` — Agent 13's own cross-scene state (same role
+  `gameState.ts`/`galaxyState.ts` already play), all persisted through
+  `saveSystem`: `Wallet`, active `Listing[]`, and `PlanetMarketState[]`.
+  Statically imports `content/tradingBasePrices.json` and
+  `content/planetMarketPreferences.json` and hands them straight to
+  `loadTradingContent()` (Agent 11) — the same "one sanctioned touch point"
+  pattern `loadMvpContent.ts` already established, just folded into this
+  file rather than split into its own, since Agent 13 (unlike Agent 5) owns
+  both the loading and the state in one place. On first run, seeds
+  `PlanetMarketState` for `startingPlanet` from the base-price content, and
+  seeds two starter `Listing`s created by a `"seed-market"` player id —
+  without a counterparty, a single-player session could never demonstrate
+  a real purchase, since `purchaseListing()` correctly rejects buying your
+  own listing. Also maintains a `listingId -> QualityRoll` side-table
+  (`getListingQualities`/`setListingQualities`): `Listing` (Agent 1) only
+  carries a derived `marketTier`, not the item's real 5 qualities, so
+  without this a purchased item's actual rolled qualities would be lost at
+  the point of sale — a direct violation of CLAUDE.md §3.1's "qualities
+  persist at every tier, never relabeled." This is that "elsewhere" the
+  type's own comment refers to.
+- `scenes/MarketScene.ts` — the planet-local market at `startingPlanet`:
+  browse/buy active listings there (including partial purchase via
+  "Buy 1" vs. "Buy All"), and list any inventory batch for sale. Every
+  price/fee/drift number shown comes straight from `purchaseListing()`'s
+  and `createListing()`'s actual return values.
+- `scenes/GlobalMarketScene.ts` — the global market: the derived buy/sell
+  price per item via `getGlobalPrice()` (display only — no way to fulfill
+  a purchase *at* the derived price without order-routing logic Agent 11's
+  contract never specified, so buying works the same direct-listing way as
+  the planet market, just for `location: "global"` listings), plus
+  browsing/purchasing global listings and listing eligible inventory
+  globally. The tier 6-7 restriction is enforced at the UI level (the
+  "List Globally" button simply isn't rendered for an ineligible item) as
+  defense in depth on top of `createListing()`'s own hard rejection — not
+  reachable live with real MVP content since no shipped item reaches tier
+  6 (max is Ion-Forged Hull Plate at 3), so this branch is confirmed by
+  code review + the `GLOBAL_LISTABLE_MAX_ITEM_TIER` constant rather than a
+  live example.
+- `scenes/TradeMapScene.ts` — read-only: for each discovered planet,
+  classifies "sells cheap" / "buys at a premium" / "steady" *live* from
+  `currentPrice` vs. `basePrice` (a ±5% band) in real `PlanetMarketState`
+  data — never computes pricing itself. Agent 14's static
+  `planetMarketPreferences.json` entry is shown separately, labeled
+  "typically," since it's explicitly a day-one seed, not a live signal.
+- `scenes/nav.ts` gained 3 entries (Market/Global/TradeMap);
+  `main.ts` registers the 3 new scenes alongside the original 4.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"
 language). Bundler: **Vite** (`vite.config.ts` + root `index.html`; `npm run
 dev` / `npm run build`).
 
-- `main.ts` — `Phaser.Game` bootstrap, registers the 4 scenes. Also exposes
+- `main.ts` — `Phaser.Game` bootstrap, registers the scenes. Also exposes
   `window.__game` in dev mode only (`import.meta.env.DEV`) — a debug hook
   for inspecting/driving the running game from the console, since canvas
   rendering means there's no DOM to query otherwise.
@@ -87,6 +136,15 @@ dev` / `npm run build`).
 - A rejected craft rolls back: the consumed input batches are added back
   to inventory rather than destroyed, since a rejected craft "cannot
   proceed" (GDD) — verified live (see below).
+- **Phase 3:** `purchaseListing()`'s `proceedsToSeller` isn't credited to
+  a real `Wallet` when the seller is `"seed-market"` (a bootstrap
+  counterparty with no wallet of its own, not a real player) — only the
+  buyer's `Wallet` is ever updated in this minimal wiring. A real
+  multi-party economy is Agent 15's job. `tradingState.ts`'s
+  `replaceListing()` also removes a listing from the active array outright
+  once its quantity reaches 0, rather than keeping a `"closed"` record
+  around — nothing in this minimal wiring reads closed listings, so there
+  was nothing to preserve one for.
 
 **Manual playtest (per this agent's testing requirement — a canvas/WebGL
 app can't run headless the way `node:test` runs everything else):** driven
@@ -120,3 +178,29 @@ visibly tier-shifted values (Density/Potency/Rarity all landed in the
 Grey band) with Hydrogen Gas's null durability still preserved as `N/A`,
 confirming `rollQualityOnPlanet()`'s modifier is actually wired into the
 live gather action rather than just unit-tested in isolation.
+
+**Phase 3 manual playtest (Agent 13):** re-driven live via `npm run dev` +
+a real Chrome tab, dispatching button `pointerdown` events directly
+through `window.__game` (screenshotting still doesn't work against this
+app's continuous render loop, per the note above). Confirmed the full
+sequence in one session:
+- Bought 1 unit from the seed Igneous Ore planet listing (20 → 19cr@6
+  each): wallet went 500 → 494cr (exactly the listed price), the listing's
+  quantity decremented rather than closing (partial purchase), and the
+  item appeared in inventory with its real listed qualities (not a
+  placeholder).
+- Bought 5 more units in a row and watched Trade Map's classification for
+  Igneous Ore flip live from "steady" (5.10cr vs. base 5cr) to "buys at a
+  premium" (5.63cr vs. base 5cr) — driven purely by real
+  `purchaseListing()`/`applyDrift()` calls, matching `1.02^6 * 5 ≈ 5.63`
+  by hand.
+- Global Market's derived prices matched `getGlobalPrice()`'s formula
+  exactly against the one live planet state (e.g. Ion-Forged Hull Plate:
+  buy 66.00cr = 60 × 1.1, sell 54.00cr = 60 × 0.9).
+- Bought 1 unit then "Buy All"'d the remaining 4 units of the seed Radiant
+  Alloy Bar *global* listing: wallet deducted exactly the listed price
+  each time, and the listing disappeared from "Active global listings"
+  once its quantity reached 0 (closed, not left dangling).
+- Listed a unit of Igneous Ore globally as the real player, then attempted
+  to buy it back: rejected with the exact self-trade reason
+  `purchaseListing()` returns — confirmed live, not just unit-tested.

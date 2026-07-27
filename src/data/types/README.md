@@ -72,3 +72,17 @@ full reasoning on each:
 - `listingExpiry.ts` (`ReturnAction`, `ListingExpiryResult`), the return
   shape Agent 11's contract names for `expireListings()` but that the
   amendment never defined.
+
+**Agent 14 (Trading Content) additions** — 2 more necessary completions,
+discovered while implementing `docs/agents/agent-14-trading-content.md`:
+Agent 14's own contract asks for a "Base price config" and a "Planet
+market preference config" but no shape existed for either.
+- `itemBasePrice.ts` (`ItemBasePrice`) — one Credits price per item,
+  distinct from `PlanetMarketState.basePrice` (which is per planet+item):
+  this is the single galaxy-wide reference value every planet's initial
+  `PlanetMarketState.basePrice` is seeded from.
+- `planetMarketPreference.ts` (`PlanetMarketPreference`) — keyed by
+  `PlanetType`, not by specific planet id. Phase 2's galaxy is generated
+  per save from a stored seed, so there is no fixed set of "real" planet
+  ids for static content to reference ahead of time; a generated `Planet`
+  looks up its preference entry by its own `planetType` field instead.

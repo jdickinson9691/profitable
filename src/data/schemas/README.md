@@ -50,3 +50,13 @@ automatically via `readdirSync`, not an explicit list), per the amendment's
 own testing requirement to validate representative valid/invalid examples
 for each new type — including the explicitly-named negative-`pricePerUnit`
 rejection case.
+
+**Agent 14 additions:** `itemBasePrice.schema.json` and
+`planetMarketPreference.schema.json` (new) — necessary completions for the
+2 content shapes Agent 14's contract asks for but nothing had defined; see
+`src/data/types/README.md`. Registered in `src/trading/loadTradingContent.ts`
+(Agent 11's content-loading path, mirroring `loadContent.ts`'s pattern),
+not `loadContent.ts` itself — these are Phase 3 trading content, not MVP
+content. Covered by `tests/trading/loadTradingContent.test.ts` (synthetic
+examples) and `tests/content/tradingContent.test.ts` (the real
+`content/tradingBasePrices.json`/`planetMarketPreferences.json` files).

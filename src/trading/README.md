@@ -27,6 +27,13 @@ every function here is deterministic with no injected `RandomFn`.
   planet price" a structural guarantee rather than a convention.
 - `expireListings.ts` — `expireListings()` (§2.5): planet listings held for
   pickup, global listings returned to inventory.
+- `loadTradingContent.ts` — validates Agent 14's raw JSON (base prices,
+  planet market preferences) against Agent 1's schemas and returns typed
+  data, mirroring `src/simulation/loadContent.ts`'s exact shape (data-in,
+  validated typed-data-out, no file I/O). Added because Agent 13's contract
+  forbids reading Agent 14's raw content directly and nothing else named a
+  loading path for it — same category of gap that produced `loadContent()`
+  mid-build for the MVP.
 
 ## Necessary completions beyond Agent 11's literally-specified signatures
 

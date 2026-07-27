@@ -1,0 +1,7 @@
+[
+  { "itemId": "igneous-ore", "basePrice": 5 },
+  { "itemId": "hydrogen-gas", "basePrice": 4 },
+  { "itemId": "autunite-crystal", "basePrice": 12 },
+  { "itemId": "radiant-alloy-bar", "basePrice": 35 },
+  { "itemId": "ion-forged-hull-plate", "basePrice": 60 }
+]

@@ -39,3 +39,34 @@ Crystal/purity, Hydrogen Gas/durability), confirms the crafting threshold
 is a real, violable value (strictly between 1 and 100), and confirms every
 cross-referenced id (planet → resources, recipes → resources, schematic →
 recipe) resolves to a real entry.
+
+**Phase 3 (Agent 14 — Trading Content):**
+
+- `resources.json` gained `itemTier` (1-7) on all 5 existing entries —
+  necessary completion, not a new item: `Resource.itemTier` (added in the
+  Phase 3 schema amendment) was left unset on every real resource, which
+  would make the tier 6-7 global-listing restriction untestable against
+  real content (missing `itemTier` is treated as unrestricted). Tier
+  reflects pipeline depth, not the schematic's own quality `TierColor` (a
+  different concept): raw = 1 (Igneous Ore, Hydrogen Gas, Autunite
+  Crystal), refined = 2 (Radiant Alloy Bar), first-order crafted = 3
+  (Ion-Forged Hull Plate, since MVP's one recipe is single-stage — nothing
+  crafts from another crafted item, which is what would push a tier past 3
+  toward 7).
+- `tradingBasePrices.json` (new) — one Credits base price per existing
+  item, internally consistent per the contract's own note: each output
+  tier's price exceeds its raw-input cost combined (Radiant Alloy Bar's 35
+  > 2×5 + 12 = 22 in raw inputs; Ion-Forged Hull Plate's 60 > 35 + 4 = 39).
+- `planetMarketPreferences.json` (new) — keyed by **Planet Type**, not by
+  specific planet id; see `src/data/types/planetMarketPreference.ts` for
+  why (Phase 2's galaxy is procedurally generated per save, so no fixed
+  set of "real" planet ids exists for static content to reference ahead of
+  time). Loosely follows each Planet Type's resource eligibility
+  (`PLANET_TYPE_ELIGIBILITY`): a Terrestrial planet sells its solid/crystal
+  produce cheap and pays a premium for the gas and crafted goods it can't
+  make itself; a Gas Giant (Gas-only) is the inverse.
+
+Both new files validate against `itemBasePrice.schema.json`/
+`planetMarketPreference.schema.json` via `loadTradingContent()`
+(`src/trading/loadTradingContent.ts`) — see
+`tests/content/tradingContent.test.ts`.
