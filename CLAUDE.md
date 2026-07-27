@@ -12,10 +12,10 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: Phase 4 (Crew Crafters) in progress.** MVP, Phase 2 (galaxy/planet generation), and Phase 3 (trading loop) are all complete and verified. **Next milestone after Phase 4: Ships, then Travel** — see Section 6 below; both are captured in the design doc ahead of becoming active, so nothing gets lost while Phase 4 is being built.
+**Current phase: Phase 5 (Ships & Travel) ready to start.** MVP, Phase 2 (galaxy/planet generation), Phase 3 (trading loop), and Phase 4 (crew crafters) are all complete and verified. **Next milestone after Phase 5: the galactic map** — see Section 6 below.
 
 **Full development order:**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) **[currently here]** → ships → travel → galactic map.
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel **[currently here — Phase 5]** → galactic map.
 
 ---
 
@@ -202,13 +202,12 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 ## 6. Current Milestone & What's Still Out of Scope
 
-**Next up (active now): crew crafters (NPC crew)** — Phase 4, currently being built. Full scope, decisions, and agent contracts live in `docs/profitable-phase4-gdd.md` and `docs/agents/agent-01-amendment-phase4-schema.md`, `agent-16-crew-core.md`, `agent-17-phase4-validation-test.md`, `agent-18-crew-presentation.md`, `agent-19-phase4-integration.md`. Design questions are resolved except two intentionally tracked, non-blocking items (the exact idle-crafting rate, and genuinely-deferred multiplayer-forward questions — see `docs/profitable-design-questions.md`).
+**Next up (ready to start): Ships & Travel** — Phase 5, combined into one phase since ship tier directly feeds the travel-time formula. Full scope, decisions, and agent contracts live in `docs/profitable-phase5-gdd.md` and `docs/agents/agent-01-amendment-phase5-schema.md`, `agent-20-ships-travel-core.md`, `agent-21-phase5-validation-test.md`, `agent-22-ships-travel-presentation.md`, `agent-23-ships-travel-content.md`, `agent-24-phase5-integration.md`. All Ships and Travel design questions are resolved (encounters during travel is explicitly deferred with a recorded intended future shape — see `docs/profitable-design-questions.md`).
 
-**Captured ahead of time, not yet designed or started — Ships and Travel.** These come immediately after Phase 4 per the decided development order. Topics have been logged in `docs/profitable-design-questions.md`'s new "Ships" and "Travel" sections (ship upgrades/purchasing/components/ship market, travel map/distance-unit/ship-engine effects on travel time, and a new "encounters during travel" feature) specifically so they aren't lost while Phase 4 is being built — but none of it is decided yet, and no GDD or agent contracts exist for either.
+**Still explicitly out of scope**, sequenced after Phase 5:
 
-**Still explicitly out of scope**, sequenced after Ships/Travel, though the relevant decisions already made are recorded in `docs/profitable-design-questions.md`:
-
-- The galactic map beyond what trading already needed
+- The galactic map beyond what trading and travel already needed
+- Encounters during travel, combat, and any travel-hazard mechanic (deferred; intended shape recorded in the design doc, not built)
 - Multiplayer (planned future evolution, single-player only for now)
 
 ---

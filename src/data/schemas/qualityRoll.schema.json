@@ -1,0 +1,14 @@
+{
+  "$id": "qualityRoll.schema.json",
+  "title": "QualityRoll",
+  "type": "object",
+  "properties": {
+    "purity": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 100 }, { "type": "null" }] },
+    "density": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 100 }, { "type": "null" }] },
+    "potency": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 100 }, { "type": "null" }] },
+    "durability": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 100 }, { "type": "null" }] },
+    "rarity": { "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 100 }, { "type": "null" }] }
+  },
+  "required": ["purity", "density", "potency", "durability", "rarity"],
+  "additionalProperties": false
+}

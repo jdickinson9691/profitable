@@ -1,0 +1,13 @@
+{
+  "$id": "shipComponent.schema.json",
+  "title": "ShipComponent",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "category": { "$ref": "componentCategory.schema.json" },
+    "qualities": { "$ref": "qualityRoll.schema.json" },
+    "tier": { "$ref": "tierColor.schema.json" }
+  },
+  "required": ["id", "category", "qualities", "tier"],
+  "additionalProperties": false
+}

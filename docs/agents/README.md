@@ -42,6 +42,17 @@ Phase 3 is complete; these extend the roster for the crew milestone. Full scope:
 21. [`agent-18-crew-presentation.md`](agent-18-crew-presentation.md) — builds the crew hiring and management Phaser scenes. Depends on Agent 16 and Agent 4.
 22. [`agent-19-phase4-integration.md`](agent-19-phase4-integration.md) — wires crew hiring/assignment/background production into the existing extended loop and verifies it end-to-end. Created last.
 
+## Phase 5: Ships & Travel
+
+Phase 4 is complete; these extend the roster for the ships-and-travel milestone. Full scope: `profitable-phase5-gdd.md`.
+
+23. [`agent-01-amendment-phase5-schema.md`](agent-01-amendment-phase5-schema.md) — **amendment to Agent 1**, not a new agent. Adds `ComponentCategory`, `ShipComponent`, `Ship`, `ShipyardPool`, `Voyage` types and the tunable distance/speed/pool constants. Created first in Phase 5.
+24. [`agent-20-ships-travel-core.md`](agent-20-ships-travel-core.md) — implements ship tier derivation, shipyard pool/purchase, travel-time calculation, and voyage initiation/resolution as pure, framework-agnostic TypeScript. Depends on the Phase 5 schema amendment and Agent 2's `craft()`/`getTierColor()`.
+25. [`agent-21-phase5-validation-test.md`](agent-21-phase5-validation-test.md) — tests Agent 20 against Phase 5's rules, including a hand-calculated travel-time check and a regression check against Agents 2/8/11/16. Created alongside Agent 20, runs continuously.
+26. [`agent-22-ships-travel-presentation.md`](agent-22-ships-travel-presentation.md) — builds the shipyard, ship assembly, and map travel-layer Phaser scenes (extending Agent 13's existing map, not a new one). Depends on Agent 20 and Agent 4.
+27. [`agent-23-ships-travel-content.md`](agent-23-ships-travel-content.md) — writes example component recipes (one per category). Depends on the Phase 5 schema amendment only; can run in parallel with 20–22.
+28. [`agent-24-phase5-integration.md`](agent-24-phase5-integration.md) — wires component crafting through ship assembly, purchase, travel, and voyage resolution into the existing extended loop, and confirms Phase 3's deferred remote-sale travel mechanic now works for real. Created last.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:
@@ -53,6 +64,7 @@ These rules aren't restated in full in every file, but every agent above is boun
 - **(Phase 2) The planet-agnostic boundary is non-negotiable.** Agent 2's `refine()` and `craft()` must never be modified to accommodate planet data — planet tier's mechanical effect is gathering-only, by deliberate design (see `profitable-phase2-gdd.md` Section 2.6). Any agent whose work seems to require touching these functions must stop and report a design conflict rather than resolve it unilaterally.
 - **(Phase 3) The same boundary extends to Trading.** Nothing in Phase 3 may modify Agent 2's `refine()`/`craft()` or Agent 8's galaxy/planet generation logic to accommodate market data. Trading reads from and writes to its own new data shapes, never reaching into the simulation core's internals. No agent implements market manipulation *detection* logic — explicitly deferred to whenever multiplayer is built (see `profitable-phase3-gdd.md` Section 2.11).
 - **(Phase 4) The same boundary extends to Crew.** Nothing in Phase 4 may modify Agent 2's `refine()`/`craft()` internals, Agent 8's generation logic, or Agent 11's trading logic to accommodate crew data — Crew Core *calls* `craft()` multiple times simultaneously but never alters what it does. No agent implements combat, travel-hazard, poaching, or any random/permadeath crew-loss mechanic — explicitly deferred to a future travel/danger milestone that doesn't exist yet (see `profitable-phase4-gdd.md` Section 2.7).
+- **(Phase 5) The same boundary extends to Ships & Travel.** Nothing in Phase 5 may modify Agent 2's `refine()`/`craft()`, Agent 8's generation logic, Agent 11's trading logic, or Agent 16's crew logic to accommodate ship/travel data. No agent implements encounters, combat, or any travel-hazard mechanic — explicitly deferred (see `profitable-phase5-gdd.md` Section 2.9). The Phase 3 remote tier 6-7 sale mechanic must resolve through a real `Voyage`, not a stub — Agent 24's integration report must confirm this connection actually works.
 
 ## Relationship to the GDD
 

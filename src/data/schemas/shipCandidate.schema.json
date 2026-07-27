@@ -1,0 +1,23 @@
+{
+  "$id": "shipCandidate.schema.json",
+  "title": "ShipCandidate",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "tier": { "$ref": "tierColor.schema.json" },
+    "components": {
+      "type": "object",
+      "properties": {
+        "weapon": { "anyOf": [{ "$ref": "shipComponent.schema.json" }, { "type": "null" }] },
+        "engine": { "anyOf": [{ "$ref": "shipComponent.schema.json" }, { "type": "null" }] },
+        "shield": { "anyOf": [{ "$ref": "shipComponent.schema.json" }, { "type": "null" }] },
+        "cargoHold": { "anyOf": [{ "$ref": "shipComponent.schema.json" }, { "type": "null" }] }
+      },
+      "required": ["weapon", "engine", "shield", "cargoHold"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["id", "name", "tier", "components"],
+  "additionalProperties": false
+}

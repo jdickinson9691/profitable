@@ -1,0 +1,27 @@
+{
+  "$id": "voyage.schema.json",
+  "title": "Voyage",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "shipId": { "type": "string", "minLength": 1 },
+    "originPlanetId": { "type": "string", "minLength": 1 },
+    "destinationPlanetId": { "type": "string", "minLength": 1 },
+    "departedAt": { "type": "integer", "minimum": 0 },
+    "arrivesAt": { "type": "integer", "minimum": 0 },
+    "cargo": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "itemId": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["itemId", "quantity"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["id", "shipId", "originPlanetId", "destinationPlanetId", "departedAt", "arrivesAt", "cargo"],
+  "additionalProperties": false
+}

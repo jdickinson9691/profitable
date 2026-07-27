@@ -1,0 +1,6 @@
+{
+  "$id": "componentCategory.schema.json",
+  "title": "ComponentCategory",
+  "type": "string",
+  "enum": ["weapon", "engine", "shield", "cargoHold"]
+}
