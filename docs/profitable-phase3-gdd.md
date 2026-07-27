@@ -1,6 +1,6 @@
 # Profitable — Phase 3 Game Design Document: The Trading Loop
 
-Status: design locked (see `profitable-design-questions.md`, "Trading Market" section — fully resolved). This document defines what gets built for Phase 3, in what order, and which AI agents build it. It extends `profitable-mvp-gdd.md` and `profitable-phase2-gdd.md`; MVP and Phase 2 scope/formulas are unchanged and not restated here except where Phase 3 touches them directly.
+Status: **Phase 3 complete and verified** (Agent 1 amendment, Agents 11-15 all delivered; full roster committed). This document remains the historical record of the Phase 3 build; see `CLAUDE.md` for current project status and the next milestone (crew crafters).
 
 ---
 

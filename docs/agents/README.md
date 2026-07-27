@@ -23,14 +23,24 @@ MVP is complete; these extend the roster for the next milestone. Full scope: `pr
 
 ## Phase 3: The Trading Loop
 
-Phase 2 is complete; these extend the roster for the next milestone. Full scope: `profitable-phase3-gdd.md`.
+Phase 2 is complete; these extend the roster for the trading milestone. Full scope: `profitable-phase3-gdd.md`.
 
-12. [`agent-01-amendment-phase3-schema.md`](agent-01-amendment-phase3-schema.md) — **amendment to Agent 1**, not a new agent. Adds `Listing`, `PlanetMarketState`, `Wallet`, the trading tunable constants, and (a necessary completion) `Resource.itemTier`. Created first in Phase 3.
-13. [`agent-11-trading-core.md`](agent-11-trading-core.md) — implements listing/purchase/drift/recovery/global-price/fee logic as pure, framework-agnostic TypeScript. Depends on the Agent 1 Phase 3 amendment.
-14. [`agent-12-phase3-validation-test.md`](agent-12-phase3-validation-test.md) — tests Agent 11's output against Phase 3's rules, including the global-price invariant and a regression check confirming Agents 2 and 8 are untouched. Created alongside Agent 11, runs continuously.
-15. [`agent-13-trading-presentation.md`](agent-13-trading-presentation.md) — builds the market/trade-map Phaser scenes. Depends on Agent 11 and Agent 4's existing adapters.
-16. [`agent-14-trading-content.md`](agent-14-trading-content.md) — writes base price and planet buy/sell preference config data. Depends on the Agent 1 Phase 3 amendment only; can run in parallel with Agents 11–13.
-17. [`agent-15-phase3-integration.md`](agent-15-phase3-integration.md) — wires the trading loop into the existing gather → refine → craft loop and verifies the full extended loop end-to-end. Created last.
+12. [`agent-01-amendment-phase3-schema.md`](agent-01-amendment-phase3-schema.md) — **amendment to Agent 1**, not a new agent. Adds `Listing`, `PlanetMarketState`, `Wallet` types and the tunable pricing/fee/expiry constants. Created first in Phase 3.
+13. [`agent-11-trading-core.md`](agent-11-trading-core.md) — implements listing creation/purchase, drift/recovery, global price derivation, fee deduction, and self-trade prevention as pure, framework-agnostic TypeScript. Depends on the Phase 3 schema amendment.
+14. [`agent-12-phase3-validation-test.md`](agent-12-phase3-validation-test.md) — tests Agent 11 against Phase 3's rules, including a global-price invariant stress test and a regression check against Agents 2/8. Created alongside Agent 11, runs continuously.
+15. [`agent-13-trading-presentation.md`](agent-13-trading-presentation.md) — builds the market and trade map Phaser scenes. Depends on Agent 11 and Agent 4.
+16. [`agent-14-trading-content.md`](agent-14-trading-content.md) — writes base price and initial planet market preference config data. Depends on the Phase 3 schema amendment only; can run in parallel with 11–13.
+17. [`agent-15-phase3-integration.md`](agent-15-phase3-integration.md) — wires the trading loop into the existing gather → refine → craft loop and verifies the extended loop end-to-end. Created last.
+
+## Phase 4: Crew Crafters
+
+Phase 3 is complete; these extend the roster for the crew milestone. Full scope: `profitable-phase4-gdd.md`.
+
+18. [`agent-01-amendment-phase4-schema.md`](agent-01-amendment-phase4-schema.md) — **amendment to Agent 1**, not a new agent. Adds `CrewMember`, `CrewCapacity`, `PlanetCrewPool` types and the tunable wage/capacity/upkeep/refresh constants. Created first in Phase 4.
+19. [`agent-16-crew-core.md`](agent-16-crew-core.md) — implements hiring, assignment, background/idle catch-up resolution, upkeep, and attrition as pure, framework-agnostic TypeScript. Depends on the Phase 4 schema amendment and Agent 2's `craft()`.
+20. [`agent-17-phase4-validation-test.md`](agent-17-phase4-validation-test.md) — tests Agent 16 against Phase 4's rules, including a simultaneity test and a regression check against Agents 2/8/11. Created alongside Agent 16, runs continuously.
+21. [`agent-18-crew-presentation.md`](agent-18-crew-presentation.md) — builds the crew hiring and management Phaser scenes. Depends on Agent 16 and Agent 4.
+22. [`agent-19-phase4-integration.md`](agent-19-phase4-integration.md) — wires crew hiring/assignment/background production into the existing extended loop and verifies it end-to-end. Created last.
 
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
@@ -41,7 +51,8 @@ These rules aren't restated in full in every file, but every agent above is boun
 - **Every agent's output must be independently reviewable against its own Definition of Done**, without requiring a reviewer to understand any other agent's internals. This is what makes each contract a real contract rather than a loose task description — a human or an orchestrating agent should be able to check any single agent's work in isolation.
 - **Mismatches between agents are integration bugs, not license to freelance.** If Agent 5 expects a function Agent 2 doesn't provide, that gap gets reported (by Agent 7, or by whichever agent discovers it) and attributed to the responsible agent — it does not get silently patched around by whichever agent hits the mismatch first.
 - **(Phase 2) The planet-agnostic boundary is non-negotiable.** Agent 2's `refine()` and `craft()` must never be modified to accommodate planet data — planet tier's mechanical effect is gathering-only, by deliberate design (see `profitable-phase2-gdd.md` Section 2.6). Any agent whose work seems to require touching these functions must stop and report a design conflict rather than resolve it unilaterally.
-- **(Phase 3) The same boundary extends to trading.** Nothing in the trading roster may modify Agent 2's `refine()`/`craft()` or Agent 8's galaxy/planet generation logic to accommodate market data — trading reads/writes its own new data shapes only (see `profitable-phase3-gdd.md` Section 5). No agent implements market manipulation *detection* logic; that's explicitly deferred to whenever multiplayer is in scope.
+- **(Phase 3) The same boundary extends to Trading.** Nothing in Phase 3 may modify Agent 2's `refine()`/`craft()` or Agent 8's galaxy/planet generation logic to accommodate market data. Trading reads from and writes to its own new data shapes, never reaching into the simulation core's internals. No agent implements market manipulation *detection* logic — explicitly deferred to whenever multiplayer is built (see `profitable-phase3-gdd.md` Section 2.11).
+- **(Phase 4) The same boundary extends to Crew.** Nothing in Phase 4 may modify Agent 2's `refine()`/`craft()` internals, Agent 8's generation logic, or Agent 11's trading logic to accommodate crew data — Crew Core *calls* `craft()` multiple times simultaneously but never alters what it does. No agent implements combat, travel-hazard, poaching, or any random/permadeath crew-loss mechanic — explicitly deferred to a future travel/danger milestone that doesn't exist yet (see `profitable-phase4-gdd.md` Section 2.7).
 
 ## Relationship to the GDD
 

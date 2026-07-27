@@ -398,6 +398,90 @@ test("wallet.schema.json rejects negative credits", () => {
   assert.equal(valid, false);
 });
 
+function baseCrewMember(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "crew-1",
+    hiredByPlayerId: "player-1",
+    tier: "Blue",
+    profession: null,
+    status: "idle",
+    assignedCraftId: null,
+    hiredAt: 0,
+    lastCheckedAt: 0,
+    wageAmount: 35,
+    lastPaidAt: 0,
+    ...overrides,
+  };
+}
+
+test("crewMember.schema.json accepts a valid tier 3-5 crew member (profession null)", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember());
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json accepts a valid tier 6-7 crew member with a profession set", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ tier: "Gold", profession: "weaponsmith", wageAmount: 120 }));
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json accepts a valid actively-assigned crew member", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ status: "active", assignedCraftId: "craft-1" }));
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json rejects a non-positive wageAmount", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ wageAmount: 0 }));
+  assert.equal(valid, false);
+});
+
+test("crewMember.schema.json rejects an invalid status value", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ status: "hired" }));
+  assert.equal(valid, false);
+});
+
+test("crewCapacity.schema.json accepts a valid capacity record", () => {
+  const validate = getValidator("crewCapacity.schema.json");
+  const valid = validate({ playerId: "player-1", baseCapacity: 2, purchasedSlots: 1 });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewCapacity.schema.json rejects a negative purchasedSlots", () => {
+  const validate = getValidator("crewCapacity.schema.json");
+  const valid = validate({ playerId: "player-1", baseCapacity: 2, purchasedSlots: -1 });
+  assert.equal(valid, false);
+});
+
+test("planetCrewPool.schema.json accepts a valid pool with crew member entries", () => {
+  const validate = getValidator("planetCrewPool.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    availableHires: [baseCrewMember({ id: "candidate-1" })],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("planetCrewPool.schema.json accepts an empty pool", () => {
+  const validate = getValidator("planetCrewPool.schema.json");
+  const valid = validate({ planetId: "delta-rigelus", availableHires: [], lastRefreshedAt: 0 });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("planetCrewPool.schema.json rejects a pool containing an invalid crew member", () => {
+  const validate = getValidator("planetCrewPool.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    availableHires: [baseCrewMember({ status: "hired" })],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(valid, false);
+});
+
 test("quality.schema.json and tierColor.schema.json only accept their documented enum values", () => {
   const quality = getValidator("quality.schema.json");
   const tier = getValidator("tierColor.schema.json");

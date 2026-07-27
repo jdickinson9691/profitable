@@ -1,0 +1,12 @@
+{
+  "$id": "crewCapacity.schema.json",
+  "title": "CrewCapacity",
+  "type": "object",
+  "properties": {
+    "playerId": { "type": "string", "minLength": 1 },
+    "baseCapacity": { "type": "integer", "minimum": 0 },
+    "purchasedSlots": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["playerId", "baseCapacity", "purchasedSlots"],
+  "additionalProperties": false
+}

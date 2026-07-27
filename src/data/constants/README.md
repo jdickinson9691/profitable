@@ -55,3 +55,24 @@ needs its own tunable rate distinct from `BASELINE_DRIFT_PERCENT` (which
 GDD §2.6 ties specifically to per-unit-traded volume, not elapsed time), and
 none existed. Added here, the single source every trading formula reads,
 rather than embedded in Agent 11's own logic file.
+
+**Phase 4 amendment:** `crewConfig.ts` — unlike Phase 2/3, the design doc
+gives almost no example numbers for these (only the elapsed-time cap has a
+documented "24-48 hours" range), so most values here are originated
+defaults rather than formalized examples — same latitude Agent 14 used
+for Phase 3's base prices. `BASE_CREW_CAPACITY` (2),
+`CREW_CAPACITY_EXPANSION_BASE_COST`/`_MULTIPLIER` (200 / 1.5),
+`CREW_HIRE_COST_BY_TIER` and `CREW_WAGE_BY_TIER` (both 7-row tables,
+strictly increasing by tier — wage always cheaper than hire cost at every
+tier), `WAGE_PAYMENT_INTERVAL_HOURS` (24), `UPKEEP_GRACE_PERIOD_HOURS` (48),
+`CREW_POOL_SIZE_PER_PLANET` (3), `CREW_POOL_REFRESH_INTERVAL_HOURS` (24),
+and `ELAPSED_TIME_CAP_HOURS` (48, the documented example range's upper
+bound). Tested for structural invariants (positive, monotonic by tier)
+rather than hardcoded "expected" values nobody ever specified — see
+`tests/data/phase4Constants.test.ts`.
+
+**`BACKGROUND_IDLE_OUTPUT_RATE` is deliberately `null`, not a number** —
+the amendment's own contract explicitly forbids guessing this one: the
+exact idle-vs-active output rate is still an open design question, not
+merely an unspecified tunable. Agent 16 must treat it as "not yet
+available," not default to a guessed fraction.

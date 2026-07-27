@@ -1,0 +1,34 @@
+{
+  "$id": "crewMember.schema.json",
+  "title": "CrewMember",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "hiredByPlayerId": { "type": "string", "minLength": 1 },
+    "tier": { "$ref": "tierColor.schema.json" },
+    "profession": {
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+    },
+    "status": { "type": "string", "enum": ["idle", "active"] },
+    "assignedCraftId": {
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+    },
+    "hiredAt": { "type": "integer", "minimum": 0 },
+    "lastCheckedAt": { "type": "integer", "minimum": 0 },
+    "wageAmount": { "type": "number", "exclusiveMinimum": 0 },
+    "lastPaidAt": { "type": "integer", "minimum": 0 }
+  },
+  "required": [
+    "id",
+    "hiredByPlayerId",
+    "tier",
+    "profession",
+    "status",
+    "assignedCraftId",
+    "hiredAt",
+    "lastCheckedAt",
+    "wageAmount",
+    "lastPaidAt"
+  ],
+  "additionalProperties": false
+}

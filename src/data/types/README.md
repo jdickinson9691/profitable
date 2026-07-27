@@ -86,3 +86,21 @@ market preference config" but no shape existed for either.
   per save from a stored seed, so there is no fixed set of "real" planet
   ids for static content to reference ahead of time; a generated `Planet`
   looks up its preference entry by its own `planetType` field instead.
+
+**Phase 4 amendment** (`docs/agents/agent-01-amendment-phase4-schema.md`):
+`crewMember.ts` (`CrewMember`), `crewCapacity.ts` (`CrewCapacity`), and
+`planetCrewPool.ts` (`PlanetCrewPool`) — the 3 new crew types, plus
+`crewHireCost.ts`/`crewWage.ts` (`CrewHireCostByTier`/`CrewWageByTier`),
+the row shapes for the two new tier-keyed constant tables. Same
+epoch-ms-number timestamp convention as `Listing`.
+
+Also `profession.ts` (`Profession = string`) — a necessary completion:
+the amendment's own contract names a `Profession` type for
+`CrewMember.profession` but never defines it, because the full tier 6-7
+profession taxonomy is still an explicitly open design question
+(`profitable-design-questions.md`, tracked since the original MVP GDD's
+"full scope post-MVP" note on crafter specialties). Rather than inventing
+a fixed enum the design hasn't decided — the same must-not-invent rule
+this amendment's contract applies to the background/idle rate constant —
+`Profession` is a free-form string for now; a real enum can replace it
+without changing `CrewMember`'s shape once the taxonomy is decided.

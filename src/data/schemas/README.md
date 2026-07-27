@@ -60,3 +60,17 @@ not `loadContent.ts` itself — these are Phase 3 trading content, not MVP
 content. Covered by `tests/trading/loadTradingContent.test.ts` (synthetic
 examples) and `tests/content/tradingContent.test.ts` (the real
 `content/tradingBasePrices.json`/`planetMarketPreferences.json` files).
+
+**Phase 4 amendment:** `crewMember.schema.json`, `crewCapacity.schema.json`,
+and `planetCrewPool.schema.json` (new) for the 3 crew types — same
+"not registered in any content-loading pipeline" situation as Phase 3's
+`Listing`/`Wallet`: crew records are runtime state Agent 16 creates
+(hiring, pool refresh), not static config, and there's no Phase 4 Content
+agent at all (crew pools are procedurally rolled, per the GDD). Covered
+directly by `tests/data/schemas.test.ts` (auto-discovered, same as every
+other schema here) with valid tier-3-5 (`profession: null`) and tier-6-7
+(`profession` set) examples, an active-vs-idle example, and rejection
+cases for a non-positive `wageAmount` and an invalid `status` value.
+`planetCrewPool.schema.json`'s `availableHires` array `$ref`s
+`crewMember.schema.json` directly, so an invalid nested crew member is
+caught the same way an invalid nested object would be anywhere else.

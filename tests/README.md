@@ -217,6 +217,25 @@ contract's explicitly-named negative-`pricePerUnit` rejection, an invalid
 and rejecting a zero `basePrice`, and `wallet.schema.json` accepting a valid
 wallet and rejecting negative `credits`.
 
+`data/phase4Constants.test.ts` covers the Agent 1 Phase 4 amendment's
+tunable constants. Unlike Phase 2/3, the design doc gives almost no
+example numbers here, so these tests check structural invariants rather
+than hardcoded "expected" values nobody specified: `BASE_CREW_CAPACITY` is
+a small positive integer, the capacity expansion curve actually makes each
+slot cost more, `CREW_HIRE_COST_BY_TIER`/`CREW_WAGE_BY_TIER` each cover all
+7 tiers and strictly increase by tier, wage is always cheaper than hire
+cost at every tier, every timing tunable is positive, and
+`ELAPSED_TIME_CAP_HOURS` falls within the one documented example range
+(24-48 hours). A dedicated test confirms `BACKGROUND_IDLE_OUTPUT_RATE` is
+explicitly `null` — the one constant the amendment's contract forbids
+guessing — rather than silently defaulted to some fraction.
+`data/schemas.test.ts` gained matching schema-level tests: a valid tier
+3-5 crew member (`profession: null`), a valid tier 6-7 crew member with a
+profession set, an active-vs-idle example, rejection of a non-positive
+`wageAmount` and an invalid `status`, a valid/rejecting `crewCapacity`
+record, and a `planetCrewPool` example (including one whose nested
+`availableHires` entry is itself invalid, confirming the `$ref` catches it).
+
 `simulation/aggregateTier.test.ts` is a light direct check at the layer
 that now owns `computeAggregateTier()` (moved from `src/presentation/`, see
 that file's own comment) — `presentation/display.test.ts` still covers it
