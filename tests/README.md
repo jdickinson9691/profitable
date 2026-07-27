@@ -277,7 +277,47 @@ slots `null`), rejection of a missing `ownerId`, a valid `shipCandidate`
 invalid (confirming the `$ref` catches it, same as Phase 4's crew pool
 correction), a `voyage` with real cargo and with an empty cargo array,
 rejection of a zero-quantity cargo entry, and a valid/invalid
-`componentRecipe` link.
+`componentRecipe` link. Every `ship`-shaped example also carries a
+`currentPlanetId` (see `src/data/types/README.md`'s Agent 20 section for
+why it's required), including a dedicated test rejecting a `Ship` missing it.
+
+`ships/` covers Agent 20 (Ships & Travel Core) and Agent 21 (Phase 5
+Validation/Test) together, the same relationship Agent 16 had to Agent 17.
+`deriveShipTier.test.ts` covers the straight-average-of-installed-tiers
+formula against hand-calculated midpoint values (including a mixed-tier
+case), that a `null` slot is excluded from the average rather than
+penalizing the ship, and the documented zero-components fallback to
+`Grey`. `assembleShip.test.ts` covers installing into a slot, that
+`ship.tier` is recomputed (never stale) after every assembly change,
+replacing an existing component, and rejection when a component's
+category doesn't match its target slot. `refreshShipyardPool.test.ts`
+covers the exact pool size, determinism given a seed, unique candidate
+ids, and — across 20 generated pools — that every candidate's own
+`tier` and all 4 of its generated components' tiers agree exactly, per
+the contract's "components generated to match the resulting tier"
+requirement. `purchaseShip.test.ts` covers the exact tier-scaled cost
+deduction, the resulting `Ship`'s exact shape (owned by the buyer,
+located at the shipyard's planet), rejection for a candidate not in the
+pool, and rejection on insufficient funds. `calculateTravelTime.test.ts`
+is Agent 21's explicitly-required hand-calculated example: a 3-4-5
+right-triangle route (distance exactly 500) matched against the literal
+formula, plus confirmation that a higher-tier ship is strictly faster on
+the same route, that only 2D distance is ever used, and rejection when
+either planet lacks a generated `position` (e.g. pre-Phase-2 content like
+Delta Rigelus). `initiateVoyage.test.ts` covers the exact `arrivesAt`
+computation, correct id propagation, cargo passthrough (supporting the
+Phase 3 remote-sale mechanic), and — Agent 21's other explicitly-required
+test — that a ship-tier change *after* departure does not retroactively
+alter an already-locked-in `arrivesAt`. `resolveArrival.test.ts` covers
+the early-resolution rejection (explicit, per the contract), success
+exactly at `arrivesAt`, that the ship's `currentPlanetId` updates to the
+destination, and that cargo is only ever reported once actually
+arrived — proving the mechanism the Phase 3 remote-sale connection
+depends on (full end-to-end wiring through a real `Listing` is Agent
+24's job). `regressionCheck.test.ts` re-runs the same hand-calculated
+`refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()`/`hireCrew()`
+cases proven correct pre-Phase-5, confirming Agents 2, 8, 11, and 16
+remain untouched now that ships & travel core exists alongside them.
 
 `crew/` covers Agent 16 (Crew Core) and Agent 17 (Phase 4 Validation/
 Test) together, the same relationship Agent 9 had to Agent 8 and Agent 12

@@ -115,3 +115,9 @@ this small schema validates the separate `recipeId` → `ComponentCategory`
 mapping instead). `voyage.schema.json` covers both a voyage carrying real
 cargo and one with an empty cargo array, plus rejection of a
 zero-quantity cargo entry.
+
+**Agent 20 correction:** `ship.schema.json` gained a required
+`currentPlanetId` property, found while implementing Agent 20 (not
+during the amendment itself) — see `src/data/types/README.md`'s Agent 20
+section for why. Every existing `ship.schema.json` test was updated to
+include it, plus a new explicit rejection test for a `Ship` missing it.
