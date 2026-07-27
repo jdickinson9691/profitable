@@ -153,6 +153,28 @@ neither ever beats the best real planet price. A final test re-asserts the
 same hand-calculated MVP/Phase 2 cases proven elsewhere, as this agent's
 own regression marker.
 
+`integration/phase4Loop.test.ts` is Agent 19's own verification, same
+relationship to Agent 17's unit tests that `phase3Loop.test.ts` had to
+Agent 12's. Chains hire → assign (simultaneously with the player's own
+independent `craft()` call) → idle background-check → upkeep payment →
+attrition-vs-dismissal in one test, using a real generated galaxy and a
+real `refreshCrewPool()`-produced pool — confirming the actively-assigned
+crew member's craft and the player's own craft are computed completely
+independently (different crafter tiers, no shared state), that
+`checkAttrition()` correctly does *not* trigger on time and *does* trigger
+exactly past the grace period boundary, and that dismissal works as the
+alternative exit path. A dedicated test hand-verifies one complete
+background-production example (a known `lastCheckedAt` of 0, a known
+5-hour elapsed time, 5 completed units matching an explicit 1-unit/hour
+rate exactly) — **explicitly flagged**, per this agent's own testing
+requirement, that `BACKGROUND_IDLE_OUTPUT_RATE` is still `null` at
+integration time (Phase 4 GDD §2.1a remains an open design question), so
+the example supplies an override purely to prove the elapsed-time-
+derivation/capping/unit-computation mechanism is correct, not to claim a
+final balanced rate. A final test re-asserts the same hand-calculated
+MVP/Phase 2/Phase 3 cases proven elsewhere, as this agent's own regression
+marker.
+
 `galaxy/` covers Agent 8 (Galaxy/Planet Generation Core) and Agent 9
 (Phase 2 Validation/Test) together, the same relationship Agent 3 had to
 Agent 2 during the MVP. `agent9PhaseValidation.test.ts` specifically

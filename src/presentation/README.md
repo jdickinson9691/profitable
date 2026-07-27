@@ -113,6 +113,25 @@ on top of Phase 3's market loop.
 - `scenes/nav.ts` gained a Crew entry; `main.ts` registers `CrewScene`
   alongside the other 7.
 
+**Phase 4 integration bug fix (Agent 19):** discovered while performing
+this agent's own required manual playtest — `MarketScene`, `GlobalMarketScene`,
+and `CrewScene` all shared the same status-message bug. Every action
+handler set `statusText` then called `redraw()`, but `redraw()`
+unconditionally recreates a blank `statusText` at its own end (after
+`children.removeAll()`), silently wiping the message before a player ever
+saw it — a pre-existing gap in Agents 13's and 18's own scope, not
+something Agent 19 introduced. `CrewScene`'s departure notice had the
+identical problem twice over: two lines apart, it wrote the departure
+text and then immediately overwrote it with a second blank `statusText`.
+Fixed in all three scenes with a `pendingMessage` field that survives the
+`removeAll()`/recreate cycle — `setStatus()` replaces every
+`this.statusText?.setText(...)` call site, and each scene's final
+`this.add.text(...)` in `redraw()` seeds from `this.pendingMessage`
+instead of `""`. `CrewScene`'s departure notice now flows through the
+same single mechanism rather than a separate, also-broken code path.
+Confirmed live post-fix: a purchase confirmation and a background-check
+result both now persist on screen after their triggering action.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"
@@ -287,3 +306,23 @@ gathered/carried over, no reset needed). Confirmed the full sequence:
 - Confirmed via grep: no DOM UI anywhere in `CrewScene.ts`, and no
   random-loss/"risk of losing this crew member" messaging exists in the
   actual rendered text (Section 2.7 has no such mechanic).
+
+**Phase 4 manual playtest (Agent 19):** a *fresh* session (`localStorage`
+cleared first), proving the full extended loop from a cold start. Hired 2
+crew members from a real generated planet's crew pool (Grey and Green,
+costs matching `CREW_HIRE_COST_BY_TIER` exactly). Performed the player's
+own craft via `CraftScene` directly (independent of any crew machinery),
+then assigned the Green crew member to their own craft while leaving Grey
+idle — confirmed in the rendered roster (`Grey — idle`, `Green — active,
+working on craft-...`) and in inventory: two separately-computed
+Ion-Forged Hull Plate batches (quality 78 and 79) proving the player's
+craft and the crew member's craft produced genuinely independent results,
+not one shared/serialized outcome. Checking the idle Grey member's
+background production correctly reported "not yet decided" (the honest,
+documented state of §2.1a at integration time — see the dedicated
+hand-verified example in `tests/integration/phase4Loop.test.ts` for what
+the mechanism does once a real rate exists). Purchased a capacity slot
+and dismissed a crew member, both reflected immediately in the roster/
+capacity display. This same session is also where the status-message bug
+above was found and fixed — action results are now actually visible to a
+player, not silently discarded.

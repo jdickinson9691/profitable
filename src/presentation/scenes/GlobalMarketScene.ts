@@ -29,6 +29,9 @@ import type { Listing } from "../../data/types/listing.ts";
 // offered and failing.
 export class GlobalMarketScene extends Phaser.Scene {
   private statusText?: Phaser.GameObjects.Text;
+  // Bug fix (found during Agent 19's Phase 4 integration playtest,
+  // Agent 13's own scope) -- see MarketScene.ts's identical fix comment.
+  private pendingMessage = "";
 
   constructor() {
     super(SCENE_KEYS.globalMarket);
@@ -36,6 +39,11 @@ export class GlobalMarketScene extends Phaser.Scene {
 
   create(): void {
     this.redraw();
+  }
+
+  private setStatus(message: string): void {
+    this.pendingMessage = message;
+    this.statusText?.setText(message);
   }
 
   private canListGlobally(itemTier: number | undefined): boolean {
@@ -148,7 +156,7 @@ export class GlobalMarketScene extends Phaser.Scene {
       });
     }
 
-    this.statusText = this.add.text(16, 440, "", {
+    this.statusText = this.add.text(16, 440, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
@@ -159,7 +167,7 @@ export class GlobalMarketScene extends Phaser.Scene {
     const result = purchaseListing(listing, quantity, PLAYER_ID, null);
 
     if (!result.success) {
-      this.statusText?.setText(`Purchase failed: ${result.reason}`);
+      this.setStatus(`Purchase failed: ${result.reason}`);
       return;
     }
 
@@ -180,7 +188,7 @@ export class GlobalMarketScene extends Phaser.Scene {
       { resourceId: listing.itemId, quantity: succeeded.quantityPurchased, qualities: realQualities },
     ]);
 
-    this.statusText?.setText(
+    this.setStatus(
       `Bought ${succeeded.quantityPurchased}x ${resource?.name ?? listing.itemId} for ${succeeded.totalPaid}cr (fee: ${succeeded.feeDeducted}cr)`,
     );
     this.redraw();
@@ -210,7 +218,7 @@ export class GlobalMarketScene extends Phaser.Scene {
     setListingQualities(listing.id, batch.qualities);
     setInventory(removeBatchAt(inventory, inventoryIndex));
 
-    this.statusText?.setText(`Listed ${batch.quantity}x ${resource.name} globally @ ${pricePerUnit}cr/unit`);
+    this.setStatus(`Listed ${batch.quantity}x ${resource.name} globally @ ${pricePerUnit}cr/unit`);
     this.redraw();
   }
 }

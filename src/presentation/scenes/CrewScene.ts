@@ -38,6 +38,9 @@ import type { PurchaseCapacitySucceeded } from "../../data/types/purchaseCapacit
 // reports it).
 export class CrewScene extends Phaser.Scene {
   private statusText?: Phaser.GameObjects.Text;
+  // Bug fix (found during this agent's own Phase 4 integration playtest,
+  // in this same scene) -- see MarketScene.ts's identical fix comment.
+  private pendingMessage = "";
 
   constructor() {
     super(SCENE_KEYS.crew);
@@ -45,6 +48,11 @@ export class CrewScene extends Phaser.Scene {
 
   create(): void {
     this.redraw();
+  }
+
+  private setStatus(message: string): void {
+    this.pendingMessage = message;
+    this.statusText?.setText(message);
   }
 
   // The one fixed MVP crafting recipe -- same "resolve category to the
@@ -105,6 +113,9 @@ export class CrewScene extends Phaser.Scene {
         removeCrewMember(member.id);
       }
     }
+    if (departedNames.length > 0) {
+      this.pendingMessage = `Departed (unpaid upkeep): ${departedNames.join(", ")}`;
+    }
 
     this.add.text(16, 64, `Crew — ${startingPlanet.name}`, {
       fontFamily: "monospace",
@@ -139,17 +150,11 @@ export class CrewScene extends Phaser.Scene {
     y += 12;
     y = this.renderRoster(y, roster);
 
-    if (departedNames.length > 0) {
-      this.statusText?.destroy();
-      this.statusText = this.add.text(16, y + 10, `Departed (unpaid upkeep): ${departedNames.join(", ")}`, {
-        fontFamily: "monospace",
-        fontSize: "14px",
-        color: "#ff6666",
-      });
-      y += 30;
-    }
-
-    this.statusText = this.add.text(16, 470, "", { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+    this.statusText = this.add.text(16, 470, this.pendingMessage, {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: departedNames.length > 0 ? "#ff6666" : "#cccccc",
+    });
   }
 
   private renderPool(startY: number): number {
@@ -235,21 +240,21 @@ export class CrewScene extends Phaser.Scene {
   private onHire(candidate: CrewCandidate): void {
     const result = hireCrew(candidate, getCrewPool(), getCrewCapacity(), getCrewRoster(), getWallet(), PLAYER_ID);
     if (!result.hired) {
-      this.statusText?.setText(`Hire failed: ${result.reason}`);
+      this.setStatus(`Hire failed: ${result.reason}`);
       return;
     }
     const succeeded = result as HireSucceeded;
     setCrewPool(succeeded.updatedPool);
     setWallet(succeeded.updatedWallet);
     addCrewMember(succeeded.crewMember);
-    this.statusText?.setText(`Hired a ${succeeded.crewMember.tier} tier crew member.`);
+    this.setStatus(`Hired a ${succeeded.crewMember.tier} tier crew member.`);
     this.redraw();
   }
 
   private onAssign(member: CrewMember): void {
     const action = this.buildCraftAction(`craft-${member.id}-${Date.now()}`);
     if (!action) {
-      this.statusText?.setText("Not enough materials gathered/refined yet to assign this crew member.");
+      this.setStatus("Not enough materials gathered/refined yet to assign this crew member.");
       return;
     }
     const result = assignToCraft(member, action) as AssignSucceeded;
@@ -265,9 +270,9 @@ export class CrewScene extends Phaser.Scene {
           qualities: result.craftResult.qualities,
         }),
       );
-      this.statusText?.setText(`${member.tier} crew member crafted 1x ${outputResource?.name ?? recipe.outputResourceId}.`);
+      this.setStatus(`${member.tier} crew member crafted 1x ${outputResource?.name ?? recipe.outputResourceId}.`);
     } else {
-      this.statusText?.setText(`Crew member's craft was rejected: ${result.craftResult.reason}`);
+      this.setStatus(`Crew member's craft was rejected: ${result.craftResult.reason}`);
     }
     this.redraw();
   }
@@ -289,9 +294,9 @@ export class CrewScene extends Phaser.Scene {
     replaceCrewMember(result.updatedCrewMember);
 
     if (!result.resolved) {
-      this.statusText?.setText(`Background check: ${result.reason}`);
+      this.setStatus(`Background check: ${result.reason}`);
     } else {
-      this.statusText?.setText(`Background production: ${result.unitsCompleted} unit(s) completed.`);
+      this.setStatus(`Background production: ${result.unitsCompleted} unit(s) completed.`);
     }
     this.redraw();
   }
@@ -299,39 +304,39 @@ export class CrewScene extends Phaser.Scene {
   private onPayUpkeep(member: CrewMember): void {
     const result = payUpkeep(member, getWallet(), Date.now());
     if (result.status === "not-due") {
-      this.statusText?.setText("Upkeep is not due yet.");
+      this.setStatus("Upkeep is not due yet.");
       return;
     }
     if (result.status === "insufficient-funds") {
-      this.statusText?.setText("Not enough credits to pay upkeep.");
+      this.setStatus("Not enough credits to pay upkeep.");
       return;
     }
     setWallet(result.updatedWallet);
     replaceCrewMember(result.updatedCrewMember);
-    this.statusText?.setText(`Paid ${member.wageAmount}cr upkeep.`);
+    this.setStatus(`Paid ${member.wageAmount}cr upkeep.`);
     this.redraw();
   }
 
   private onDismiss(member: CrewMember): void {
     const result = dismissCrew(member, PLAYER_ID);
     if (!result.dismissed) {
-      this.statusText?.setText(`Dismiss failed: ${result.reason}`);
+      this.setStatus(`Dismiss failed: ${result.reason}`);
       return;
     }
     removeCrewMember(member.id);
-    this.statusText?.setText(`Dismissed ${member.tier} crew member.`);
+    this.setStatus(`Dismissed ${member.tier} crew member.`);
     this.redraw();
   }
 
   private onPurchaseCapacity(): void {
     const result = purchaseCapacity(getCrewCapacity(), getWallet()) as PurchaseCapacitySucceeded;
     if (!result.purchased) {
-      this.statusText?.setText("Not enough credits to purchase a slot.");
+      this.setStatus("Not enough credits to purchase a slot.");
       return;
     }
     setCrewCapacity(result.updatedCapacity);
     setWallet(result.updatedWallet);
-    this.statusText?.setText("Purchased an additional crew slot.");
+    this.setStatus("Purchased an additional crew slot.");
     this.redraw();
   }
 }
