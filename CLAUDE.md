@@ -12,10 +12,10 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: Phase 5 (Ships & Travel) ready to start.** MVP, Phase 2 (galaxy/planet generation), Phase 3 (trading loop), and Phase 4 (crew crafters) are all complete and verified. **Next milestone after Phase 5: the galactic map** — see Section 6 below.
+**Current phase: the galactic map ready to start.** MVP, Phase 2 (galaxy/planet generation), Phase 3 (trading loop), Phase 4 (crew crafters), and Phase 5 (ships & travel) are all complete and verified. **Next milestone: the galactic map** — see Section 6 below.
 
 **Full development order:**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel **[currently here — Phase 5]** → galactic map.
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here]**.
 
 ---
 
@@ -202,11 +202,12 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 ## 6. Current Milestone & What's Still Out of Scope
 
-**Next up (ready to start): Ships & Travel** — Phase 5, combined into one phase since ship tier directly feeds the travel-time formula. Full scope, decisions, and agent contracts live in `docs/profitable-phase5-gdd.md` and `docs/agents/agent-01-amendment-phase5-schema.md`, `agent-20-ships-travel-core.md`, `agent-21-phase5-validation-test.md`, `agent-22-ships-travel-presentation.md`, `agent-23-ships-travel-content.md`, `agent-24-phase5-integration.md`. All Ships and Travel design questions are resolved (encounters during travel is explicitly deferred with a recorded intended future shape — see `docs/profitable-design-questions.md`).
+**Phase 5 (Ships & Travel) is complete and verified.** Agent 24 (Phase 5 Integration) confirmed the GDD Section 1 Definition of Done in full: a player can craft a ship component of every category (weapon/engine/shield/cargo hold) via the existing crafting system, purchase a whole ship from a generated planet's shipyard pool, see its tier correctly derived from its installed components, select a discovered destination on the existing (now travel-extended) trade map — no second map screen — see a travel time reflecting both distance and ship tier, and initiate/resolve a voyage that delivers the ship to its destination. Verified two ways: live end-to-end via `npm run dev` (see `src/presentation/README.md`'s Phase 5 playtest section, including a hand-verified travel-time example matched to the real generated planet positions), and via `tests/integration/phase5Loop.test.ts` (non-mocked, chaining the real Agent 20 functions with real content). The Phase 3 remote tier 6-7 sale mechanic — deferred at the time to "the Travel milestone" — is now confirmed working through a real `Voyage`: the item travels rather than teleporting, and only becomes an active planet-market `Listing` after `resolveArrival()` actually delivers it, never before (same test file, dedicated case, using a synthetic tier-6 fixture since no shipped MVP item reaches tier 6). `refine()`/`craft()` (Agent 2), galaxy generation (Agent 8), trading core (Agent 11), and crew core (Agent 16) remain provably unmodified — `git status` shows zero changes to those files/directories across the whole of Phase 5.
 
-**Still explicitly out of scope**, sequenced after Phase 5:
+**Next up (ready to start): the galactic map**, beyond what trading and travel already needed. No agent contracts exist for this yet.
 
-- The galactic map beyond what trading and travel already needed
+**Still explicitly out of scope:**
+
 - Encounters during travel, combat, and any travel-hazard mechanic (deferred; intended shape recorded in the design doc, not built)
 - Multiplayer (planned future evolution, single-player only for now)
 

@@ -318,6 +318,44 @@ depends on (full end-to-end wiring through a real `Listing` is Agent
 `refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()`/`hireCrew()`
 cases proven correct pre-Phase-5, confirming Agents 2, 8, 11, and 16
 remain untouched now that ships & travel core exists alongside them.
+`loadShipsContent.test.ts` mirrors `trading/loadTradingContent.test.ts`'s
+exact coverage pattern (valid config, empty array, one-invalid-item error
+naming section+index, missing required array, non-object input) for the
+necessary-completion `componentRecipes` content-loading path.
+
+`content/shipsContent.test.ts` covers Agent 23's testing requirements
+against the *real* `content/componentRecipes.json` file (not synthetic
+fixtures): it loads through the real `loadShipsContent()` with no errors,
+every component category (weapon/engine/shield/cargoHold) has exactly one
+recipe link, every link resolves to a real recipe and a real output
+resource (no dangling references), and — the contract's own explicit
+Definition of Done — every component recipe is actually craftable
+end-to-end via the real `craft()` using only existing resources.
+
+`integration/phase5Loop.test.ts` is Agent 24's own verification, same
+relationship to Agent 21's unit tests that `phase4Loop.test.ts` had to
+Agent 17's. Chains purchase-a-ship (from a real generated shipyard pool) →
+craft-and-install one real component per category (using Agent 23's actual
+`componentRecipes.json` link data) → confirm the resulting derived tier →
+a hand-verified travel-time example (the expected value independently
+derived from the two real generated planets' `{x,y}` positions and the
+documented constants, not by calling `calculateTravelTime()` a second
+time) → initiate a voyage → confirm resolving before `arrivesAt` is
+rejected and the ship doesn't move → resolve exactly at `arrivesAt` and
+confirm the ship's `currentPlanetId` updates. A dedicated test confirms
+the Phase 3 remote tier 6-7 sale connection: since no shipped MVP resource
+reaches tier 6-7 (same limitation `content/tradingContent.test.ts`'s tier
+restriction coverage already works around), it constructs a synthetic
+tier-6 fixture, carries it as real `Voyage` cargo, confirms resolving
+early does nothing, and confirms a real `Listing` is only constructed
+(via `createListing()`, called by the test itself standing in for the
+caller `resolveArrival()`'s own contract names) *after* a successful
+`resolveArrival()` — never before — while also confirming that same
+tier-6 item still correctly fails a `"global"` listing attempt (the Phase
+3 restriction remains in force; a remote sale only ever targets one
+specific planet's market). A final test re-asserts the same
+hand-calculated MVP/Phase 2/Phase 3/Phase 4 cases proven elsewhere, as
+this agent's own regression marker.
 
 `crew/` covers Agent 16 (Crew Core) and Agent 17 (Phase 4 Validation/
 Test) together, the same relationship Agent 9 had to Agent 8 and Agent 12
