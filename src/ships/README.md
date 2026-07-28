@@ -100,6 +100,118 @@ rather than silently made:
   `CrewCapacity`. The design doc never decided one, so `purchaseShip()`
   enforces none.
 
+## Travel Encounters (Non-Combat) amendment
+
+`resolveEncounters.ts` — `resolveEncounters(voyage, ship, destinationPlanet,
+resources, random?)` (§2.1-2.7): rolls one trigger check per time window the
+voyage spanned (`Math.max(1, Math.ceil(durationHours / ENCOUNTER_CHECK_WINDOW_HOURS))`
+— even a voyage shorter than one window gets exactly one roll), and on a
+hit, a weighted type split (§2.2) resolves one of three outcomes:
+`tradeOpportunity` (a credits amount in the configured range),
+`discovery` (calls the real `rollQuality()` — never reimplemented — against
+a resource drawn from the destination planet's eligible pool), or `hazard`
+(a 1-100 roll modified by the ship's own `tier` via `HAZARD_SHIP_TIER_MODIFIER`,
+with a failure cost scaled by `HAZARD_FAILURE_COST_CURVE` on a fail).
+`resolveArrival()` gained 3 new **optional, trailing** parameters
+(`destinationPlanet?`, `resources?`, `random?`) and now calls
+`resolveEncounters()` only when both `destinationPlanet` and `resources`
+are supplied — every pre-amendment call site keeps compiling and behaving
+identically without passing them (`ArrivalResolved.encounters` is simply
+`[]`), satisfying the amendment's own "additive only" constraint.
+
+**Never touches `Wallet` or player inventory.** Same boundary
+`resolveArrival()` already holds for cargo/`Listing` activation:
+`resolveEncounters()` only *reports* what happened
+(`creditsGranted`/`creditsLost`/the rolled `resourceId`+`qualities`) via
+each `EncounterResult`'s own `outcome` — applying those amounts to a real
+`Wallet`, or the rolled item to real inventory, is the caller's
+(Presentation's) job, the same division of responsibility `ArrivalResult.cargo`
+already established for the Phase 3 remote-sale connection.
+
+**Necessary completion: `ArrivalResolved` gained one new field,
+`encounters: EncounterResult[]`, always present.** The amendment's own
+contract says "attach the result to `voyage.encounters`," but nothing in
+this codebase ever persists a `Voyage` object after arrival (the caller
+discards it once resolved, per `shipsState.ts`/`TradeMapScene`'s existing
+pattern) — a mutation on a soon-to-be-discarded `Voyage` instance would
+never reach any caller. Surfaced on `ArrivalResult` instead, the exact
+same way `cargo` already is.
+
+**The single hardest constraint in this amendment, upheld structurally:**
+`resolveEncounters()` never reads or writes `Planet.discovered` anywhere —
+confirmed by `tests/ships/resolveEncounters.test.ts`'s dedicated negative
+test (many trials, snapshot-compared before/after) and by
+`tests/integration/mapVerification.test.ts`'s existing structural
+regression guard (grep-confirms `discovered: true` is still written in
+exactly the one file it always was).
+
+**Resource pool source for discovery is the *destination* planet** —
+Travel Encounters GDD §2.5 explicitly leaves this choice open ("origin or
+destination"); destination was chosen since arriving somewhere new is what
+a discovery narratively represents. Either choice is equally valid per the
+design doc's own admission; this is the one made, documented rather than
+silently picked.
+
+## Scanner/Probe amendment
+
+`refreshScannerPool.ts` / `purchaseScanner.ts` — mirror
+`refreshShipyardPool()`/`purchaseShip()` exactly, applied to scanners'
+own pool (`ScannerPool`, not `ShipyardPool`). `refreshScannerPool()` is
+simpler than its ship counterpart only because a `ScannerCandidate` has no
+components to generate matching qualities for.
+
+`calculateDistance.ts` — the Euclidean distance formula extracted out of
+`calculateTravelTime()`, per the Scanner GDD's own instruction not to
+duplicate it a second time. `calculateTravelTime()` now calls this helper
+instead of inlining the formula; its own behavior (including throwing when
+either planet lacks a `position`) is unchanged — see
+`tests/ships/calculateTravelTime.test.ts`.
+
+`performScan.ts` — `performScan(ship, dockedPlanet, ownedScanners,
+allPlanets)` (§2.3/§2.4): a **necessary completion**, same category as
+every other Agent 20 function — the GDD's own pseudocode names
+`performScan(playerId, dockedPlanetId)`, but a pure function can't resolve
+"the player," "where they're docked," or "which scanners they own" from
+bare IDs into an implicit store. "Docked at `dockedPlanet`" is read off
+`ship.currentPlanetId`, the same field `resolveArrival()` already uses to
+represent where a ship currently is — there is no separate player-location
+concept anywhere in this codebase to check instead.
+
+Effective radius is `SCANNER_BASE_SCAN_RADIUS` plus the **highest**
+`radiusBonus` among the caller's `ownedScanners` (§2.4's "highest-tier-only,
+not summed" default) — since `SCANNER_TIER_RADIUS_BONUS` is strictly
+increasing by tier (asserted in `tests/data/scannerConstants.test.ts`),
+taking the max bonus directly implements "highest tier" with no separate
+tier-ranking utility needed.
+
+With **no scanner owned**, `performScan()` rejects — Agent 20's contract
+calls this the conservative default for the GDD's own ambiguous "base
+radius with zero owned" case.
+
+Every planet in `allPlanets` that is not already `discovered` and has a
+generated `position` is checked against the effective radius via
+`calculateDistance()`; each planet within it is returned as an **immutable
+copy** with only `discovered: true` added (never mutated in place, same
+convention as `purchaseShip()`'s `updatedPool`/`updatedWallet`) — this is
+the *only* field `performScan()` may ever change on a `Planet`, verified by
+`tests/ships/performScan.test.ts`'s dedicated snapshot-diff guardrail test.
+Planets without a `position` (e.g. MVP-era Delta Rigelus) are silently
+skipped rather than thrown on — unlike `calculateTravelTime()`'s single
+deliberate two-planet call, a scan legitimately iterates over every planet
+on record, some of which may predate Phase 2's position field.
+
+**`PurchaseScannerResult` and `PerformScanResult` are new types**, same
+`CraftResult`/`PurchaseResult`/`PurchaseShipResult` discriminated-union
+precedent, named by the GDD's contract but never defined by it.
+
+**Deliberately never wired into `resolveArrival()`, `initiateVoyage()`, or
+`resolveEncounters()`.** `performScan()` only ever runs as an explicit
+caller-invoked function — confirmed by
+`tests/ships/performScan.test.ts`'s two dedicated guardrail tests (no
+Scanner-amendment file references `resolveEncounters`/`EncounterResult`;
+neither `resolveArrival.ts` nor `initiateVoyage.ts` references
+`performScan` or `Planet.discovered` at all).
+
 ## Boundary confirmed
 
 `src/simulation/refine.ts`, `craft.ts`, everything under `src/galaxy/`,

@@ -185,3 +185,73 @@ implementing `docs/agents/agent-20-ships-travel-core.md`; see
   `HireResult` discriminated-union pattern. `ArrivalResult` deliberately
   only *reports* delivered cargo — it does not itself represent activating
   a Phase 3 `Listing`, since Agent 20 must never touch Agent 11's logic.
+
+**Travel Encounters (Non-Combat) amendment**
+(`docs/agents/agent-01-amendment-travel-encounters-schema.md`):
+`encounter.ts` (`EncounterType`, and `EncounterResult` — a discriminated
+union of `TradeOpportunityEncounterResult`/`DiscoveryEncounterResult`/
+`HazardEncounterResult`, mirroring the existing `CraftResult`/
+`ArrivalResult` pattern rather than one shape with a generic
+`outcome: unknown` bag), plus `hazardTierModifier.ts`
+(`HazardTierModifier`) and `hazardFailureCostBand.ts`
+(`HazardFailureCostBand`), the row shapes for the two new hazard-specific
+constant tables (see `src/data/constants/README.md`).
+
+`voyage.ts`'s `Voyage` gained one new field, `encounters?: EncounterResult[]`
+— **deliberately optional**, not required. This amendment's own testing
+requirement calls for "the extended `Voyage` type still validates all
+existing Phase 5 voyage data without requiring changes to that data,"
+which a persisted pre-amendment `Voyage` (already sitting in a player's
+saved `shipsState.ts` voyages list) can't satisfy if `encounters` were
+required — differing from `Ship.currentPlanetId`'s own precedent (added
+as *required*, with every fixture updated) specifically because that
+amendment never asked for backward compatibility and this one explicitly
+does.
+
+`DiscoveryEncounterResult.outcome.resourceId` is a plain `string`, not an
+embedded `Resource` object — the GDD's own outcome description says "the
+rolled Resource + QualityRoll," but storing the full object inline would
+duplicate content data inside a structure (`Voyage`) that persists through
+`SaveSystem` indefinitely. Follows the same id-reference convention every
+other cross-reference in this codebase already uses (`Listing.itemId`,
+`VoyageCargoItem.itemId`), rather than inventing an embedded-object
+exception here.
+
+`HazardTierModifier`'s roll bonus deliberately treats **Grey as the floor
+(+0), not a penalty** — unlike `PlanetTierModifier` (whose neutral point is
+Green, since a planet isn't a skill investment), ship tier here is a
+skill/equipment investment axis, the same convention
+`ShipTierSpeedModifier` already established for ships (Grey = exactly
+baseline, never negative).
+
+**Scanner/Probe amendment** (`docs/agents/agent-01-amendment-scanner-schema.md`):
+`scanner.ts` (`Scanner`) and `scannerPool.ts` (`ScannerPool`), plus
+`scannerPurchaseCost.ts` (`ScannerPurchaseCostByTier`) and
+`scannerTierRadiusBonus.ts` (`ScannerTierRadiusBonus`), the row shapes for
+the two new tier-keyed constant tables (see `src/data/constants/README.md`).
+No changes to `Planet`, `Voyage`, `Ship`, `ShipyardPool`, or any other
+prior type — a scan action only ever flips an existing `discovered`
+boolean, so `Scanner`/`ScannerPool` need no new fields anywhere else.
+
+Also `scannerCandidate.ts` (`ScannerCandidate`) — a **correction**, same
+category as Phase 4's `CrewCandidate`/`CrewMember` split and Phase 5's
+`ShipCandidate`/`Ship` split: the GDD's own pseudocode typed
+`ScannerPool.availableScanners` as `Scanner[]`, but `Scanner.ownerId` is
+required and meaningless for a scanner still sitting unpurchased in a
+planet's scanner pool. `ScannerCandidate` omits only `ownerId`;
+`scannerPool.ts`'s `availableScanners` field now holds
+`ScannerCandidate[]`.
+
+`ScannerTierRadiusBonus`'s radius bonus deliberately treats **Grey as the
+floor (+0), not a penalty** — same convention as `HazardTierModifier`/
+`ShipTierSpeedModifier`: a scanner's tier is a skill/equipment investment
+axis, not a "how good is this place" axis like planet tier.
+
+**Agent 20 (Scanner/Probe Core) additions** — discovered while
+implementing `docs/agents/agent-20-amendment-scanner-core.md`; see
+`src/ships/README.md` for the full reasoning on each:
+- `purchaseScannerResult.ts` (`PurchaseScannerResult`) and
+  `performScanResult.ts` (`PerformScanResult`) — the return types the
+  amendment's contract names for `purchaseScanner()` and `performScan()`
+  but never defines. Both mirror the existing `CraftResult`/
+  `PurchaseResult`/`PurchaseShipResult` discriminated-union pattern.

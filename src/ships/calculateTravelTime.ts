@@ -4,6 +4,7 @@ import {
   DISTANCE_TO_TRAVEL_HOURS_PER_UNIT,
   SHIP_TIER_SPEED_MODIFIER,
 } from "../data/constants/shipsAndTravelConfig.ts";
+import { calculateDistance } from "./calculateDistance.ts";
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 
@@ -23,9 +24,10 @@ export function calculateTravelTime(originPlanet: Planet, destinationPlanet: Pla
     throw new Error("calculateTravelTime: both planets must have a generated position");
   }
 
-  const dx = destinationPlanet.position.x - originPlanet.position.x;
-  const dy = destinationPlanet.position.y - originPlanet.position.y;
-  const distance = Math.sqrt(dx * dx + dy * dy); // Euclidean, 2D only -- §2.7 forbids a z axis.
+  // Euclidean, 2D only -- §2.7 forbids a z axis. Extracted to
+  // calculateDistance.ts (Scanner/Probe amendment) so performScan() reuses
+  // this exact formula rather than reimplementing it.
+  const distance = calculateDistance(originPlanet.position, destinationPlanet.position);
 
   const baseTravelTimeHours = distance * DISTANCE_TO_TRAVEL_HOURS_PER_UNIT;
 

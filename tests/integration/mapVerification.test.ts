@@ -36,18 +36,39 @@ function findMatches(pattern: RegExp, stripComments = false): string[] {
     .map((file) => relative(SRC_DIR, file).split(sep).join("/"));
 }
 
-test("2.3 -- no scanner/probe or remote-discovery mechanic exists anywhere in src/", () => {
-  // A "no matches found" result is a pass, per this agent's own contract --
-  // not an incomplete check. Comments stripped for the same reason as the
-  // season/emergency check below -- a comment can legitimately *name* the
-  // absent concept (e.g. pointing at this very regression test) without
-  // implementing it.
-  assert.deepEqual(findMatches(/\bscanner\b|\bprobe\b/i, true), []);
+test("2.3 -- 'scanner/probe' is no longer a forbidden concept: Scanner/Probe is now its own locked, actively-building milestone (finding superseded, not violated)", () => {
+  // Originally this test asserted the OPPOSITE -- zero matches anywhere --
+  // documenting the Galactic Map milestone's own finding that a
+  // scanner/probe mechanic was a recorded-but-deferred idea, not yet
+  // decided. That has since changed, same kind of flip as the season/
+  // emergency check below: profitable-scanner-gdd.md now locks the full
+  // design, and the amendment build (Agent 1/20/21/22/28) is underway,
+  // starting with the Agent 1 schema amendment's scanner.ts/
+  // scannerCandidate.ts/scannerPool.ts/scannerPurchaseCost.ts/
+  // scannerTierRadiusBonus.ts. The guardrails this milestone actually
+  // cares about now (no fifth ship component, deriveShipTier() unaffected,
+  // no passive/automatic discovery, no interaction with staleness or
+  // Travel Encounters) are Agent 28's job to confirm once the full
+  // amendment lands -- see docs/agents/agent-28-scanner-confirmation.md.
+  assert.ok(findMatches(/\bscanner\b/i, true).includes("data/types/scanner.ts"));
 });
 
-test("2.3 -- 'discovered: true' is written in exactly the two documented bootstrap overrides, nowhere else (discovery-by-travel is now wired up via a separate persisted id-list, not by mutating Planet.discovered)", () => {
-  const writers = findMatches(/discovered:\s*true/);
-  assert.deepEqual(writers.sort(), ["presentation/galaxyState.ts"]);
+test("2.3 -- 'discovered: true' is written in exactly the documented sites, nowhere else (discovery-by-travel via a persisted id-list, and now performScan() via the Scanner/Probe amendment)", () => {
+  // Comments stripped, same reason as the scanner/probe and season/
+  // emergency checks above -- src/ships/resolveEncounters.ts's own
+  // comments legitimately *quote* the Travel Encounters GDD's "never sets
+  // discovered: true" constraint while explaining why the function
+  // upholds it; that's documentation, not a violation to flag here.
+  const writers = findMatches(/discovered:\s*true/, true);
+  // ships/performScan.ts is a THIRD, newly-sanctioned writer (Scanner/Probe
+  // GDD §2.3's own Definition of Done: "sets discovered: true on any
+  // undiscovered planets within the scanner's tier-scaled radius") --
+  // unlike Travel Encounters' discovery type, which is explicitly forbidden
+  // from ever touching this field (see the resolveEncounters.ts assertion
+  // below), a manual, docked-only scan action was the one deliberately
+  // sanctioned door back into this flag, per profitable-scanner-gdd.md §1's
+  // own Definition of Done.
+  assert.deepEqual(writers.sort(), ["presentation/galaxyState.ts", "ships/performScan.ts"]);
   // This still holds after the discovery-by-travel bug fix: the fix tracks
   // extra discovered planets via galaxyState.ts's own persisted
   // discoveredPlanetIds side-table (see markPlanetDiscovered()), not by
@@ -58,6 +79,11 @@ test("2.3 -- 'discovered: true' is written in exactly the two documented bootstr
   // TradeMapScene.onResolveArrival()).
   const resolveArrivalSource = readFileSync(join(SRC_DIR, "ships/resolveArrival.ts"), "utf8");
   assert.doesNotMatch(resolveArrivalSource, /discovered/);
+  // Travel Encounters' discovery type must still never write this field,
+  // even now that performScan() legitimately does -- the two mechanisms
+  // are confirmed independent (Scanner/Probe GDD §2.6).
+  const resolveEncountersSource = stripLineComments(readFileSync(join(SRC_DIR, "ships/resolveEncounters.ts"), "utf8"));
+  assert.doesNotMatch(resolveEncountersSource, /discovered:\s*true/);
 });
 
 test("2.1 -- 'season' and 'emergency' are now real, implemented map-data layers (bug fix: previously only baseline drift existed)", () => {

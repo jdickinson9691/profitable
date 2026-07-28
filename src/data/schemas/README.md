@@ -121,3 +121,38 @@ zero-quantity cargo entry.
 during the amendment itself) — see `src/data/types/README.md`'s Agent 20
 section for why. Every existing `ship.schema.json` test was updated to
 include it, plus a new explicit rejection test for a `Ship` missing it.
+
+**Travel Encounters (Non-Combat) amendment:** `voyage.schema.json` gained
+one new **optional** property, `encounters` — an array of the 3
+`EncounterResult` variants (`tradeOpportunity`/`discovery`/`hazard`),
+expressed inline via `oneOf` with a `const` discriminant per branch
+(mirroring `cargo`'s own existing "inline the item shape, don't create a
+separate `voyageCargoItem.schema.json`" precedent, rather than a new
+standalone file). Deliberately optional, not required — see
+`src/data/types/README.md`'s note on why a persisted pre-amendment
+`Voyage` must still validate unchanged. No new type files needed schemas
+of their own: `EncounterResult` follows this project's established
+"Result" convention (like `CraftResult`/`ArrivalResult`, neither of which
+has a schema either) since it's a function-outcome shape, not standalone
+persisted content — it only gets schema coverage here because it's
+embedded inside `Voyage`, which is. Covered by
+`tests/data/schemas.test.ts`: a voyage with no `encounters` field at all
+(backward compatibility), one of each encounter type, an empty array,
+rejection of an invalid `type` value, and rejection of an outcome shape
+that doesn't match its own declared `type` (a `discovery` entry carrying
+a hazard-shaped `outcome`).
+
+**Scanner/Probe amendment:** `scanner.schema.json` and `scannerPool.schema.json`
+(new) for the 2 core Scanner types — same not-in-any-content-pipeline
+situation as Phase 4/5's crew/ship schemas (scanner records are runtime
+state Agent 20 creates via pool refresh/purchase, and there's no separate
+Content pipeline consuming them). Also `scannerCandidate.schema.json`
+(new), same **necessary correction** as Agent 16's `crewCandidate.schema.json`
+and Agent 20's `shipCandidate.schema.json`: `scannerPool.schema.json`'s
+`availableScanners` `$ref`s it instead of `scanner.schema.json` — an
+unpurchased scanner pool entry has no real `ownerId` yet, so it can't
+satisfy `Scanner`'s required fields. Covered by `tests/data/schemas.test.ts`:
+a valid owned `Scanner`, rejection of a `Scanner` missing `ownerId`, a
+valid `ScannerCandidate` (no `ownerId` field at all), rejection of a
+`ScannerCandidate` missing `tier`, and a `scannerPool` example whose
+nested candidate is invalid, confirming the `$ref` still catches it.

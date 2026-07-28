@@ -302,6 +302,124 @@ different files.
   (`object.input.enabled = worldY >= VIEWPORT_TOP && ...`) is a direct,
   narrow boolean condition with no other moving parts.
 
+**Travel Encounters (Non-Combat) amendment (Agent 22):** no new screen —
+extends the existing arrival display inside `TradeMapScene.onResolveArrival()`.
+- `onResolveArrival()` now looks up the destination `Planet` (`galaxy.planets.find(...)`)
+  and passes it plus `content.resources` to `resolveArrival()` — this is
+  what actually opts the live game into encounter resolution, since Agent
+  20's amendment keeps both parameters optional (every pre-amendment call
+  site, including this one before this change, worked identically without
+  them).
+- `display.ts` gained `describeEncounter()` — sourced entirely from an
+  `EncounterResult`'s own `outcome` data, never recomputing it: a
+  trade-opportunity's credits grant, a discovery's resolved resource name
+  (an optional caller-provided string, falling back to the raw `resourceId`
+  — keeps `display.ts` free of any content/gameState import, same as every
+  other function there) plus its aggregate tier via the existing
+  `computeAggregateTier()`, and a hazard's pass/fail-with-cost. The arrival
+  status message is built as `[base arrival line, ...encounter lines].join("\n")`
+  — no section at all when `encounters` is empty, never a padded
+  "nothing happened" line.
+- Live-verified (scripted, per this amendment's own "may require seeding/
+  forcing outcomes" allowance): a 30-day voyage run through the real
+  `resolveArrival()`/`resolveEncounters()` pipeline with a real generated
+  galaxy and real content, sampled across many random seeds until all
+  three encounter types appeared, produced exactly: `"Found derelict
+  cargo: Autunite Crystal (White)"`, `"Encountered a trader en route: +88
+  Credits"`, and `"Navigational hazard: -45 Credits"` — matching the
+  GDD's own example phrasing. A separate voyage with the trigger roll
+  forced to never fire produced `encounters: []`, confirming the
+  zero-encounter case shows no extra lines.
+
+**Scanner/Probe amendment (Agent 22):** no new screen — a scanner listing
+integrated into `ShipyardScene` (the existing shipyard-adjacent market UI,
+per the contract's own "no new screen" requirement) and a "Scan" action
+integrated into `TradeMapScene`'s existing travel section (the existing
+"docked at a planet" UI context, next to the destination list).
+- `shipsState.ts` gained a scanner pool/roster, same cross-scene state
+  pattern as the shipyard pool/roster right above it: `getScannerPool()`/
+  `setScannerPool()` (scoped to `startingPlanet`, same reasoning as the
+  shipyard pool — the one planet a player can browse without traveling
+  there first) and `getOwnedScanners()`/`setOwnedScanners()`/`addScanner()`
+  (not planet-scoped, same as the ship roster — a purchased scanner
+  belongs to the player).
+- `ShipyardScene.renderScannerPool()`/`renderScannerRoster()` mirror the
+  existing ship pool/roster sections exactly: browse and purchase from
+  `ScannerPool` (`purchaseScanner()`, never reimplemented), and list every
+  owned scanner's tier. The roster section satisfies the contract's own
+  "owned-scanner display... so the 'highest tier is used' rule is legible"
+  requirement by labeling the highest-tier owned scanner "(in use for
+  scanning)" — computed by comparing tier *names* against the shared
+  7-tier breakpoint order (`TIER_COLOR_BREAKPOINTS`), never by
+  recalculating a radius (that stays exclusively inside `performScan()`).
+- `TradeMapScene.renderTravel()` — the origin-planet lookup now prefers
+  `discoveredPlanets` (the caller-supplied, already-normalized list) over
+  a raw `galaxy.planets` lookup, falling back to the latter only if the
+  ship's current planet somehow isn't in it. `renderScan()` renders inside
+  the same "ship is docked, not en route" branch that already gates the
+  destination list — a ship mid-voyage isn't docked anywhere, so neither
+  travel nor scanning show. With no scanner owned, only a grey hint line
+  renders (referring the player to the Shipyard); otherwise a "> Scan"
+  button calls `onScan()`, which calls `performScan()` with the docked
+  ship/planet, the real owned scanners, and every galaxy planet
+  (discovery-normalized — see below), then calls `markPlanetDiscovered()`
+  for each of `performScan()`'s own `newlyDiscovered` results — the exact
+  same persisted side-table `onResolveArrival()`'s discovery-by-travel
+  path already writes through. The status line reports the newly
+  discovered planets' names, or "no new planets found within range."
+  Nothing here displays or implies any connection to Travel Encounters or
+  map staleness, per the contract's own guardrail — this section only
+  ever talks about scanning.
+
+**Necessary correction, found while implementing this amendment:**
+`galaxyState.ts`'s `getDiscoveredPlanets()` only normalized `discovered:
+true` on the two structural bootstrap planets — a planet discovered by
+travel came straight off `galaxy.planets`, which always carries
+`discovered: false` baked in (`generatePlanet()` is deterministic and
+never mutated in place; membership in the persisted `discoveredPlanetIds`
+side-table is what actually signals discovery, not the object's own
+field). This went unnoticed until `performScan()` needed a real,
+trustworthy `Planet.discovered` to check on whatever planet the ship is
+currently docked at — every planet `getDiscoveredPlanets()` returns is
+now normalized to `discovered: true`, matching what its own name and
+contract already promised. `TradeMapScene.onScan()` reuses these
+already-normalized objects directly (`[...getDiscoveredPlanets(),
+...undiscovered]`) rather than re-stamping the field a second time, so no
+new literal `discovered: true` write site was introduced beyond
+`performScan.ts` itself (see `tests/integration/mapVerification.test.ts`'s
+regression guard).
+
+**Live-verified** (fresh session, `localStorage` cleared, driven through
+the real live scene instances via `window.__game.scene.getScene(...)`
+rather than a screenshot-driven click-through — the Chrome extension's
+screenshot capture was broken for this entire session, a tool-level bug
+unrelated to this code; every check below exercised the actual production
+methods, not reimplementations):
+- Purchased a Grey-tier scanner at the Shipyard through the real
+  `onPurchaseScanner()` handler: pool count 3→2, wallet 500→420cr (exact
+  tier cost), a real owned `Scanner` with the correct `ownerId` appeared.
+- Purchased a Blue-tier scanner the same way; the roster section's
+  rendered text confirmed `"Blue tier scanner (in use for scanning)"`
+  against the two owned tiers (Grey, Blue) — the highest-tier-only rule
+  legible exactly as the contract requires.
+- Purchased a ship and called the real `TradeMapScene.onScan()` at the
+  starting planet: correctly reported "no new planets found within
+  range" — verified independently correct (not a bug) by computing every
+  real planet's distance against the effective radius by hand; this
+  5-planet galaxy's closest undiscovered planet (~680 units) is genuinely
+  farther than even a Gold-tier scanner's max radius (470).
+- Isolated positive-path check: ran the real `performScan()` +
+  `markPlanetDiscovered()` sequence (identical to what `onScan()` itself
+  calls) against a synthetic dock position placed within range of a real
+  undiscovered planet — it was correctly reported `newlyDiscovered`,
+  `getDiscoveredPlanets()` grew from 2 to 3, `redraw()` ran with no
+  exceptions, and — after a full page reload (real session boundary, not
+  just in-memory) — the discovery, the owned scanners, and the ship were
+  all still correctly persisted.
+- Confirmed both rejection paths live: no scanner owned → `"no scanner
+  owned"`; ship's `currentPlanetId` not matching the docked planet →
+  `"ship is not docked at the given planet"`.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"

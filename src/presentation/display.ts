@@ -2,6 +2,7 @@ import type { Quality, QualityRoll } from "../data/types/quality.ts";
 import type { TierColor } from "../data/types/tierColor.ts";
 import type { RefineResult } from "../data/types/refineResult.ts";
 import type { CraftResult } from "../data/types/craftResult.ts";
+import type { EncounterResult } from "../data/types/encounter.ts";
 import { QUALITIES } from "../data/types/quality.ts";
 import { getTierColor } from "../simulation/tierColor.ts";
 import { computeAggregateTier } from "../simulation/aggregateTier.ts";
@@ -64,4 +65,25 @@ export function describeCraftResult(result: CraftResult): string {
   }
   const tier = computeAggregateTier(result.qualities);
   return `Crafted! Aggregate tier: ${tier ?? "N/A"}`;
+}
+
+// Travel Encounters (Non-Combat) amendment (Agent 22). Sourced entirely
+// from EncounterResult -- never recomputes an outcome, only formats it.
+// `resourceName` is an optional caller-resolved display name (this module
+// stays free of any content/gameState import, same as every other
+// function here) -- falls back to the raw resourceId, the same
+// "resolve via content.resources.find(), or fall back to the id" pattern
+// already used throughout every scene in this codebase.
+export function describeEncounter(encounter: EncounterResult, resourceName?: string): string {
+  if (encounter.type === "tradeOpportunity") {
+    return `Encountered a trader en route: +${encounter.outcome.creditsGranted} Credits`;
+  }
+  if (encounter.type === "discovery") {
+    const tier = computeAggregateTier(encounter.outcome.qualities);
+    const name = resourceName ?? encounter.outcome.resourceId;
+    return `Found derelict cargo: ${name}${tier ? ` (${tier})` : ""}`;
+  }
+  return encounter.outcome.passed
+    ? "Navigational hazard: passed"
+    : `Navigational hazard: -${encounter.outcome.creditsLost} Credits`;
 }

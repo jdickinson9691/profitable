@@ -20,6 +20,66 @@
         "required": ["itemId", "quantity"],
         "additionalProperties": false
       }
+    },
+    "encounters": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "tradeOpportunity" },
+              "windowIndex": { "type": "integer", "minimum": 0 },
+              "outcome": {
+                "type": "object",
+                "properties": {
+                  "creditsGranted": { "type": "number", "minimum": 0 }
+                },
+                "required": ["creditsGranted"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "windowIndex", "outcome"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "discovery" },
+              "windowIndex": { "type": "integer", "minimum": 0 },
+              "outcome": {
+                "type": "object",
+                "properties": {
+                  "resourceId": { "type": "string", "minLength": 1 },
+                  "qualities": { "$ref": "qualityRoll.schema.json" }
+                },
+                "required": ["resourceId", "qualities"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "windowIndex", "outcome"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "hazard" },
+              "windowIndex": { "type": "integer", "minimum": 0 },
+              "outcome": {
+                "type": "object",
+                "properties": {
+                  "passed": { "type": "boolean" },
+                  "creditsLost": { "type": "number", "minimum": 0 }
+                },
+                "required": ["passed", "creditsLost"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "windowIndex", "outcome"],
+            "additionalProperties": false
+          }
+        ]
+      }
     }
   },
   "required": ["id", "shipId", "originPlanetId", "destinationPlanetId", "departedAt", "arrivesAt", "cargo"],

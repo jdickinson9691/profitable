@@ -103,3 +103,54 @@ own Section 3 constant list never names this table. Added here, keyed by
 the ship's *derived* tier, same tier-scales-cost shape as
 `CREW_HIRE_COST_BY_TIER`, scaled up to reflect a whole ship being a bigger
 investment than a single crew hire.
+
+**Travel Encounters (Non-Combat) amendment:** 6 more additions to
+`shipsAndTravelConfig.ts` — like the rest of that file, the design doc
+documents the *shape* of each value without example numbers, so these are
+originated defaults, not formalized examples. Tested for structural
+invariants — see `tests/data/travelEncountersConstants.test.ts`.
+- `ENCOUNTER_CHECK_WINDOW_HOURS` (24) / `ENCOUNTER_TRIGGER_CHANCE` (0.15)
+  — "same shape as the existing emergency system." Deliberately fresh
+  constants rather than importing `EMERGENCY_CHECK_INTERVAL_HOURS`/
+  `EMERGENCY_TRIGGER_CHANCE` from `tradingConfig.ts` — Ships/Travel and
+  Trading are separate domains, and duplicating two numbers with a
+  documented rationale is a smaller cost than a cross-domain constant
+  dependency between otherwise-unrelated systems.
+- `ENCOUNTER_TYPE_WEIGHTS` — `tradeOpportunity`/`discovery` split evenly
+  at 0.4 each, `hazard` at 0.2 (the design doc's own "hazard weighted
+  lowest" requirement; nothing in the doc favors trade-opportunity over
+  discovery specifically, so those two split the remainder evenly).
+- `ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS`/`_MAX_CREDITS` (20/150) — a
+  currency-grant range scaled to feel like a modest windfall relative to
+  the existing economy (a Grey-tier ship costs 300cr).
+- `HAZARD_PASS_THRESHOLD` (50) and `HAZARD_SHIP_TIER_MODIFIER` (a 7-row
+  additive roll-bonus table, Grey `+0` — the floor, not a penalty — up to
+  Gold `+30`, strictly increasing by tier) — "a single roll against a
+  fixed threshold, modified by ship tier."
+- `HAZARD_BASE_FAILURE_COST` (30) and `HAZARD_FAILURE_COST_CURVE` — "the
+  same escalating curve shape as the crafting threshold penalty":
+  mirrors `PENALTY_CURVE`'s exact 10-point band boundaries (minus the
+  0-points/"reject" bands, neither of which apply to a failure-only
+  curve — a hazard failure always resolves to some real cost).
+
+**Scanner/Probe amendment:** 5 more additions to `shipsAndTravelConfig.ts`
+— same "shape, not example numbers" situation as the rest of this file, so
+these are originated defaults. Tested for structural invariants — see
+`tests/data/scannerConstants.test.ts`.
+- `SCANNER_POOL_SIZE_PER_PLANET` (3) / `SCANNER_POOL_REFRESH_INTERVAL_HOURS`
+  (24) — mirror `SHIPYARD_POOL_SIZE_PER_PLANET`/
+  `SHIPYARD_POOL_REFRESH_INTERVAL_HOURS` exactly, applied to scanners'
+  own pool rather than merged into `ShipyardPool` (GDD §2.2's explicit
+  call-out).
+- `SCANNER_PURCHASE_COST_BY_TIER` — a 7-row cost table, strictly
+  increasing by tier, scaled below `SHIP_PURCHASE_COST_BY_TIER` (a whole
+  ship is the bigger investment) but above `CREW_HIRE_COST_BY_TIER` (a
+  scanner is equipment the player keeps indefinitely, not a
+  recurring-wage hire).
+- `SCANNER_BASE_SCAN_RADIUS` (120) — same `{x,y}` distance units as
+  `Planet.position` (range ±1000 per axis, per `generateGalaxy.ts`'s
+  `POSITION_RANGE`), chosen as a modest fraction of that space.
+- `SCANNER_TIER_RADIUS_BONUS` — a 7-row table of per-tier
+  `radiusBonus`es, strictly increasing from Grey (`0`, the floor, not a
+  penalty) to Gold, "reusing the shape of the schematic-tier
+  contribution table."

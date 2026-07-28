@@ -5,11 +5,17 @@ import {
   formatQualityLabel,
   describeRefineResult,
   describeCraftResult,
+  describeEncounter,
   computeAggregateTier,
 } from "../../src/presentation/display.ts";
 import type { QualityRoll } from "../../src/data/types/quality.ts";
 import type { RefineResult } from "../../src/data/types/refineResult.ts";
 import type { CraftAccepted, CraftRejected } from "../../src/data/types/craftResult.ts";
+import type {
+  TradeOpportunityEncounterResult,
+  DiscoveryEncounterResult,
+  HazardEncounterResult,
+} from "../../src/data/types/encounter.ts";
 
 const fullRoll: QualityRoll = { purity: 72, density: 45, potency: 97, durability: null, rarity: 1 };
 
@@ -72,4 +78,26 @@ test("describeCraftResult() reports the rejection reason for a rejected craft", 
 test("describeCraftResult() reports the aggregate tier for an accepted craft", () => {
   const accepted: CraftAccepted = { accepted: true, qualities: fullRoll };
   assert.equal(describeCraftResult(accepted), "Crafted! Aggregate tier: White");
+});
+
+test("describeEncounter() formats a trade-opportunity as a currency grant", () => {
+  const result: TradeOpportunityEncounterResult = { type: "tradeOpportunity", windowIndex: 0, outcome: { creditsGranted: 150 } };
+  assert.equal(describeEncounter(result), "Encountered a trader en route: +150 Credits");
+});
+
+test("describeEncounter() formats a discovery with its resolved name and aggregate tier, falling back to the raw resourceId when no name is given", () => {
+  const result: DiscoveryEncounterResult = {
+    type: "discovery",
+    windowIndex: 1,
+    outcome: { resourceId: "igneous-ore", qualities: fullRoll },
+  };
+  assert.equal(describeEncounter(result, "Igneous Ore"), "Found derelict cargo: Igneous Ore (White)");
+  assert.equal(describeEncounter(result), "Found derelict cargo: igneous-ore (White)");
+});
+
+test("describeEncounter() formats a passed hazard distinctly from a failed one", () => {
+  const passed: HazardEncounterResult = { type: "hazard", windowIndex: 2, outcome: { passed: true, creditsLost: 0 } };
+  const failed: HazardEncounterResult = { type: "hazard", windowIndex: 3, outcome: { passed: false, creditsLost: 45 } };
+  assert.equal(describeEncounter(passed), "Navigational hazard: passed");
+  assert.equal(describeEncounter(failed), "Navigational hazard: -45 Credits");
 });

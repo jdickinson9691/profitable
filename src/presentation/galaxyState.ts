@@ -71,17 +71,29 @@ const bootstrapDiscoveredIds = new Set(bootstrapDiscoveredPlanets.map((planet) =
 // generated planet a Voyage has actually delivered a ship to. Presentation
 // code (TradeMapScene) should read this rather than re-deriving its own
 // copy of the discovery rule.
+//
+// Necessary correction (found while implementing the Scanner/Probe
+// presentation amendment): traveledTo entries came straight off
+// galaxy.planets, which always carries discovered: false baked in
+// (generatePlanet() is deterministic and never mutated in place --
+// membership in discoveredPlanetIds is what actually signals discovery,
+// not the object's own field). That went unnoticed until performScan()
+// needed a real, trustworthy Planet.discovered to check -- every planet
+// this function returns is now normalized to discovered: true, matching
+// what its own name and contract already promised.
 export function getDiscoveredPlanets(): Planet[] {
-  const traveledTo = galaxy.planets.filter(
-    (planet) => !bootstrapDiscoveredIds.has(planet.id) && discoveredPlanetIds.includes(planet.id),
-  );
+  const traveledTo = galaxy.planets
+    .filter((planet) => !bootstrapDiscoveredIds.has(planet.id) && discoveredPlanetIds.includes(planet.id))
+    .map((planet) => ({ ...planet, discovered: true }));
   return [...bootstrapDiscoveredPlanets, ...traveledTo];
 }
 
-// Called only from a successful resolveArrival() (physical visitation) --
-// per the map GDD's own decided property, no other call site should ever
-// exist (see tests/integration/mapVerification.test.ts's scanner/probe
-// regression guard for the adjacent "no alternate discovery path" check).
+// Called from a successful resolveArrival() (physical visitation) and,
+// since the Scanner/Probe amendment, from a successful performScan() too
+// (TradeMapScene.onScan()) -- both are physical/deliberate discovery
+// paths the map GDD's "no alternate discovery path" guard (see
+// tests/integration/mapVerification.test.ts) still confirms are the only
+// two: no code anywhere else writes a Planet's `discovered` field.
 export function markPlanetDiscovered(planetId: string): void {
   if (bootstrapDiscoveredIds.has(planetId) || discoveredPlanetIds.includes(planetId)) return;
   discoveredPlanetIds = [...discoveredPlanetIds, planetId];

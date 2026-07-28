@@ -3,12 +3,14 @@ import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content } from "../gameState.ts";
 import { galaxy, startingPlanet, getDiscoveredPlanets, markPlanetDiscovered } from "../galaxyState.ts";
 import { getMarketStates, getStartingPlanetPreference } from "../tradingState.ts";
-import { getShipRoster, replaceShip, getVoyages, addVoyage, removeVoyage } from "../shipsState.ts";
+import { getShipRoster, replaceShip, getVoyages, addVoyage, removeVoyage, getOwnedScanners } from "../shipsState.ts";
 import { calculateTravelTime } from "../../ships/calculateTravelTime.ts";
 import { initiateVoyage } from "../../ships/initiateVoyage.ts";
 import { resolveArrival } from "../../ships/resolveArrival.ts";
+import { performScan } from "../../ships/performScan.ts";
 import { getSeasonalEffect, getSeasonalPriceMultiplier } from "../../trading/season.ts";
 import { getActiveEmergency, getEmergencyPriceMultiplier } from "../../trading/emergency.ts";
+import { describeEncounter } from "../display.ts";
 import type { Planet } from "../../data/types/planet.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { Voyage } from "../../data/types/voyage.ts";
@@ -258,7 +260,17 @@ export class TradeMapScene extends Phaser.Scene {
       return y + 22;
     }
 
-    const originPlanet = galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
+    // Prefer the already-discovered, discovered:true-normalized copy (see
+    // galaxyState.ts's getDiscoveredPlanets() note) over the raw
+    // galaxy.planets entry -- performScan() (Scanner/Probe amendment) needs
+    // a real, trustworthy Planet.discovered on whatever planet the ship is
+    // currently docked at. Falls back to the raw entry only if the ship
+    // somehow sits at a planet not in discoveredPlanets, which shouldn't
+    // happen (a ship only ever arrives via a voyage to an already-discovered
+    // destination) but keeps this lookup total either way.
+    const originPlanet =
+      discoveredPlanets.find((planet) => planet.id === ship.currentPlanetId) ??
+      galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
     this.addText(16, y, `${ship.name} (${ship.tier} tier) — currently at ${originPlanet?.name ?? ship.currentPlanetId}`, {
       fontFamily: "monospace",
       fontSize: "14px",
@@ -277,15 +289,83 @@ export class TradeMapScene extends Phaser.Scene {
     // passed but hasn't been resolved must still block a second voyage:
     // the ship's currentPlanetId only updates on resolveArrival(), so
     // starting a new voyage before that would depart from a planet the
-    // ship hasn't actually reached yet.
+    // ship hasn't actually reached yet. The same "not en route" condition
+    // gates the Scan action -- a ship mid-voyage isn't docked anywhere.
     const hasUnresolvedVoyage = shipVoyages.length > 0;
     if (!hasUnresolvedVoyage && originPlanet) {
+      y = this.renderScan(ship, originPlanet, y);
       for (const destination of discoveredPlanets.filter((planet) => planet.id !== originPlanet.id)) {
         y = this.renderDestination(ship, originPlanet, destination, y);
       }
     }
 
     return y;
+  }
+
+  // Scanner/Probe amendment (§2.3): a manual, docked-only action -- shown
+  // only from within renderTravel()'s own "ship is docked, not en route"
+  // branch above, never triggered automatically. Never displays or implies
+  // any connection to Travel Encounters or map staleness (neither exists,
+  // per the GDD's own guardrails) -- this section only ever talks about
+  // scanning.
+  private renderScan(ship: Ship, dockedPlanet: Planet, startY: number): number {
+    let y = startY;
+    const owned = getOwnedScanners();
+
+    if (owned.length === 0) {
+      this.addText(16, y, "(no scanner owned -- purchase one at the Shipyard to scan for nearby planets)", {
+        fontFamily: "monospace",
+        fontSize: "13px",
+        color: "#888888",
+      });
+      return y + 20;
+    }
+
+    // Which tier is actually "in use" (highest owned, per Agent 20's own
+    // rule) is shown at the Shipyard's own scanner roster display -- not
+    // recomputed here, so this line only lists ownership.
+    const label = `Scanners owned: ${owned.map((scanner) => scanner.tier).join(", ")}`;
+    this.addText(16, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+
+    const scanBtn = this.addText(500, y, "> Scan", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+    scanBtn.setInteractive({ useHandCursor: true });
+    scanBtn.on("pointerdown", () => this.onScan(ship, dockedPlanet));
+    y += 20;
+    return y;
+  }
+
+  private onScan(ship: Ship, dockedPlanet: Planet): void {
+    // allPlanets must reflect real discovery state, not galaxy.planets'
+    // permanently-false baked-in field (see galaxyState.ts's own note) --
+    // otherwise performScan() would report already-discovered planets as
+    // "newly discovered." Reuses getDiscoveredPlanets()'s own
+    // already-normalized objects rather than re-stamping `discovered: true`
+    // a second time here.
+    const discovered = getDiscoveredPlanets();
+    const discoveredIds = new Set(discovered.map((planet) => planet.id));
+    const undiscovered = galaxy.planets.filter((planet) => !discoveredIds.has(planet.id));
+    const allPlanets = [...discovered, ...undiscovered];
+
+    const result = performScan(ship, dockedPlanet, getOwnedScanners(), allPlanets);
+    if (!result.scanned) {
+      this.setStatus(`Scan failed: ${result.reason}`);
+      return;
+    }
+
+    // markPlanetDiscovered() is the same persisted side-table
+    // resolveArrival()'s own discovery-by-travel path already writes
+    // through -- performScan() itself never touches it (Core stays out of
+    // presentation-layer persistence, same boundary as cargo/Listing).
+    for (const planet of result.newlyDiscovered) {
+      markPlanetDiscovered(planet.id);
+    }
+
+    this.setStatus(
+      result.newlyDiscovered.length > 0
+        ? `Scan complete — newly discovered: ${result.newlyDiscovered.map((planet) => planet.name).join(", ")}`
+        : "Scan complete — no new planets found within range.",
+    );
+    this.redraw();
   }
 
   private renderVoyage(ship: Ship, voyage: Voyage, startY: number): number {
@@ -342,7 +422,13 @@ export class TradeMapScene extends Phaser.Scene {
   }
 
   private onResolveArrival(ship: Ship, voyage: Voyage): void {
-    const result = resolveArrival(voyage, ship, Date.now());
+    // Travel Encounters (Non-Combat) amendment: passing destinationPlanet/
+    // resources is what actually opts this call into encounter resolution
+    // -- resolveArrival()'s own contract keeps both optional so every
+    // pre-amendment call site (none left in this file now, but the
+    // function signature itself) stays unaffected when they're omitted.
+    const destinationPlanet = galaxy.planets.find((planet) => planet.id === voyage.destinationPlanetId);
+    const result = resolveArrival(voyage, ship, Date.now(), destinationPlanet, content.resources);
     if (!result.resolved) {
       this.setStatus(`Not yet arrived: ${result.reason}`);
       return;
@@ -354,7 +440,17 @@ export class TradeMapScene extends Phaser.Scene {
     // planets -- see galaxyState.ts's markPlanetDiscovered() for the full
     // rationale.
     markPlanetDiscovered(result.destinationPlanetId);
-    this.setStatus(`${ship.name} arrived at its destination.`);
+
+    // Encounter summary -- sourced entirely from `result.encounters`, per
+    // this amendment's own contract ("no re-computation"). No section at
+    // all when the voyage had none, not a padded "nothing happened" line.
+    const lines = [`${ship.name} arrived at its destination.`];
+    for (const encounter of result.encounters) {
+      const resourceName =
+        encounter.type === "discovery" ? content.resources.find((r) => r.id === encounter.outcome.resourceId)?.name : undefined;
+      lines.push(describeEncounter(encounter, resourceName));
+    }
+    this.setStatus(lines.join("\n"));
     this.redraw();
   }
 }

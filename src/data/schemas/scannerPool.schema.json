@@ -1,0 +1,15 @@
+{
+  "$id": "scannerPool.schema.json",
+  "title": "ScannerPool",
+  "type": "object",
+  "properties": {
+    "planetId": { "type": "string", "minLength": 1 },
+    "availableScanners": {
+      "type": "array",
+      "items": { "$ref": "scannerCandidate.schema.json" }
+    },
+    "lastRefreshedAt": { "type": "integer", "minimum": 0 }
+  },
+  "required": ["planetId", "availableScanners", "lastRefreshedAt"],
+  "additionalProperties": false
+}

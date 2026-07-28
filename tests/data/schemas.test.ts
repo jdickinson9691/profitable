@@ -676,6 +676,91 @@ test("voyage.schema.json rejects a zero-quantity cargo entry", () => {
   assert.equal(valid, false);
 });
 
+test("voyage.schema.json accepts a voyage with no `encounters` field at all -- backward compatible with pre-Travel-Encounters persisted data", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-no-encounters",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json accepts a voyage with one of each encounter type", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-with-encounters",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    encounters: [
+      { type: "tradeOpportunity", windowIndex: 0, outcome: { creditsGranted: 75 } },
+      {
+        type: "discovery",
+        windowIndex: 1,
+        outcome: {
+          resourceId: "igneous-ore",
+          qualities: { purity: 60, density: 60, potency: 60, durability: 60, rarity: 60 },
+        },
+      },
+      { type: "hazard", windowIndex: 2, outcome: { passed: false, creditsLost: 45 } },
+    ],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json accepts an empty encounters array", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-empty-encounters",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    encounters: [],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json rejects an encounter with an invalid type value", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-bad-encounter",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    encounters: [{ type: "combat", windowIndex: 0, outcome: {} }],
+  });
+  assert.equal(valid, false);
+});
+
+test("voyage.schema.json rejects a discovery encounter with a hazard-shaped outcome (wrong outcome for its own type)", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-mismatched-encounter",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    encounters: [{ type: "discovery", windowIndex: 0, outcome: { passed: true, creditsLost: 0 } }],
+  });
+  assert.equal(valid, false);
+});
+
 test("componentRecipe.schema.json accepts a valid recipe-to-category link", () => {
   const validate = getValidator("componentRecipe.schema.json");
   const valid = validate({ recipeId: "recipe-engine-mk1", category: "engine" });
@@ -686,6 +771,53 @@ test("componentRecipe.schema.json rejects an invalid category", () => {
   const validate = getValidator("componentRecipe.schema.json");
   const valid = validate({ recipeId: "recipe-engine-mk1", category: "sensor" });
   assert.equal(valid, false);
+});
+
+test("scanner.schema.json accepts a valid owned scanner", () => {
+  const validate = getValidator("scanner.schema.json");
+  const valid = validate({ id: "scanner-1", tier: "Blue", ownerId: "player-1" });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("scanner.schema.json rejects a missing ownerId", () => {
+  const validate = getValidator("scanner.schema.json");
+  const valid = validate({ id: "scanner-1", tier: "Blue" });
+  assert.equal(valid, false);
+});
+
+test("scannerCandidate.schema.json accepts a valid pool candidate (no ownerId field)", () => {
+  const validate = getValidator("scannerCandidate.schema.json");
+  const valid = validate({ id: "candidate-1", tier: "Green" });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("scannerCandidate.schema.json rejects a missing tier", () => {
+  const validate = getValidator("scannerCandidate.schema.json");
+  const valid = validate({ id: "candidate-1" });
+  assert.equal(valid, false);
+});
+
+test("scannerPool.schema.json accepts a valid pool and rejects one containing an invalid candidate", () => {
+  const validate = getValidator("scannerPool.schema.json");
+  const valid = validate({
+    planetId: "delta-rigelus",
+    availableScanners: [{ id: "candidate-1", tier: "Green" }],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+
+  const invalid = validate({
+    planetId: "delta-rigelus",
+    availableScanners: [{ id: "candidate-1", tier: "NotATier" }],
+    lastRefreshedAt: 0,
+  });
+  assert.equal(invalid, false);
+});
+
+test("scannerPool.schema.json accepts an empty pool", () => {
+  const validate = getValidator("scannerPool.schema.json");
+  const valid = validate({ planetId: "delta-rigelus", availableScanners: [], lastRefreshedAt: 0 });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
 });
 
 test("quality.schema.json and tierColor.schema.json only accept their documented enum values", () => {

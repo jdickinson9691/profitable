@@ -1,0 +1,11 @@
+{
+  "$id": "scannerCandidate.schema.json",
+  "title": "ScannerCandidate",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "tier": { "$ref": "tierColor.schema.json" }
+  },
+  "required": ["id", "tier"],
+  "additionalProperties": false
+}

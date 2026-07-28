@@ -119,7 +119,11 @@ value+tier (preserving `null` as `N/A`, not `0`), `describeRefineResult()`
 mentions a refund only when units were actually refunded (singular vs.
 plural), `computeAggregateTier()` averages only non-null dimensions and
 returns `null` when every dimension is null, and `describeCraftResult()`
-reports either the rejection reason or the aggregate tier.
+reports either the rejection reason or the aggregate tier. **Travel
+Encounters (Agent 22) addition:** `describeEncounter()` formats a
+trade-opportunity as a currency grant, a discovery with its resolved name
+and aggregate tier (falling back to the raw `resourceId` when no name is
+given), and a passed hazard distinctly from a failed one (with its cost).
 
 `presentation/loadMvpContent.test.ts` confirms the bundled-JSON-import path
 (distinct from `content/mvpContent.test.ts`'s fs-read path, since this is a
@@ -281,6 +285,67 @@ rejection of a zero-quantity cargo entry, and a valid/invalid
 `currentPlanetId` (see `src/data/types/README.md`'s Agent 20 section for
 why it's required), including a dedicated test rejecting a `Ship` missing it.
 
+`data/travelEncountersConstants.test.ts` covers the Agent 1 Travel
+Encounters amendment's tunable constants, same structural-invariant
+approach: `ENCOUNTER_CHECK_WINDOW_HOURS`/`ENCOUNTER_TRIGGER_CHANCE` are
+positive (the latter a real probability), `ENCOUNTER_TYPE_WEIGHTS` covers
+exactly the 3 encounter types, all positive, summing to 1, with hazard
+strictly the lowest, the trade-opportunity credit range is real and
+positive, `HAZARD_PASS_THRESHOLD` falls within the 1-100 roll range,
+`HAZARD_SHIP_TIER_MODIFIER` covers all 7 tiers with Grey pinned to exactly
+`+0` (the floor, not a penalty — unlike `PlanetTierModifier`'s Green-
+neutral convention) and each tier strictly increasing the bonus, and
+`HAZARD_FAILURE_COST_CURVE` is asserted to mirror `PENALTY_CURVE`'s exact
+band boundaries (minus the 0-points/reject bands, neither of which apply
+to a failure-only curve) with a strictly escalating, never-null
+multiplier. `data/schemas.test.ts` gained matching schema-level tests:
+`voyage.schema.json` accepting a voyage with no `encounters` field at all
+(backward compatibility with pre-amendment persisted data), one of each
+encounter type, an empty `encounters` array, rejection of an invalid
+`type` value, and rejection of an outcome shape that doesn't match its
+own declared `type`.
+
+`data/scannerConstants.test.ts` covers the Agent 1 Scanner/Probe
+amendment's tunable constants, same structural-invariant approach:
+`SCANNER_POOL_SIZE_PER_PLANET`/`SCANNER_POOL_REFRESH_INTERVAL_HOURS` are
+positive, `SCANNER_PURCHASE_COST_BY_TIER` covers all 7 tiers strictly
+increasing by tier, `SCANNER_BASE_SCAN_RADIUS` is a positive real
+distance, and `SCANNER_TIER_RADIUS_BONUS` covers all 7 tiers with Grey
+pinned to exactly `+0` (the floor, not a penalty) and each tier strictly
+increasing the bonus. `data/schemas.test.ts` gained matching schema-level
+tests: a valid owned `Scanner` and rejection of one missing `ownerId`, a
+valid `ScannerCandidate` (no `ownerId` field) and rejection of one
+missing `tier`, and a valid/invalid-nested-candidate `scannerPool`
+example (confirming the `$ref` to `scannerCandidate.schema.json` catches
+it, same pattern as Phase 4/5's crew/ship pool corrections).
+
+`ships/refreshScannerPool.test.ts` and `ships/purchaseScanner.test.ts`
+cover the Agent 20 Scanner amendment's pool/purchase functions, same
+pattern as `refreshShipyardPool.test.ts`/`purchaseShip.test.ts`: pool size,
+determinism given a seed, non-determinism without one, unique candidate
+ids, tiers drawn from the shared 7-tier breakpoint table, exact
+tier-scaled cost deduction, candidate removal from the pool, ownership
+transfer, and rejection of a not-in-pool candidate or insufficient funds.
+
+`ships/performScan.test.ts` covers the Agent 20 Scanner amendment's scan
+action and all four of Agent 21's guardrail tests: rejection when the
+ship isn't docked at the given planet, rejection when the docked planet
+isn't yet discovered, rejection when no scanner is owned, the effective
+radius (base + tier bonus) hand-verified at 3 tiers, an exact
+inside/outside boundary case, proof that owning both a lower- and
+higher-tier scanner uses only the higher one's radius rather than summing
+both (a planet placed strictly between the two possible radii), and the
+exact set of newly-discovered planets for a known layout (skipping
+already-discovered planets). The 4 guardrail tests: a before/after
+snapshot diff proving `performScan()` never changes any `Planet` field
+other than `discovered` (and never mutates its input in place),
+`deriveShipTier()` producing identical output before and after an actual
+`purchaseScanner()` call for the same ship's owner, a source-grep
+confirming no Scanner-amendment file references `resolveEncounters()`/
+`EncounterResult`, and a source-grep confirming neither `resolveArrival.ts`
+nor `initiateVoyage.ts` references `performScan` or `Planet.discovered` at
+all (no automatic/passive discovery exists anywhere).
+
 `ships/` covers Agent 20 (Ships & Travel Core) and Agent 21 (Phase 5
 Validation/Test) together, the same relationship Agent 16 had to Agent 17.
 `deriveShipTier.test.ts` covers the straight-average-of-installed-tiers
@@ -314,7 +379,38 @@ exactly at `arrivesAt`, that the ship's `currentPlanetId` updates to the
 destination, and that cargo is only ever reported once actually
 arrived — proving the mechanism the Phase 3 remote-sale connection
 depends on (full end-to-end wiring through a real `Listing` is Agent
-24's job). `regressionCheck.test.ts` re-runs the same hand-calculated
+24's job). **Travel Encounters amendment additions:** a regression test
+confirming `resolveArrival()` called without the new optional
+`destinationPlanet`/`resources` parameters (every pre-amendment call
+site) is byte-for-byte unaffected (`encounters` simply `[]`), a second
+regression test confirming arrival timing/cargo/ship delivery are
+identical whether or not encounters actually resolve, and an integration
+test confirming `resolveArrival()`'s `encounters` output matches a direct
+`resolveEncounters()` call with the same inputs exactly — proving real
+delegation, not a parallel reimplementation.
+
+`resolveEncounters.test.ts` (Travel Encounters amendment) covers Agent 20's
+new `resolveEncounters()` against the GDD's own Section 2 rules: the
+per-window trigger roll uses `ENCOUNTER_TRIGGER_CHANCE` exactly (boundary-
+tested, not approximately), a voyage spanning N windows gets N independent
+rolls (not one for the whole voyage) — including a voyage shorter than one
+full window still getting exactly one, a statistical check (3000 trials)
+confirming the type-split distribution matches `ENCOUNTER_TYPE_WEIGHTS`
+with hazard genuinely least common, `tradeOpportunity`'s exact credits
+amount from a known roll plus a range check across many trials,
+`discovery`'s output matching an *independent* direct `rollQuality()` call
+with the same resource and random sequence (proving delegation, not
+reimplementation) plus graceful handling of an empty eligible pool, a
+dedicated many-trials negative test proving discovery **never** sets
+`discovered: true` on the planet it's given (snapshot-compared before/
+after — the single most important test in this file, per the amendment's
+own contract), `hazard`'s pass/fail roll correctly shifted by the ship's
+own tier (an identical raw roll fails for Grey but passes for Gold), the
+failure-cost curve matching its escalating shape exactly at 5
+points-below-threshold values, and a passed hazard producing zero currency
+deduction.
+
+`regressionCheck.test.ts` re-runs the same hand-calculated
 `refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()`/`hireCrew()`
 cases proven correct pre-Phase-5, confirming Agents 2, 8, 11, and 16
 remain untouched now that ships & travel core exists alongside them.
@@ -477,26 +573,41 @@ for the Galactic Map milestone (`docs/profitable-map-gdd.md` Section 6) —
 unlike every other `integration/*.test.ts` file, most of this one audits
 for the *absence* of things rather than chaining a working feature
 end-to-end, mirroring `adapters/browserApiIsolation.test.ts`'s own "scan
-`src/` for a forbidden pattern" shape. Confirms no `scanner`/`probe` code
-exists anywhere (comments stripped, so a comment merely *naming* the
-absent concept — e.g. this file's own doc comments — doesn't trip it),
-confirms `discovered: true` is written in exactly one file
-(`presentation/galaxyState.ts`, the two documented bootstrap overrides)
-and that `src/ships/resolveArrival.ts` itself never references
+`src/` for a forbidden pattern" shape. Confirms `discovered: true` is
+written in exactly the documented sites — `presentation/galaxyState.ts`
+(the two documented bootstrap overrides) and, since the Scanner/Probe
+Core amendment landed, `ships/performScan.ts` too (a third, deliberately
+sanctioned writer — Scanner GDD §2.3's own Definition of Done; unlike
+Travel Encounters' discovery type, which stays forbidden from ever
+touching this field, confirmed by a dedicated assertion that
+`resolveEncounters.ts` still never matches `discovered:\s*true`) — and
+that `src/ships/resolveArrival.ts` itself never references
 `discovered` at all (Ships Core correctly stays out of Galaxy-data
 mutation — discovery-by-travel is presentation-layer wiring: a persisted
 `discoveredPlanetIds` side-table in `galaxyState.ts`, not a mutation of any
 `Planet.discovered` field, which is why this assertion still holds after
-that bug was fixed), confirms `getGlobalPrice()` reads live state with no
+that bug was fixed). Full correctness coverage for `performScan()` itself
+lives in `ships/performScan.test.ts`, per its own guardrail tests above —
+this file only confirms the write-site inventory stays exactly as
+documented. Confirms `getGlobalPrice()` reads live state with no
 internal caching (two calls with different market-state inputs return
 different, non-memoized results) and that `PlanetMarketState` carries no
-staleness/timestamp field. The one test that flipped from "absence" to
-"presence" is the `season`/`emergency` check: it originally asserted zero
+staleness/timestamp field. Two tests have now flipped from "absence" to
+"presence": the `season`/`emergency` check originally asserted zero
 matches anywhere (documenting the gap this milestone found — see
 `src/trading/README.md`'s own note), and now asserts the opposite, that
 `src/trading/season.ts`/`emergency.ts` exist and are actually wired into
-`TradeMapScene`, once that gap was fixed. Full correctness coverage for
-the fix itself lives in the dedicated `trading/season.test.ts`/
+`TradeMapScene`, once that gap was fixed. The `scanner`/`probe` check
+similarly originally asserted zero matches anywhere (documenting the
+Galactic Map milestone's own finding that scanner/probe was a
+recorded-but-deferred idea, not yet decided), and now asserts that
+`data/types/scanner.ts` exists, once `profitable-scanner-gdd.md` locked
+the design and the Agent 1 schema amendment landed — full correctness
+coverage for the rest of that amendment (Agent 20/21/22/28) lives in
+their own dedicated test files as each lands, the same relationship this
+file already has with `trading/season.test.ts`/`emergency.test.ts`.
+Full correctness coverage for the season/emergency fix itself lives in
+the dedicated `trading/season.test.ts`/
 `emergency.test.ts` files above — this file only confirms the wiring, per
 its own "small targeted addition, not a new parallel suite" scope. See the
 GDD's Sections 6-7 for the full narrative report, including the one

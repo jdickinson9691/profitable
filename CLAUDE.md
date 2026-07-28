@@ -12,10 +12,13 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: Galactic Map verification milestone — complete.** MVP, Phase 2, Phase 3, Phase 4, Phase 5, and the Galactic Map verification pass are all done. The Galactic Map's design questions all resolved to "the existing system already does this," so this milestone verified that claim (Agents 25/26) rather than building new features — verification surfaced 3 attributable bugs in the Phase 3/5 implementation, **all 3 now fixed** (discovery-by-travel, seasons/emergencies, map/nav canvas overflow). See `profitable-map-gdd.md` Sections 6-7 and Section 6 below.
+**Current phase: Combat** — the next and last deferred gap before Multiplayer, not yet started (no design pass has begun in `profitable-design-questions.md`). Travel Encounters (Non-Combat) and Scanner/Probe are both complete and verified — see `profitable-travel-encounters-gdd.md` and `profitable-scanner-gdd.md` (Section 6 for the latter's Agent 28 confirmation).
 
-**Full development order (all planned phases complete):**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here — verification complete, all follow-on bugs fixed]**.
+**Original development order (fully complete):**
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → trading loop → crafters (NPC crew) → ships → travel → galactic map.
+
+**Deferred-gaps sequence:**
+~~Scanner~~ (deferred, picked up second) → **Travel Encounters (complete)** → **Scanner (complete)** → **Combat (current, not yet started)** → Multiplayer.
 
 ---
 
@@ -202,27 +205,31 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 ## 6. Current Milestone & What's Still Out of Scope
 
-**Galactic Map verification is complete.** Agent 25 audited the existing Phase 3 (trade layer) + Phase 5 (travel layer) map against the four decided properties (`docs/profitable-map-gdd.md` Section 2); Agent 26 confirmed the milestone's own Definition of Done is met — the milestone's job was "verify and report," not "make everything perfect," and that verification is done. Two properties passed cleanly (no staleness; no scanner/probe code exists). Two surfaced **real, attributed bugs in the underlying Phase 3/5 implementation** — not new Galactic Map scope, and not fixed by this milestone per its own "report, don't patch" rule:
+**Travel Encounters (Non-Combat) is complete and verified.** Full scope, decisions, and agent contracts live in `docs/profitable-travel-encounters-gdd.md` (Section 6 holds the Agent 27 confirmation) and `docs/agents/agent-01-amendment-travel-encounters-schema.md`, `agent-20-amendment-travel-encounters-core.md`, `agent-21-amendment-travel-encounters-test.md`, `agent-22-amendment-travel-encounters-presentation.md`, `agent-27-travel-encounters-confirmation.md`.
 
-1. ~~Seasons and emergencies were never implemented~~ — **fixed.** `src/trading/season.ts`/`emergency.ts` (pure, zero persisted state) now feed `TradeMapScene`'s classification alongside baseline drift. Live-verified, including an emergency's larger premium correctly overriding its own planet's milder season discount on the same category. See `src/trading/README.md`'s and `src/presentation/README.md`'s "Galactic Map bug fix" notes.
-2. ~~Discovery is never extended by travel~~ — **fixed.** `galaxyState.ts` now persists a `discoveredPlanetIds` side-table and marks a planet discovered on every successful `resolveArrival()`, verified to survive a real page reload. See `src/presentation/README.md`'s "Galactic Map bug fix" note.
-3. ~~`TradeMapScene` and the shared nav bar both overflow the 800×500 canvas~~ — **fixed.** `scenes/nav.ts` now wraps to a second row instead of running off the canvas edge; `TradeMapScene.ts`'s content now renders inside a mask-clipped, mouse-wheel-scrollable container, with interactive buttons correctly disabled while scrolled out of view. Live-verified: nav wraps, scrolling reveals previously-unreachable content. See `src/presentation/README.md`'s "Galactic Map bug fix" note.
+**Scanner/Probe is complete and verified.** Full scope, decisions, and agent contracts live in `docs/profitable-scanner-gdd.md` (Section 6 holds the Agent 28 confirmation) and `docs/agents/agent-01-amendment-scanner-schema.md`, `agent-20-amendment-scanner-core.md`, `agent-21-amendment-scanner-test.md`, `agent-22-amendment-scanner-presentation.md`, `agent-28-scanner-confirmation.md`. Both milestones used the same "amendments to existing agents (1, 20, 21, 22), not new Core/Presentation/Content agents" pattern.
 
-Full evidence and per-property detail: `docs/profitable-map-gdd.md` Sections 6-7. **All three items originally carried forward are now fixed** — nothing outstanding remains from the Galactic Map verification pass.
+The Galactic Map verification milestone is complete — all three bugs found (seasons/emergencies never built, discovery-by-travel not wired up, canvas/nav overflow) are fixed and re-verified. Full detail in `docs/profitable-map-gdd.md` Section 7.
 
-**No further phase is currently planned beyond this.** The originally-scoped development order (galaxy → planets → resources → crafting → trading → crew → ships/travel → galactic map) is now fully built and verified, with zero known open bugs.
+**Active now: Combat — not yet started.** The next and last deferred gap before Multiplayer, per the sequencing: Scanner → Encounters → **Combat** → Multiplayer. No design pass has begun; `profitable-design-questions.md` has no "Combat" section yet.
 
-**Still explicitly out of scope:**
+**Still explicitly out of scope**, beyond Combat itself:
 
-- The four recorded-but-deferred map ideas (emergency advance warning, map staleness, a scanner/probe mechanic, a new galaxy-wide view) — until a real need for one emerges
-- Encounters during travel, combat, and any travel-hazard mechanic (deferred; intended shape recorded in the design doc, not built)
-- Multiplayer (planned future evolution, single-player only for now)
+- The Galactic Map's two still-undecided recorded ideas (emergency advance warning, a new galaxy-wide/zoom-out view) — the other two (map data staleness, a scanner/probe mechanic) are resolved: staleness was confirmed a non-issue during map verification, and Scanner/Probe is now built
+- Multiplayer (planned future evolution, single-player only for now; also the groundwork already laid throughout — trade attribution, self-trade prevention, timestamp-not-duration for background crafting — exists specifically for when this milestone arrives)
 
 ---
 
 ## 7. Reference Documents
 
-- `docs/profitable-design-questions.md` — full design rationale, every decision and why, plus remaining open questions split into "Must Be Answered for MVP" (currently empty — all resolved) and "Can Wait Until After MVP."
-- `docs/profitable-mvp-gdd.md` — the MVP Game Design Document (this file's source for Sections 3 and 4 above).
-- `docs/agents/README.md` — agent contract index and cross-cutting rules in full.
-- `docs/agents/agent-0[1-7]-*.md` — individual agent contracts.
+- `docs/profitable-design-questions.md` — full design rationale for every decision across the entire project, including the deferred-gaps sections (Travel Encounters and Scanner/Probe, both resolved; Combat and Multiplayer still to come) as they're worked through.
+- `docs/profitable-mvp-gdd.md` — MVP (resource/refine/craft core loop). Complete.
+- `docs/profitable-phase2-gdd.md` — Galaxy & Planet Generation. Complete.
+- `docs/profitable-phase3-gdd.md` — Trading Loop. Complete (seasons/emergencies gap closed during Galactic Map verification).
+- `docs/profitable-phase4-gdd.md` — Crew Crafters. Complete.
+- `docs/profitable-phase5-gdd.md` — Ships & Travel. Complete.
+- `docs/profitable-map-gdd.md` — Galactic Map verification. Complete; Section 7 holds the full bug report from this milestone.
+- `docs/profitable-travel-encounters-gdd.md` — Travel Encounters (Non-Combat). Complete.
+- `docs/profitable-scanner-gdd.md` — Scanner/Probe. Complete.
+- `docs/agents/README.md` — agent contract index and cross-cutting rules in full, including the boundary rules each phase has added.
+- `docs/agents/agent-*.md` — individual agent contracts; numbering and amendment relationships are explained in `README.md`.

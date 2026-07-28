@@ -1,5 +1,10 @@
 import type { ShipTierSpeedModifier } from "../types/shipTierSpeedModifier.ts";
 import type { ShipPurchaseCostByTier } from "../types/shipPurchaseCost.ts";
+import type { EncounterType } from "../types/encounter.ts";
+import type { HazardTierModifier } from "../types/hazardTierModifier.ts";
+import type { HazardFailureCostBand } from "../types/hazardFailureCostBand.ts";
+import type { ScannerPurchaseCostByTier } from "../types/scannerPurchaseCost.ts";
+import type { ScannerTierRadiusBonus } from "../types/scannerTierRadiusBonus.ts";
 
 // Phase 5 GDD §2/§3 -- tunable ships & travel constants. Like Phase 4's
 // crewConfig.ts, the design doc gives no example numbers for these (only
@@ -54,4 +59,119 @@ export const SHIP_PURCHASE_COST_BY_TIER: readonly ShipPurchaseCostByTier[] = [
   { tier: "Purple", cost: 3800 },
   { tier: "Orange", cost: 6000 },
   { tier: "Gold", cost: 9000 },
+];
+
+// Travel Encounters (Non-Combat) GDD §2/§3 -- like the rest of this file,
+// the design doc documents the *shape* of each value without example
+// numbers, so these are originated defaults, not formalized examples.
+
+// §2.1 -- "same shape as the existing emergency system" (reuse the 24h
+// window and percentage-trigger-chance pattern). Deliberately a fresh
+// constant rather than importing EMERGENCY_CHECK_INTERVAL_HOURS/
+// EMERGENCY_TRIGGER_CHANCE from src/data/constants/tradingConfig.ts --
+// Ships/Travel and Trading are separate domains, and duplicating two
+// numbers with a documented rationale is a smaller cost than a cross-
+// domain constant dependency between otherwise-unrelated systems.
+export const ENCOUNTER_CHECK_WINDOW_HOURS = 24;
+export const ENCOUNTER_TRIGGER_CHANCE = 0.15;
+
+// §2.2 -- weighted random split when a window's roll triggers an
+// encounter. Hazard (the only downside type) is deliberately the lowest
+// weight; the other two split the remainder evenly, since nothing in the
+// design doc gives a reason to favor one over the other. Weights sum to 1.
+export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
+  tradeOpportunity: 0.4,
+  discovery: 0.4,
+  hazard: 0.2,
+};
+
+// §2.4 -- a trade-opportunity's automatic currency grant range, direct to
+// Wallet. Scaled to feel like a meaningful but modest windfall relative to
+// the existing economy (a Grey-tier ship costs 300cr, a Grey-tier crew
+// hire ~50cr per CREW_HIRE_COST_BY_TIER).
+export const ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = 20;
+export const ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = 150;
+
+// §2.6 -- hazard: roll 1-100 against this fixed pass threshold, modified
+// additively by the voyage's ship's derived tier via HAZARD_SHIP_TIER_MODIFIER
+// below (need roll + rollBonus >= HAZARD_PASS_THRESHOLD to pass).
+export const HAZARD_PASS_THRESHOLD = 50;
+
+// §2.6 -- "modified by ship tier," same "tier shifts a roll" pattern as
+// PLANET_TIER_MODIFIER, but Grey = +0 (floor, not a penalty) -- see
+// HazardTierModifier's own comment for why this follows the ship-tier
+// convention (SHIP_TIER_SPEED_MODIFIER) rather than the planet-tier one.
+export const HAZARD_SHIP_TIER_MODIFIER: readonly HazardTierModifier[] = [
+  { tier: "Grey", rollBonus: 0 },
+  { tier: "White", rollBonus: 5 },
+  { tier: "Green", rollBonus: 10 },
+  { tier: "Blue", rollBonus: 15 },
+  { tier: "Purple", rollBonus: 20 },
+  { tier: "Orange", rollBonus: 25 },
+  { tier: "Gold", rollBonus: 30 },
+];
+
+// §2.6 -- "a scaled currency cost using the same escalating curve shape as
+// the crafting threshold penalty": HAZARD_BASE_FAILURE_COST times the
+// matching band's multiplier below, keyed to how many points the roll (plus
+// its tier bonus) fell below HAZARD_PASS_THRESHOLD. Mirrors PENALTY_CURVE's
+// exact 10-point band boundaries; unlike that curve, there is no "reject"
+// band -- a hazard failure always resolves to some cost.
+export const HAZARD_BASE_FAILURE_COST = 30;
+export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
+  { minPointsBelow: 1, maxPointsBelow: 10, costMultiplier: 1.0 },
+  { minPointsBelow: 11, maxPointsBelow: 20, costMultiplier: 1.5 },
+  { minPointsBelow: 21, maxPointsBelow: 30, costMultiplier: 2.0 },
+  { minPointsBelow: 31, maxPointsBelow: 40, costMultiplier: 2.5 },
+  { minPointsBelow: 41, maxPointsBelow: null, costMultiplier: 3.0 },
+];
+
+// Scanner/Probe GDD §2/§3 -- like the rest of this file, the design doc
+// documents the *shape* of each value without example numbers, so these
+// are originated defaults, not formalized examples.
+
+// §2.2 -- how many unpurchased scanner candidates sit in one planet's
+// scanner pool at once, and how often that pool re-rolls -- same pattern
+// as SHIPYARD_POOL_SIZE_PER_PLANET/SHIPYARD_POOL_REFRESH_INTERVAL_HOURS
+// (and Phase 4's crew pool before it), applied to scanners' own pool
+// rather than merged into ShipyardPool (GDD §2.2's explicit call-out).
+export const SCANNER_POOL_SIZE_PER_PLANET = 3;
+export const SCANNER_POOL_REFRESH_INTERVAL_HOURS = 24;
+
+// §3 -- "scanner acquisition cost curve by tier." Scaled below
+// SHIP_PURCHASE_COST_BY_TIER (a whole ship is the bigger investment) but
+// above CREW_HIRE_COST_BY_TIER (a scanner is a standalone piece of
+// equipment the player keeps indefinitely, not a recurring-wage hire).
+export const SCANNER_PURCHASE_COST_BY_TIER: readonly ScannerPurchaseCostByTier[] = [
+  { tier: "Grey", cost: 80 },
+  { tier: "White", cost: 160 },
+  { tier: "Green", cost: 320 },
+  { tier: "Blue", cost: 550 },
+  { tier: "Purple", cost: 900 },
+  { tier: "Orange", cost: 1400 },
+  { tier: "Gold", cost: 2200 },
+];
+
+// §2.4 -- "base scan radius (with no scanner, or as the floor before tier
+// bonus)." Same {x,y} distance units as Planet.position (range +-1000 per
+// axis, ~2828 corner-to-corner diagonal, per generateGalaxy.ts's
+// POSITION_RANGE) -- chosen as a modest fraction of that space, so a scan
+// reveals a meaningful local neighborhood without trivializing discovery
+// galaxy-wide even at Gold tier.
+export const SCANNER_BASE_SCAN_RADIUS = 120;
+
+// §2.4 -- "scanner tier radius-bonus table... reusing the shape of the
+// schematic-tier contribution table (Grey +0 up to Gold's top value)."
+// A flat additive bonus on top of SCANNER_BASE_SCAN_RADIUS, strictly
+// increasing by tier, Grey = +0 (the floor, not a penalty) -- same
+// convention HAZARD_SHIP_TIER_MODIFIER/SHIP_TIER_SPEED_MODIFIER already
+// established for a skill/equipment investment axis.
+export const SCANNER_TIER_RADIUS_BONUS: readonly ScannerTierRadiusBonus[] = [
+  { tier: "Grey", radiusBonus: 0 },
+  { tier: "White", radiusBonus: 40 },
+  { tier: "Green", radiusBonus: 80 },
+  { tier: "Blue", radiusBonus: 130 },
+  { tier: "Purple", radiusBonus: 190 },
+  { tier: "Orange", radiusBonus: 260 },
+  { tier: "Gold", radiusBonus: 350 },
 ];
