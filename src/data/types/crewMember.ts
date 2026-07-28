@@ -20,4 +20,15 @@ export interface CrewMember {
   // Used to detect unpaid-upkeep attrition (§2.7) -- a grace period is
   // measured from this timestamp, not from hiredAt.
   lastPaidAt: number;
+  // Combat GDD §3: necessary correction to the amendment's own literal
+  // pseudocode (`unavailableUntil: timestamp | null // new field only`,
+  // written without a `?`) -- same backward-compatibility reasoning as
+  // Voyage.isRetreat: a CrewMember persisted before this amendment
+  // shipped has no such field at all, and this amendment's own testing
+  // requirement demands existing prior-phase data still validates without
+  // changes. Optional AND nullable: absent (pre-Combat data) and `null`
+  // (available, post-Combat) mean the same thing -- "not currently
+  // unavailable" -- set to a future epoch-ms timestamp only by a combat
+  // loss (§2.5), cleared back to `null` once that time passes.
+  unavailableUntil?: number | null;
 }

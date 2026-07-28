@@ -420,6 +420,70 @@ methods, not reimplementations):
   owned"`; ship's `currentPlanetId` not matching the docked planet →
   `"ship is not docked at the given planet"`.
 
+**Combat amendment (Agent 22):** no new screen, no DOM, no Web Audio —
+integrated entirely into `TradeMapScene`'s existing travel section, the
+one deliberate exception to "every encounter resolves automatically"
+(Combat GDD §2.3).
+- `shipsState.ts` gained `PendingCombat` (`{ encounter, voyage }`) state —
+  a necessary completion: `CombatEncounter` only carries a bare
+  `voyageId` (Agent 1's contract), but resolving it later needs the real
+  origin/destination/cargo, and by the time a pending combat is visible
+  here `resolveArrival()` has already removed the original `Voyage` from
+  `voyages` (arrival completes in full regardless of a pending combat,
+  per Agent 20's own contract). The snapshot kept here is
+  presentation-only state, not a second copy of anything Core persists.
+- `display.ts` gained `describePendingCombat()` (reports only
+  `opponentThreatTier` — no outcome hint, ever) and
+  `describeCombatResolution()` (win/lose/flee, sourced entirely from
+  `CombatResolution` — the weapon's current tier and the affected crew
+  member's tier if a `CombatResolution` field is actually populated,
+  omitted entirely otherwise, never a padded "no damage" line).
+- `TradeMapScene.renderTravel()` renders any pending combat for the
+  ship *first*, above the voyage list — the one genuinely interactive
+  prompt in this whole feature shouldn't be buried below routine travel
+  info. Attack/Flee are the only two buttons; neither previews or implies
+  an outcome before `resolveCombatChoice()` actually returns one.
+- `onResolveArrival()` now also stores each of `result.pendingCombats`
+  (paired with the about-to-be-discarded `voyage` snapshot) and appends
+  `describePendingCombat()` lines to the arrival summary — a pending
+  combat is reported, never resolved or previewed, as part of arrival.
+- `onCombatChoice()` looks up the real origin/current `Planet` objects
+  (`galaxy.planets.find(...)`, same resolution pattern as every other
+  handler in this file) and calls the real `resolveCombatChoice()`
+  directly — `replaceShip()`/`replaceCrewMember()`/`addVoyage()` apply
+  its output exactly as returned, no recomputation. The resulting retreat
+  voyage is added via the exact same `addVoyage()` call
+  `onInitiateVoyage()` already uses, so it shows up in the ordinary
+  voyage list with no special-cased rendering path (this amendment's own
+  "visible in the same voyage-tracking UI" requirement).
+- A pending combat blocks new voyages/scans the same way an unresolved
+  voyage already does (extends the existing `hasUnresolvedVoyage` gate
+  rather than inventing a second one) — resolving a loss/flee can add a
+  retreat voyage via `addVoyage()` directly, bypassing that gate, so
+  letting an unrelated second voyage start first would let two voyages
+  exist for one ship at once, an invariant nothing else in this file
+  expects.
+- Live-verified (real dev server, real browser, per this amendment's own
+  "seeded/forced for testing" allowance — combat's own real trigger
+  weight is only 0.05, too rare to wait out): purchased a real ship
+  through the actual Shipyard flow, then injected a `PendingCombat` via
+  `localStorage` (the same shape `onResolveArrival()` itself writes) with
+  `opponentThreatTier: "Gold"` against the ship's real White-tier weapon.
+  The pending prompt rendered exactly `"Hostile ship encountered!
+  Opponent threat tier: Gold."` with Attack/Flee buttons, and — correctly
+  — no Scan/Initiate Voyage section (the new gate above). Clicking
+  Attack produced `"Combat lost! Redirected back to the last safe planet.
+  Weapon now White tier. A Blue crew member is unavailable for a
+  while."`; the underlying state confirmed the exact numbers: weapon
+  `durability` 51→43 (`round(51 × 0.85)`), the injected crew member's
+  `unavailableUntil` set to a real future timestamp, and a real retreat
+  `Voyage` (`isRetreat: true`, origin = current planet, destination = the
+  original voyage's origin, cargo carried over unchanged) visible in the
+  travel section as "En route to Planet-...:0". A second injected
+  encounter, resolved with Flee, produced `"Fled the encounter --
+  redirected back to the last safe planet."` with no weapon/crew change
+  and the same retreat-voyage mechanics.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"

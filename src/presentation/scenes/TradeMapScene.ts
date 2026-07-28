@@ -3,17 +3,30 @@ import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content } from "../gameState.ts";
 import { galaxy, startingPlanet, getDiscoveredPlanets, markPlanetDiscovered } from "../galaxyState.ts";
 import { getMarketStates, getStartingPlanetPreference } from "../tradingState.ts";
-import { getShipRoster, replaceShip, getVoyages, addVoyage, removeVoyage, getOwnedScanners } from "../shipsState.ts";
+import {
+  getShipRoster,
+  replaceShip,
+  getVoyages,
+  addVoyage,
+  removeVoyage,
+  getOwnedScanners,
+  getPendingCombats,
+  addPendingCombat,
+  removePendingCombat,
+} from "../shipsState.ts";
+import { getCrewRoster, replaceCrewMember } from "../crewState.ts";
 import { calculateTravelTime } from "../../ships/calculateTravelTime.ts";
 import { initiateVoyage } from "../../ships/initiateVoyage.ts";
 import { resolveArrival } from "../../ships/resolveArrival.ts";
 import { performScan } from "../../ships/performScan.ts";
+import { resolveCombatChoice } from "../../ships/resolveCombatChoice.ts";
 import { getSeasonalEffect, getSeasonalPriceMultiplier } from "../../trading/season.ts";
 import { getActiveEmergency, getEmergencyPriceMultiplier } from "../../trading/emergency.ts";
-import { describeEncounter } from "../display.ts";
+import { describeEncounter, describePendingCombat, describeCombatResolution } from "../display.ts";
 import type { Planet } from "../../data/types/planet.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { Voyage } from "../../data/types/voyage.ts";
+import type { PendingCombat } from "../shipsState.ts";
 
 // Agent 13 (Trading Presentation): the trade map screen (Phase 3 GDD §2.9).
 // Read-only display -- it renders what baseline drift/seasons/emergencies
@@ -278,6 +291,14 @@ export class TradeMapScene extends Phaser.Scene {
     });
     y += 22;
 
+    // Combat amendment: shown first, before the voyage list -- the one
+    // genuinely interactive prompt in this entire encounter system, so it
+    // shouldn't be buried below routine travel info.
+    const shipPendingCombats = getPendingCombats().filter((pending) => pending.voyage.shipId === ship.id);
+    for (const pending of shipPendingCombats) {
+      y = this.renderPendingCombat(ship, pending, y);
+    }
+
     const shipVoyages = getVoyages().filter((voyage) => voyage.shipId === ship.id);
     for (const voyage of shipVoyages) {
       y = this.renderVoyage(ship, voyage, y);
@@ -291,8 +312,15 @@ export class TradeMapScene extends Phaser.Scene {
     // starting a new voyage before that would depart from a planet the
     // ship hasn't actually reached yet. The same "not en route" condition
     // gates the Scan action -- a ship mid-voyage isn't docked anywhere.
+    //
+    // Combat amendment: a pending combat blocks new voyages/scans the same
+    // way -- resolving it (lose or flee) can add a retreat voyage via
+    // addVoyage() directly, bypassing this same check; allowing a second,
+    // unrelated voyage to start first would let two voyages exist for one
+    // ship at once, an invariant nothing else in this file expects.
     const hasUnresolvedVoyage = shipVoyages.length > 0;
-    if (!hasUnresolvedVoyage && originPlanet) {
+    const hasPendingCombat = shipPendingCombats.length > 0;
+    if (!hasUnresolvedVoyage && !hasPendingCombat && originPlanet) {
       y = this.renderScan(ship, originPlanet, y);
       for (const destination of discoveredPlanets.filter((planet) => planet.id !== originPlanet.id)) {
         y = this.renderDestination(ship, originPlanet, destination, y);
@@ -365,6 +393,76 @@ export class TradeMapScene extends Phaser.Scene {
         ? `Scan complete — newly discovered: ${result.newlyDiscovered.map((planet) => planet.name).join(", ")}`
         : "Scan complete — no new planets found within range.",
     );
+    this.redraw();
+  }
+
+  // Combat GDD §2.3 amendment: the one deliberate exception to "every
+  // encounter resolves automatically." Presents exactly Attack/Flee, no
+  // other choice, no preview of the outcome (describePendingCombat() only
+  // ever shows what initiateCombat() actually rolled at detection --
+  // opponentThreatTier -- never a hint at win/lose odds).
+  private renderPendingCombat(ship: Ship, pending: PendingCombat, startY: number): number {
+    let y = startY;
+    this.addText(32, y, describePendingCombat(pending.encounter), {
+      fontFamily: "monospace",
+      fontSize: "13px",
+      color: "#ff5555",
+    });
+    y += 20;
+
+    const attackBtn = this.addText(360, y, "> Attack", { fontFamily: "monospace", fontSize: "13px", color: "#ff8844" });
+    attackBtn.setInteractive({ useHandCursor: true });
+    attackBtn.on("pointerdown", () => this.onCombatChoice(ship, pending, "attack"));
+
+    const fleeBtn = this.addText(460, y, "> Flee", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+    fleeBtn.setInteractive({ useHandCursor: true });
+    fleeBtn.on("pointerdown", () => this.onCombatChoice(ship, pending, "flee"));
+    y += 20;
+    return y;
+  }
+
+  private onCombatChoice(ship: Ship, pending: PendingCombat, choice: "attack" | "flee"): void {
+    const { voyage, encounter } = pending;
+    // Necessary completion, same resolution as every other Agent 20/22
+    // boundary in this file: resolveCombatChoice() needs the real Planet
+    // objects, not bare ids. `originPlanet` is the *original* voyage's
+    // origin (the retreat destination, per Combat GDD §2.5's "last safe
+    // planet"); `currentPlanet` is where the ship sits right now --
+    // already the original voyage's destination, since resolveArrival()
+    // completed that delivery before this combat ever became visible here.
+    const originPlanet = galaxy.planets.find((planet) => planet.id === voyage.originPlanetId);
+    const currentPlanet = galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
+    if (!originPlanet || !currentPlanet) {
+      this.setStatus("Cannot resolve combat: origin or current planet not found.");
+      return;
+    }
+
+    const result = resolveCombatChoice(
+      encounter,
+      choice,
+      voyage,
+      ship,
+      originPlanet,
+      currentPlanet,
+      getCrewRoster(),
+      Date.now(),
+      `retreat-${voyage.id}-${Date.now()}`,
+    );
+
+    removePendingCombat(encounter.id);
+    replaceShip(result.updatedShip);
+    if (result.updatedCrewMember) {
+      replaceCrewMember(result.updatedCrewMember);
+    }
+    if (result.retreatVoyage) {
+      // Combat GDD §2.6/Agent 22's own contract: "the resulting retreat
+      // voyage should be visible in the same voyage-tracking UI as any
+      // normal voyage" -- addVoyage() is the exact same call
+      // onInitiateVoyage() already uses, no special-cased rendering path.
+      addVoyage(result.retreatVoyage);
+    }
+
+    this.setStatus(describeCombatResolution(result));
     this.redraw();
   }
 
@@ -450,6 +548,17 @@ export class TradeMapScene extends Phaser.Scene {
         encounter.type === "discovery" ? content.resources.find((r) => r.id === encounter.outcome.resourceId)?.name : undefined;
       lines.push(describeEncounter(encounter, resourceName));
     }
+
+    // Combat amendment: a pending combat never resolves here -- it's
+    // stored (paired with this now-about-to-be-discarded `voyage` snapshot,
+    // per shipsState.ts's own PendingCombat note) for the player to act on
+    // via the Attack/Flee prompt renderPendingCombat() adds to the travel
+    // section, not resolved or previewed as a side effect of arrival.
+    for (const combatEncounter of result.pendingCombats) {
+      addPendingCombat({ encounter: combatEncounter, voyage });
+      lines.push(describePendingCombat(combatEncounter));
+    }
+
     this.setStatus(lines.join("\n"));
     this.redraw();
   }

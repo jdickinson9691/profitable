@@ -255,3 +255,67 @@ implementing `docs/agents/agent-20-amendment-scanner-core.md`; see
   amendment's contract names for `purchaseScanner()` and `performScan()`
   but never defines. Both mirror the existing `CraftResult`/
   `PurchaseResult`/`PurchaseShipResult` discriminated-union pattern.
+
+**Combat amendment** (`docs/agents/agent-01-amendment-combat-schema.md`):
+`encounter.ts`'s `EncounterType` extended with a 4th member, `"combat"` —
+still not matched by a 4th `EncounterResult` variant, since every existing
+variant represents a fully resolved, synchronous outcome, a shape combat
+structurally cannot fit (it is detected/reported *pending*, resolved later
+via an explicit, separate player choice). `combatEncounter.ts` (new)
+holds that lifecycle instead: `CombatEncounter` — `id`, `voyageId`,
+`triggerContext` (`"travel" | "arrival"`), `opponentThreatTier` (rolled
+once, at detection time, for determinism), `status`
+(`"pending" | "resolved"`), `outcome` (`"win" | "lose" | "flee" | null`),
+`windowIndex` (`number | null`, null for an arrival-triggered encounter).
+
+`voyage.ts`'s `Voyage` gained `isRetreat?: boolean` and `crewMember.ts`'s
+`CrewMember` gained `unavailableUntil?: number | null` — **both necessary
+corrections** to the amendment's own literal pseudocode, which wrote both
+as required (no `?`). This amendment's own testing requirement explicitly
+demands "confirm `Voyage`/`CrewMember` still validate all existing
+prior-phase data without requiring changes" — the exact same backward-
+compatibility argument that made `Voyage.encounters` optional during the
+Travel Encounters amendment, applied here to two more fields on two more
+types a player may already have persisted before this amendment shipped.
+A missing `isRetreat` means "not a retreat voyage" (`false`); a missing or
+`null` `unavailableUntil` both mean "not currently unavailable" — the two
+states are deliberately equivalent, not a distinct third state.
+
+**`ENCOUNTER_TYPE_WEIGHTS` gained a 4th key, `combat: 0`** — a *deliberate*
+placeholder, not the GDD's implied nonzero "low" weight. See
+`src/data/constants/shipsAndTravelConfig.ts`'s own extensive comment: a
+genuinely nonzero weight here would immediately corrupt already-shipped
+`resolveEncounters()` behavior (its `TYPE_ORDER` doesn't know about
+`"combat"` yet), and teaching it to is explicitly the Agent 20 Combat Core
+amendment's job, not this one's ("types and tables only," per this
+amendment's own Must-NOT-Do). Also 3 new standalone constants
+(`ARRIVAL_COMBAT_CHECK_CHANCE`, `COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT`,
+`COMBAT_CREW_UNAVAILABLE_DURATION_HOURS`) — no new variance table: Combat
+reuses `TIER_VARIANCE` (the existing shared refiner/crafter table)
+directly, confirmed rather than duplicated, per the GDD's own explicit
+instruction.
+
+**Combat amendment (Agent 20 Core additions)**: the `combat: 0` placeholder
+immediately above is now historical — `ENCOUNTER_TYPE_WEIGHTS.combat` is
+`0.05` (see `src/data/constants/README.md`'s own updated note on the
+proportional-scaling choice behind that number). Two more new types, same
+necessary-completion category as `PurchaseShipResult`/`PerformScanResult`
+before them:
+- `encounterResolution.ts` — `EncounterResolution` (`{ encounters,
+  pendingCombats }`), `resolveEncounters()`'s new return shape. A bare
+  `EncounterResult[]` had nowhere to also carry a newly detected pending
+  `CombatEncounter` (still not an `EncounterResult` variant — see
+  `encounter.ts`'s own note above), so the function's return type grew
+  to carry both outputs from its one shared per-window roll.
+- `combatResolution.ts` — `CombatResolution` (`{ combatEncounter,
+  updatedShip, updatedCrewMember, retreatVoyage }`), named directly by
+  Agent 20's contract (`resolveCombatChoice(...): CombatResolution`) but
+  never defined by it. Not a discriminated union — every choice produces
+  the same shape, only which fields are populated (`updatedCrewMember`/
+  `retreatVoyage`) differs by outcome.
+
+`arrivalResult.ts`'s `ArrivalResolved` gained a matching `pendingCombats:
+CombatEncounter[]` field, always present — same "empty by default"
+convention `encounters` already established, populated by both Combat
+trigger points (see `src/ships/README.md`'s Combat section for the full
+detection/resolution flow).

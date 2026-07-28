@@ -4,7 +4,11 @@ import type { Planet } from "../data/types/planet.ts";
 import type { Resource } from "../data/types/resource.ts";
 import type { RandomFn } from "../data/types/random.ts";
 import type { ArrivalResult } from "../data/types/arrivalResult.ts";
+import type { EncounterResult } from "../data/types/encounter.ts";
+import type { CombatEncounter } from "../data/types/combatEncounter.ts";
 import { resolveEncounters } from "./resolveEncounters.ts";
+import { initiateCombat } from "./initiateCombat.ts";
+import { ARRIVAL_COMBAT_CHECK_CHANCE } from "../data/constants/shipsAndTravelConfig.ts";
 
 // Phase 5 GDD §2.8/§3. Necessary completion: takes the actual Voyage and
 // Ship objects directly rather than a voyageId into an implicit store,
@@ -35,7 +39,28 @@ export function resolveArrival(
 
   const updatedShip: Ship = { ...ship, currentPlanetId: voyage.destinationPlanetId };
 
-  const encounters = destinationPlanet && resources ? resolveEncounters(voyage, ship, destinationPlanet, resources, random) : [];
+  let encounters: EncounterResult[] = [];
+  const pendingCombats: CombatEncounter[] = [];
+
+  if (destinationPlanet && resources) {
+    const resolution = resolveEncounters(voyage, ship, destinationPlanet, resources, random);
+    encounters = resolution.encounters;
+    pendingCombats.push(...resolution.pendingCombats);
+
+    // Combat GDD §2.2/§3: "at arrival... a separate check" from the
+    // window-roll mechanism above. Gated behind the same opt-in as every
+    // other encounter (destinationPlanet/resources both supplied) --
+    // every pre-Travel-Encounters call site keeps behaving identically
+    // (pendingCombats stays []), same reasoning already established for
+    // `encounters`. Deliberately NOT suppressed by voyage.isRetreat: the
+    // Combat GDD's own §2.6 wording scopes that flag to resolveEncounters()
+    // specifically ("a flag suppressing resolveEncounters() for that
+    // specific trip") -- the arrival check is a separate mechanism this
+    // function rolls directly, not something resolveEncounters() gates.
+    if (random() < ARRIVAL_COMBAT_CHECK_CHANCE) {
+      pendingCombats.push(initiateCombat(`${voyage.id}-combat-arrival`, voyage.id, "arrival", null, random));
+    }
+  }
 
   return {
     resolved: true,
@@ -43,5 +68,6 @@ export function resolveArrival(
     destinationPlanetId: voyage.destinationPlanetId,
     cargo: voyage.cargo,
     encounters,
+    pendingCombats,
   };
 }

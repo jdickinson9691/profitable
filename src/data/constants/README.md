@@ -133,6 +133,38 @@ invariants — see `tests/data/travelEncountersConstants.test.ts`.
   0-points/"reject" bands, neither of which apply to a failure-only
   curve — a hazard failure always resolves to some real cost).
 
+**Combat amendment:** 3 new standalone additions to `shipsAndTravelConfig.ts`,
+plus one deliberate, heavily-documented value change to an existing table.
+Tested for structural invariants — see `tests/data/combatConstants.test.ts`
+(the 3 new constants) and `tests/data/travelEncountersConstants.test.ts`
+(the updated `ENCOUNTER_TYPE_WEIGHTS` shape).
+- **`ENCOUNTER_TYPE_WEIGHTS` gained a 4th key, `combat`.** Agent 1 left it
+  at a deliberate `0` placeholder (`Record<EncounterType, number>`
+  required the key to exist the moment `EncounterType` gained a 4th
+  member, but `resolveEncounters()` couldn't yet consume a nonzero value
+  correctly). The Agent 20 Combat Core amendment set the real value —
+  `tradeOpportunity: 0.38, discovery: 0.38, hazard: 0.19, combat: 0.05` —
+  in the same change that taught `resolveEncounters()` to detect and
+  branch on `combat` (`src/ships/resolveEncounters.ts`). The original
+  three weights were scaled down *proportionally* (×0.95 each) rather
+  than subtracted from just one, which keeps their ratio to each other
+  exactly 0.4 : 0.4 : 0.2 — identical to pre-Combat — so every existing
+  test asserting that distribution (`tests/ships/resolveEncounters.test.ts`)
+  needed no changes to its expected values, only to its call sites (see
+  `src/ships/README.md`'s Combat section for why the call sites changed
+  at all).
+- `ARRIVAL_COMBAT_CHECK_CHANCE` (0.1) — "a separate probability from the
+  travel-window roll," a one-time check per arrival rather than a
+  recurring per-window roll, so set lower than `ENCOUNTER_TRIGGER_CHANCE`.
+- `COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT` (0.15) — the weapon
+  component's `qualities.durability` reduction on a combat loss.
+- `COMBAT_CREW_UNAVAILABLE_DURATION_HOURS` (24) — mirrors the daily-scale
+  timing every other Ships/Crew tunable already uses.
+- **No new variance table.** The GDD explicitly calls for reusing
+  `TIER_VARIANCE` (the existing shared refiner/crafter table) directly —
+  confirmed, not duplicated; there is no `COMBAT_VARIANCE` constant
+  anywhere in this codebase.
+
 **Scanner/Probe amendment:** 5 more additions to `shipsAndTravelConfig.ts`
 — same "shape, not example numbers" situation as the rest of this file, so
 these are originated defaults. Tested for structural invariants — see

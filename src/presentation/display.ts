@@ -3,6 +3,8 @@ import type { TierColor } from "../data/types/tierColor.ts";
 import type { RefineResult } from "../data/types/refineResult.ts";
 import type { CraftResult } from "../data/types/craftResult.ts";
 import type { EncounterResult } from "../data/types/encounter.ts";
+import type { CombatEncounter } from "../data/types/combatEncounter.ts";
+import type { CombatResolution } from "../data/types/combatResolution.ts";
 import { QUALITIES } from "../data/types/quality.ts";
 import { getTierColor } from "../simulation/tierColor.ts";
 import { computeAggregateTier } from "../simulation/aggregateTier.ts";
@@ -86,4 +88,35 @@ export function describeEncounter(encounter: EncounterResult, resourceName?: str
   return encounter.outcome.passed
     ? "Navigational hazard: passed"
     : `Navigational hazard: -${encounter.outcome.creditsLost} Credits`;
+}
+
+// Combat GDD §2.2/§2.3/§2.5 amendment (Agent 22). Sourced entirely from
+// CombatEncounter/CombatResolution -- same "format, never recompute"
+// discipline as describeEncounter() above. Deliberately does not reveal
+// win/lose odds or any hint of the outcome -- the pending prompt only
+// ever shows what was actually rolled at detection (opponentThreatTier),
+// never a preview of the resolution.
+export function describePendingCombat(encounter: CombatEncounter): string {
+  return `Hostile ship encountered! Opponent threat tier: ${encounter.opponentThreatTier}.`;
+}
+
+export function describeCombatResolution(resolution: CombatResolution): string {
+  const { combatEncounter, updatedShip, updatedCrewMember } = resolution;
+
+  if (combatEncounter.outcome === "win") {
+    return "Combat won! Your ship continues on, undamaged.";
+  }
+  if (combatEncounter.outcome === "flee") {
+    return "Fled the encounter -- redirected back to the last safe planet.";
+  }
+
+  // "lose" -- weapon/crew notes are omitted entirely when there's nothing
+  // to report (no weapon installed, or no crew member was affected),
+  // rather than a padded "no damage" line for something that structurally
+  // couldn't happen (same "no section for nothing that occurred"
+  // precedent as describeEncounter()'s own callers).
+  const weapon = updatedShip.components.weapon;
+  const weaponNote = weapon ? ` Weapon now ${weapon.tier} tier.` : "";
+  const crewNote = updatedCrewMember ? ` A ${updatedCrewMember.tier} crew member is unavailable for a while.` : "";
+  return `Combat lost! Redirected back to the last safe planet.${weaponNote}${crewNote}`;
 }

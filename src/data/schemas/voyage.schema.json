@@ -80,7 +80,8 @@
           }
         ]
       }
-    }
+    },
+    "isRetreat": { "type": "boolean" }
   },
   "required": ["id", "shipId", "originPlanetId", "destinationPlanetId", "departedAt", "arrivesAt", "cargo"],
   "additionalProperties": false

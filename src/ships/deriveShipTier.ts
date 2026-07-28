@@ -9,7 +9,12 @@ import { getTierColor } from "../simulation/tierColor.ts";
 // component (the midpoint of its range), averages those numbers, then
 // maps back through getTierColor() -- never reimplements breakpoint
 // logic, same discipline as every other tier-derivation in this project.
-function tierMidpoint(tier: TierColor): number {
+//
+// Exported (Combat GDD §2.4 amendment): resolveCombatChoice() needs the
+// exact same tier-to-number conversion to turn a weapon's/opponent's
+// TierColor into a comparable value before applying variance -- reusing
+// this rather than a second, duplicate breakpoint-midpoint helper.
+export function tierMidpoint(tier: TierColor): number {
   const breakpoint = TIER_COLOR_BREAKPOINTS.find((entry) => entry.tier === tier);
   if (!breakpoint) throw new RangeError(`no breakpoint defined for tier ${tier}`);
   return (breakpoint.min + breakpoint.max) / 2;

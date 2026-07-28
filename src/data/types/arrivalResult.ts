@@ -1,6 +1,7 @@
 import type { Ship } from "./ship.ts";
 import type { VoyageCargoItem } from "./voyage.ts";
 import type { EncounterResult } from "./encounter.ts";
+import type { CombatEncounter } from "./combatEncounter.ts";
 
 // Necessary completion: Agent 20's contract names `resolveArrival(...):
 // ArrivalResult` but never defines it. Reports the delivered ship
@@ -25,6 +26,15 @@ export interface ArrivalResolved {
   // the encounter-resolution parameters (destinationPlanet/resources),
   // e.g. every pre-Travel-Encounters call site.
   encounters: EncounterResult[];
+  // Combat GDD §1/§2.2/§3: same "always present, empty by default"
+  // convention as `encounters` above -- populated only when a caller
+  // opts into encounter resolution at all (destinationPlanet/resources
+  // both supplied), covering combat detected at either trigger point
+  // (a travel-window roll, via resolveEncounters(); or the separate
+  // arrival check, rolled directly here). Never contains a `resolved`
+  // CombatEncounter -- that only happens via an explicit, later
+  // resolveCombatChoice() call, never as a side effect of arrival.
+  pendingCombats: CombatEncounter[];
 }
 
 export interface ArrivalNotYetDue {

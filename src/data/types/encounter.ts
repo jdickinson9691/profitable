@@ -7,7 +7,16 @@ import type { QualityRoll } from "./quality.ts";
 // genuinely different (a currency grant vs. a rolled item vs. a pass/fail
 // plus cost) and callers should get real type narrowing on `type`, not a
 // cast.
-export type EncounterType = "tradeOpportunity" | "discovery" | "hazard";
+//
+// Combat GDD §3: "extends the existing enum" -- EncounterType now also
+// covers `combat`, since it's still one of the four possible outcomes of
+// the shared weighted type-split roll. Deliberately NOT matched by a
+// fourth EncounterResult variant, though: every variant below represents a
+// fully resolved, synchronous outcome (this file's own doc above), a shape
+// combat structurally cannot fit -- it is detected (and reported pending)
+// but not resolved until an explicit, separate player choice. See
+// combatEncounter.ts's own CombatEncounter for that lifecycle instead.
+export type EncounterType = "tradeOpportunity" | "discovery" | "hazard" | "combat";
 
 export interface TradeOpportunityEncounterResult {
   type: "tradeOpportunity";

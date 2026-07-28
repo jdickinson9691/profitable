@@ -9,6 +9,7 @@ import type { ShipyardPool } from "../data/types/shipyardPool.ts";
 import type { Voyage } from "../data/types/voyage.ts";
 import type { ScannerPool } from "../data/types/scannerPool.ts";
 import type { Scanner } from "../data/types/scanner.ts";
+import type { CombatEncounter } from "../data/types/combatEncounter.ts";
 import componentRecipes from "../../content/componentRecipes.json" with { type: "json" };
 
 // Agent 22's own cross-scene state, same pattern crewState.ts/tradingState.ts
@@ -131,4 +132,39 @@ export function setOwnedScanners(next: Scanner[]): void {
 
 export function addScanner(scanner: Scanner): void {
   setOwnedScanners([...ownedScanners, scanner]);
+}
+
+// Combat amendment (Agent 22): a pending CombatEncounter waiting on the
+// player's attack/flee choice, paired with a snapshot of the Voyage it was
+// detected on. Necessary completion: CombatEncounter itself only carries a
+// bare `voyageId` (Agent 1's own contract), but resolveCombatChoice() needs
+// the actual origin/destination/cargo to build a retreat voyage -- and by
+// the time a combat encounter surfaces here, resolveArrival() has already
+// removed the original Voyage from `voyages` (arrival processing completes
+// in full regardless of a pending combat, per Agent 20's own contract).
+// The snapshot kept here is presentation-only state, not a second copy of
+// anything Core persists.
+export interface PendingCombat {
+  encounter: CombatEncounter;
+  voyage: Voyage;
+}
+
+const PENDING_COMBATS_SAVE_KEY = "profitable:pendingCombats";
+let pendingCombats: PendingCombat[] = (saveSystem.load(PENDING_COMBATS_SAVE_KEY) as PendingCombat[] | null) ?? [];
+
+export function getPendingCombats(): PendingCombat[] {
+  return pendingCombats;
+}
+
+export function setPendingCombats(next: PendingCombat[]): void {
+  pendingCombats = next;
+  saveSystem.save(PENDING_COMBATS_SAVE_KEY, pendingCombats);
+}
+
+export function addPendingCombat(pending: PendingCombat): void {
+  setPendingCombats([...pendingCombats, pending]);
+}
+
+export function removePendingCombat(combatEncounterId: string): void {
+  setPendingCombats(pendingCombats.filter((pending) => pending.encounter.id !== combatEncounterId));
 }

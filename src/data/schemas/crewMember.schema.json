@@ -16,7 +16,10 @@
     "hiredAt": { "type": "integer", "minimum": 0 },
     "lastCheckedAt": { "type": "integer", "minimum": 0 },
     "wageAmount": { "type": "number", "exclusiveMinimum": 0 },
-    "lastPaidAt": { "type": "integer", "minimum": 0 }
+    "lastPaidAt": { "type": "integer", "minimum": 0 },
+    "unavailableUntil": {
+      "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+    }
   },
   "required": [
     "id",

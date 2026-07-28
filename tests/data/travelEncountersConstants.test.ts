@@ -26,12 +26,25 @@ test("ENCOUNTER_CHECK_WINDOW_HOURS and ENCOUNTER_TRIGGER_CHANCE are positive, an
   assert.ok(ENCOUNTER_TRIGGER_CHANCE > 0 && ENCOUNTER_TRIGGER_CHANCE < 1);
 });
 
-test("ENCOUNTER_TYPE_WEIGHTS covers exactly the 3 encounter types, all positive, summing to 1, with hazard strictly the lowest", () => {
+test("ENCOUNTER_TYPE_WEIGHTS covers all 4 encounter types with a positive weight, summing to 1, strictly ordered combat < hazard < tradeOpportunity/discovery", () => {
+  // Combat GDD amendment (Agent 20 Core): ENCOUNTER_TYPE_WEIGHTS' 4th key,
+  // `combat`, was a deliberate `0` placeholder from the Agent 1 amendment
+  // (see tests/data/combatConstants.test.ts's neighboring history) --
+  // setting the real, nonzero "low" weight is this amendment's own job,
+  // in the same change that taught resolveEncounters() to actually detect
+  // and branch on `combat`. The original three types' *relative* ratio to
+  // each other (0.4 : 0.4 : 0.2) is unchanged -- combat's weight was
+  // carved out by scaling all three down proportionally, not subtracted
+  // from just one -- so every assertion this test originally made about
+  // those three still holds exactly.
   const entries = Object.entries(ENCOUNTER_TYPE_WEIGHTS);
   assert.deepEqual(
     entries.map(([type]) => type).sort(),
-    ["discovery", "hazard", "tradeOpportunity"],
+    ["combat", "discovery", "hazard", "tradeOpportunity"],
   );
+  const positiveWeightTypes = entries.filter(([, weight]) => weight > 0).map(([type]) => type);
+  assert.deepEqual(positiveWeightTypes.sort(), ["combat", "discovery", "hazard", "tradeOpportunity"]);
+
   for (const [, weight] of entries) {
     assert.ok(weight > 0);
   }
@@ -40,6 +53,7 @@ test("ENCOUNTER_TYPE_WEIGHTS covers exactly the 3 encounter types, all positive,
 
   assert.ok(ENCOUNTER_TYPE_WEIGHTS.hazard < ENCOUNTER_TYPE_WEIGHTS.tradeOpportunity);
   assert.ok(ENCOUNTER_TYPE_WEIGHTS.hazard < ENCOUNTER_TYPE_WEIGHTS.discovery);
+  assert.ok(ENCOUNTER_TYPE_WEIGHTS.combat < ENCOUNTER_TYPE_WEIGHTS.hazard, "combat is the rarest of all four types");
 });
 
 test("ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS/_MAX_CREDITS form a real, positive range", () => {

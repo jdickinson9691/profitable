@@ -32,4 +32,16 @@ export interface Voyage {
   // because that amendment never asked for backward compatibility and
   // this one explicitly does.
   encounters?: EncounterResult[];
+  // Combat GDD §3: necessary correction to the amendment's own literal
+  // pseudocode (`isRetreat: boolean // new field only`, no `?`) --
+  // written as required, but this amendment's own testing requirement
+  // ("confirm Voyage... still validates all existing prior-phase data
+  // without requiring changes") demands the exact same backward
+  // compatibility `encounters` above was made optional for. A Voyage
+  // persisted before this amendment shipped has no `isRetreat` field at
+  // all; a required boolean would break it. True only for a retreat
+  // voyage initiated after a combat loss/flee (Combat GDD §2.6) --
+  // callers should treat a missing value the same as `false`, never as a
+  // distinct third state.
+  isRetreat?: boolean;
 }

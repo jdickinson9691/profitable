@@ -4,7 +4,10 @@ import type { Planet } from "../data/types/planet.ts";
 import type { Resource } from "../data/types/resource.ts";
 import type { RandomFn } from "../data/types/random.ts";
 import type { EncounterResult, EncounterType } from "../data/types/encounter.ts";
+import type { CombatEncounter } from "../data/types/combatEncounter.ts";
+import type { EncounterResolution } from "../data/types/encounterResolution.ts";
 import { rollQuality } from "../simulation/rollQuality.ts";
+import { initiateCombat } from "./initiateCombat.ts";
 import {
   ENCOUNTER_CHECK_WINDOW_HOURS,
   ENCOUNTER_TRIGGER_CHANCE,
@@ -21,8 +24,13 @@ const MS_PER_HOUR = 60 * 60 * 1000;
 
 // Fixed declaration order used for the cumulative weighted-type roll --
 // arbitrary but must stay stable, since it's part of what makes a given
-// random() sequence reproducible.
-const TYPE_ORDER: readonly EncounterType[] = ["tradeOpportunity", "discovery", "hazard"];
+// random() sequence reproducible. Combat GDD §2.2/§3: `combat` is
+// appended at the end, not interleaved -- combined with
+// ENCOUNTER_TYPE_WEIGHTS' own proportional-scaling choice (see that
+// constant's comment), every existing hardcoded type-split roll value in
+// tests/ships/resolveEncounters.test.ts (0 / 0.5 / 0.9) still lands in the
+// same tradeOpportunity/discovery/hazard bucket it always did.
+const TYPE_ORDER: readonly EncounterType[] = ["tradeOpportunity", "discovery", "hazard", "combat"];
 
 function pickEncounterType(random: RandomFn): EncounterType {
   const roll = random();
@@ -102,26 +110,39 @@ export function resolveEncounters(
   destinationPlanet: Planet,
   resources: Resource[],
   random: RandomFn = Math.random,
-): EncounterResult[] {
+): EncounterResolution {
+  // Combat GDD §2.6, Agent 20's own contract: "the one place
+  // resolveEncounters()'s behavior changes" -- a retreat voyage never
+  // rolls for encounters of any kind, a simple early-return guard rather
+  // than a rewrite of anything below.
+  if (voyage.isRetreat) return { encounters: [], pendingCombats: [] };
+
   const durationHours = (voyage.arrivesAt - voyage.departedAt) / MS_PER_HOUR;
   const windowCount = Math.max(1, Math.ceil(durationHours / ENCOUNTER_CHECK_WINDOW_HOURS));
 
   const eligibleResources = resources.filter((resource) => destinationPlanet.producibleResourceIds.includes(resource.id));
 
-  const results: EncounterResult[] = [];
+  const encounters: EncounterResult[] = [];
+  const pendingCombats: CombatEncounter[] = [];
   for (let windowIndex = 0; windowIndex < windowCount; windowIndex++) {
     if (random() >= ENCOUNTER_TRIGGER_CHANCE) continue;
 
     const type = pickEncounterType(random);
     if (type === "tradeOpportunity") {
-      results.push(resolveTradeOpportunity(windowIndex, random));
+      encounters.push(resolveTradeOpportunity(windowIndex, random));
     } else if (type === "discovery") {
       const result = resolveDiscovery(windowIndex, eligibleResources, random);
-      if (result) results.push(result);
+      if (result) encounters.push(result);
+    } else if (type === "hazard") {
+      encounters.push(resolveHazard(windowIndex, ship, random));
     } else {
-      results.push(resolveHazard(windowIndex, ship, random));
+      // Combat GDD §1/§2.2: a combat roll does NOT resolve an outcome
+      // here -- it only records a pending CombatEncounter (id derived
+      // deterministically from the voyage + window, no hidden
+      // ID-generation scheme) for the caller to present as a decision.
+      pendingCombats.push(initiateCombat(`${voyage.id}-combat-w${windowIndex}`, voyage.id, "travel", windowIndex, random));
     }
   }
 
-  return results;
+  return { encounters, pendingCombats };
 }

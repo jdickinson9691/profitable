@@ -79,11 +79,63 @@ export const ENCOUNTER_TRIGGER_CHANCE = 0.15;
 // encounter. Hazard (the only downside type) is deliberately the lowest
 // weight; the other two split the remainder evenly, since nothing in the
 // design doc gives a reason to favor one over the other. Weights sum to 1.
+//
+// Combat GDD §2.2/§3: "a fourth, low-weighted entry... extends the
+// existing three-way table to four entries... must update the existing
+// table, not create a parallel one." Agent 1's own amendment left this at
+// a deliberate `0` placeholder (see git history/that amendment's own
+// comment on why) since resolveEncounters() couldn't yet consume a
+// nonzero value correctly; setting the real weight is explicitly this
+// (Agent 20 Combat Core) amendment's job, in the same change that teaches
+// resolveEncounters() to detect and branch on `combat` (src/ships/
+// resolveEncounters.ts).
+//
+// `combat` (0.05) is carved out by scaling the original three weights
+// down *proportionally* (each multiplied by 0.95) rather than subtracting
+// unevenly from just one of them -- this is what keeps their relative
+// ratio to each other exactly 0.4 : 0.4 : 0.2 (tradeOpportunity : discovery
+// : hazard), identical to the pre-Combat amendment, which is what
+// `tests/ships/resolveEncounters.test.ts`'s own statistical distribution
+// test measures (rates as a fraction of the non-combat subtotal) --
+// proportional scaling leaves that already-verified test's targets valid
+// with no changes needed. 0.05 keeps combat genuinely rarer than hazard,
+// consistent with "low-weighted."
 export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
-  tradeOpportunity: 0.4,
-  discovery: 0.4,
-  hazard: 0.2,
+  tradeOpportunity: 0.38,
+  discovery: 0.38,
+  hazard: 0.19,
+  combat: 0.05,
 };
+
+// Combat GDD §2.2/§3 -- "arrival-triggered combat check chance... a
+// separate probability from the travel-window roll." A one-time check per
+// arrival (not a recurring per-window roll like ENCOUNTER_TRIGGER_CHANCE),
+// so set lower -- a discrete, rarer event rather than something that
+// compounds across a long voyage's many windows.
+export const ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
+
+// Combat GDD §2.5/§3 -- "component durability damage percentage" on a
+// combat loss: the weapon's qualities.durability is reduced by this
+// fraction (then its tier, and the ship's derived tier, are recomputed --
+// Agent 20's job). Meaningful but not crippling in one hit, consistent
+// with the design's own "lightweight, non-permanent" framing (§2.1) --
+// several losses would compound before a component became unusable.
+export const COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = 0.15;
+
+// Combat GDD §2.5/§3 -- "crew unavailableUntil duration" on a combat loss.
+// Mirrors the daily-scale timing every other Ships/Crew tunable already
+// uses (WAGE_PAYMENT_INTERVAL_HOURS, UPKEEP_GRACE_PERIOD_HOURS) rather
+// than inventing a new time scale.
+export const COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
+
+// Combat GDD §2.4/§3: "reuses the existing tier-variance table shape (no
+// new curve to design)." Confirmed -- TIER_VARIANCE
+// (src/data/constants/tierVariance.ts), the same shared refiner/crafter
+// asymmetric +-% table, is the one Agent 20's resolveCombatChoice() must
+// import and apply to both the weapon's tier and the opponent's
+// opponentThreatTier. No second, combat-specific variance table exists or
+// should exist here -- see tests/data/combatConstants.test.ts's own
+// "no duplicate table" confirmation.
 
 // §2.4 -- a trade-opportunity's automatic currency grant range, direct to
 // Wallet. Scaled to feel like a meaningful but modest windfall relative to

@@ -11,6 +11,14 @@ import { calculateTravelTime } from "./calculateTravelTime.ts";
 // tier (e.g. swapping a component mid-voyage) must not retroactively
 // change an already-initiated voyage's arrival time (Agent 20's own
 // contract, explicitly).
+//
+// Combat GDD §2.6/§3: `isRetreat` is a new, optional trailing parameter --
+// additive only, every pre-Combat call site keeps compiling and behaving
+// identically without passing it. Set on the returned Voyage only when
+// true, never as an explicit `false` -- matching Voyage.isRetreat's own
+// "missing means false, never a distinct state" convention exactly, and
+// keeping every ordinary (non-retreat) voyage's shape byte-for-byte
+// unchanged from the pre-Combat amendment.
 export function initiateVoyage(
   ship: Ship,
   originPlanet: Planet,
@@ -18,6 +26,7 @@ export function initiateVoyage(
   cargo: VoyageCargoItem[],
   currentTime: number,
   id: string,
+  isRetreat?: boolean,
 ): Voyage {
   const travelTimeMs = calculateTravelTime(originPlanet, destinationPlanet, ship);
 
@@ -29,5 +38,6 @@ export function initiateVoyage(
     departedAt: currentTime,
     arrivesAt: currentTime + travelTimeMs,
     cargo,
+    ...(isRetreat ? { isRetreat: true as const } : {}),
   };
 }

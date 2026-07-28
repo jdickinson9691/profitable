@@ -444,6 +444,30 @@ test("crewMember.schema.json rejects an invalid status value", () => {
   assert.equal(valid, false);
 });
 
+test("crewMember.schema.json still accepts a pre-Combat crew member with no unavailableUntil field (backward compat)", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember());
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json accepts an explicit null unavailableUntil (available)", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ unavailableUntil: null }));
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json accepts a real unavailableUntil timestamp (combat loss)", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ unavailableUntil: 172800000 }));
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("crewMember.schema.json rejects a negative unavailableUntil", () => {
+  const validate = getValidator("crewMember.schema.json");
+  const valid = validate(baseCrewMember({ unavailableUntil: -1 }));
+  assert.equal(valid, false);
+});
+
 test("crewCandidate.schema.json accepts a valid tier 3-5 candidate (profession null)", () => {
   const validate = getValidator("crewCandidate.schema.json");
   const valid = validate({ id: "candidate-1", tier: "Blue", profession: null });
@@ -758,6 +782,105 @@ test("voyage.schema.json rejects a discovery encounter with a hazard-shaped outc
     cargo: [],
     encounters: [{ type: "discovery", windowIndex: 0, outcome: { passed: true, creditsLost: 0 } }],
   });
+  assert.equal(valid, false);
+});
+
+test("voyage.schema.json accepts a voyage with no isRetreat field at all (backward compatible with pre-Combat persisted data)", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-no-retreat-flag",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json accepts isRetreat: true (a retreat voyage after a combat loss/flee)", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-retreat",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    isRetreat: true,
+  });
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("voyage.schema.json rejects a non-boolean isRetreat", () => {
+  const validate = getValidator("voyage.schema.json");
+  const valid = validate({
+    id: "voyage-bad-retreat-flag",
+    shipId: "ship-1",
+    originPlanetId: "planet-a",
+    destinationPlanetId: "planet-b",
+    departedAt: 0,
+    arrivesAt: 1000,
+    cargo: [],
+    isRetreat: "yes",
+  });
+  assert.equal(valid, false);
+});
+
+function baseCombatEncounter(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "combat-1",
+    voyageId: "voyage-1",
+    triggerContext: "travel",
+    opponentThreatTier: "Blue",
+    status: "pending",
+    outcome: null,
+    windowIndex: 2,
+    ...overrides,
+  };
+}
+
+test("combatEncounter.schema.json accepts a valid pending, travel-triggered combat encounter", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  const valid = validate(baseCombatEncounter());
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("combatEncounter.schema.json accepts a valid resolved, arrival-triggered combat encounter (null windowIndex)", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  const valid = validate(
+    baseCombatEncounter({ triggerContext: "arrival", status: "resolved", outcome: "lose", windowIndex: null }),
+  );
+  assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test("combatEncounter.schema.json accepts every documented outcome value, win/lose/flee", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  for (const outcome of ["win", "lose", "flee"]) {
+    const valid = validate(baseCombatEncounter({ status: "resolved", outcome }));
+    assert.equal(valid, true, `outcome ${outcome}: ${JSON.stringify(validate.errors)}`);
+  }
+});
+
+test("combatEncounter.schema.json rejects an invalid triggerContext value", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  const valid = validate(baseCombatEncounter({ triggerContext: "market" }));
+  assert.equal(valid, false);
+});
+
+test("combatEncounter.schema.json rejects an invalid outcome value", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  const valid = validate(baseCombatEncounter({ outcome: "draw" }));
+  assert.equal(valid, false);
+});
+
+test("combatEncounter.schema.json rejects a missing outcome field (must be explicitly null while pending, never absent)", () => {
+  const validate = getValidator("combatEncounter.schema.json");
+  const record = baseCombatEncounter();
+  delete record.outcome;
+  const valid = validate(record);
   assert.equal(valid, false);
 });
 

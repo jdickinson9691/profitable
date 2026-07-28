@@ -1,0 +1,20 @@
+{
+  "$id": "combatEncounter.schema.json",
+  "title": "CombatEncounter",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "voyageId": { "type": "string", "minLength": 1 },
+    "triggerContext": { "type": "string", "enum": ["travel", "arrival"] },
+    "opponentThreatTier": { "$ref": "tierColor.schema.json" },
+    "status": { "type": "string", "enum": ["pending", "resolved"] },
+    "outcome": {
+      "anyOf": [{ "type": "string", "enum": ["win", "lose", "flee"] }, { "type": "null" }]
+    },
+    "windowIndex": {
+      "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+    }
+  },
+  "required": ["id", "voyageId", "triggerContext", "opponentThreatTier", "status", "outcome", "windowIndex"],
+  "additionalProperties": false
+}

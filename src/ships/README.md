@@ -212,6 +212,108 @@ Scanner-amendment file references `resolveEncounters`/`EncounterResult`;
 neither `resolveArrival.ts` nor `initiateVoyage.ts` references
 `performScan` or `Planet.discovered` at all).
 
+## Combat amendment
+
+Combat GDD §1's one genuine architectural break: every prior encounter
+resolves fully synchronously, but combat requires a player decision
+before its outcome can be computed. Detection (both trigger points) and
+resolution are therefore split across two separate steps/functions,
+connected only by a `CombatEncounter` sitting in `pending` state in
+between.
+
+`initiateCombat.ts` — `initiateCombat(id, voyageId, triggerContext,
+windowIndex, random)`: shared by both trigger points. Rolls
+`opponentThreatTier` (a 1-100 roll through the shared tier breakpoint
+table) once, immediately — the only randomness at detection time — and
+returns a `pending` `CombatEncounter`. Never resolves win/lose.
+
+`resolveEncounters.ts` — gained a **travel-window** trigger point: when
+the shared weighted type-split roll (now 4-way) lands on `combat`, the
+window pushes a pending `CombatEncounter` (via `initiateCombat()`, id
+`${voyage.id}-combat-w${windowIndex}`) instead of an `EncounterResult` —
+combat structurally can't be a synchronous result (see `encounter.ts`'s
+own note). Necessary completion: the function's return type changed from
+a bare `EncounterResult[]` to `EncounterResolution` (`{ encounters,
+pendingCombats }`), since a bare array has nowhere to carry the second
+kind of output — every existing call site (production and tests) was
+updated to destructure `.encounters`, with no change to the actual
+non-combat resolution logic itself.
+
+`resolveEncounters()` also gained its one behavior change: a voyage with
+`isRetreat: true` returns `{ encounters: [], pendingCombats: [] }`
+immediately, before rolling anything (Combat GDD §2.6) — a retreat trip
+never risks a second combat via the window mechanism.
+
+`resolveArrival.ts` — gained the **arrival** trigger point: after normal
+arrival processing, and only when a caller has opted into encounter
+resolution at all (`destinationPlanet`/`resources` both supplied, same
+existing gate `encounters` uses), rolls `ARRIVAL_COMBAT_CHECK_CHANCE`
+directly and, on a hit, pushes a second pending `CombatEncounter` (id
+`${voyage.id}-combat-arrival`, `windowIndex: null`). `ArrivalResolved`
+gained a matching `pendingCombats: CombatEncounter[]` field, always
+present, same "empty by default" convention as `encounters`. Deliberately
+**not** suppressed by `voyage.isRetreat` — the GDD's own §2.6 wording
+scopes that flag to `resolveEncounters()` specifically; the arrival check
+is a separate mechanism this function rolls itself.
+
+`resolveCombatChoice.ts` — `resolveCombatChoice(combatEncounter, choice,
+voyage, ship, originPlanet, currentPlanet, ownedCrew, currentTime,
+retreatVoyageId, random?)`: the actual roll-and-compare, named directly by
+Agent 20's contract but (same necessary-completion category as every
+other function here) expanded from bare IDs to real objects. Throws if
+`combatEncounter.status !== "pending"` (a caller/programming error, same
+precedent as `assembleShip()`'s category-mismatch check, not a rejection
+union). `originPlanet`/`currentPlanet` are the *original* voyage's
+origin/destination planets — by the time this runs, `resolveArrival()`
+has already delivered the ship to the destination, so a retreat travels
+from there (`currentPlanet`) back to the "last safe planet"
+(`originPlanet`), deliberately the reverse of the original voyage.
+
+- **Flee**: unconditionally resolved (`outcome: "flee"`, no roll at all),
+  ship/crew untouched, triggers the retreat voyage below.
+- **Attack**: rolls the player's value (weapon's own `tier`, or `"Grey"`
+  if no weapon installed — the same zero-components fallback
+  `deriveShipTier()` already established) and the opponent's value
+  (`combatEncounter.opponentThreatTier`, rolled fresh at detection time),
+  both via `tierMidpoint()` (now exported from `deriveShipTier.ts`) and
+  `getTierVariance()` — reused, never a second combat-specific
+  tier-to-number conversion or variance curve. Ties favor the player,
+  same `>=` convention `resolveHazard()` already uses.
+  - **Win**: no further mutation, no retreat.
+  - **Lose**: weapon `qualities.durability` reduced by
+    `COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT` (skipped if `null` --
+    never coerced to 0), tier recomputed via `computeAggregateTier()`
+    (the same 5-quality aggregation every `ShipComponent.tier` already
+    uses, not a durability-only shortcut), reinstalled via `assembleShip()`
+    directly (its own existing recompute pattern, reused rather than
+    duplicated). One random owned crew member (if any) gets
+    `unavailableUntil` set `COMBAT_CREW_UNAVAILABLE_DURATION_HOURS` out;
+    skipped entirely if the player owns none.
+- **Retreat voyage** (flee or lose): `initiateVoyage()` gained a matching
+  optional trailing `isRetreat?: boolean` parameter, set only when `true`
+  (never an explicit `false`) to keep every ordinary voyage's shape
+  unchanged. Cargo (`voyage.cargo`) carries over unchanged, never
+  forfeited.
+
+`CombatResolution` and `EncounterResolution` are new types (`src/data/
+types/`), same discriminated-result-shape precedent as `PurchaseShipResult`/
+`PerformScanResult` before them (`CombatResolution` isn't a discriminated
+union itself, since every choice produces the same shape — only which
+fields are populated differs).
+
+`ENCOUNTER_TYPE_WEIGHTS.combat` — Agent 1 left this at a deliberate `0`
+placeholder; this amendment set the real value (0.05) by scaling the
+original three weights down *proportionally* (×0.95 each), not
+subtracting from just one — this keeps their relative ratio to each
+other, and therefore every existing hardcoded test expectation about
+them, exactly unchanged.
+
+**Never touches `src/crew`'s own functions, `src/trading`, `src/galaxy`,
+or `refine()`/`craft()`.** `CrewMember.unavailableUntil` is set here as a
+plain field mutation (mirroring `payUpkeep()`'s own single-field-update
+pattern) — nothing about attrition, hiring, or dismissal logic is read or
+written.
+
 ## Boundary confirmed
 
 `src/simulation/refine.ts`, `craft.ts`, everything under `src/galaxy/`,

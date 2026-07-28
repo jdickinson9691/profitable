@@ -6,6 +6,8 @@ import {
   describeRefineResult,
   describeCraftResult,
   describeEncounter,
+  describePendingCombat,
+  describeCombatResolution,
   computeAggregateTier,
 } from "../../src/presentation/display.ts";
 import type { QualityRoll } from "../../src/data/types/quality.ts";
@@ -16,6 +18,10 @@ import type {
   DiscoveryEncounterResult,
   HazardEncounterResult,
 } from "../../src/data/types/encounter.ts";
+import type { CombatEncounter } from "../../src/data/types/combatEncounter.ts";
+import type { CombatResolution } from "../../src/data/types/combatResolution.ts";
+import type { Ship } from "../../src/data/types/ship.ts";
+import type { CrewMember } from "../../src/data/types/crewMember.ts";
 
 const fullRoll: QualityRoll = { purity: 72, density: 45, potency: 97, durability: null, rarity: 1 };
 
@@ -100,4 +106,100 @@ test("describeEncounter() formats a passed hazard distinctly from a failed one",
   const failed: HazardEncounterResult = { type: "hazard", windowIndex: 3, outcome: { passed: false, creditsLost: 45 } };
   assert.equal(describeEncounter(passed), "Navigational hazard: passed");
   assert.equal(describeEncounter(failed), "Navigational hazard: -45 Credits");
+});
+
+// Combat GDD §2.2/§2.3/§2.5 amendment (Agent 22).
+
+function ship(overrides: Partial<Ship> = {}): Ship {
+  return {
+    id: "ship-1",
+    name: "Ship-1",
+    ownerId: "player-1",
+    tier: "Blue",
+    currentPlanetId: "destination",
+    components: { weapon: null, engine: null, shield: null, cargoHold: null },
+    ...overrides,
+  };
+}
+
+function combatEncounter(overrides: Partial<CombatEncounter> = {}): CombatEncounter {
+  return {
+    id: "combat-1",
+    voyageId: "voyage-1",
+    triggerContext: "travel",
+    opponentThreatTier: "Grey",
+    status: "pending",
+    outcome: null,
+    windowIndex: 0,
+    ...overrides,
+  };
+}
+
+test("describePendingCombat() reports the opponent's threat tier and nothing else -- no outcome hint", () => {
+  const encounter = combatEncounter({ opponentThreatTier: "Blue" });
+  assert.equal(describePendingCombat(encounter), "Hostile ship encountered! Opponent threat tier: Blue.");
+});
+
+test("describeCombatResolution() reports a win with no damage or crew mention", () => {
+  const resolution: CombatResolution = {
+    combatEncounter: combatEncounter({ status: "resolved", outcome: "win" }),
+    updatedShip: ship(),
+    updatedCrewMember: null,
+    retreatVoyage: null,
+  };
+  assert.equal(describeCombatResolution(resolution), "Combat won! Your ship continues on, undamaged.");
+});
+
+test("describeCombatResolution() reports a flee with no damage or crew mention", () => {
+  const resolution: CombatResolution = {
+    combatEncounter: combatEncounter({ status: "resolved", outcome: "flee" }),
+    updatedShip: ship(),
+    updatedCrewMember: null,
+    retreatVoyage: null,
+  };
+  assert.equal(describeCombatResolution(resolution), "Fled the encounter -- redirected back to the last safe planet.");
+});
+
+test("describeCombatResolution() reports a lose with the weapon's current tier and the affected crew member's tier", () => {
+  const damagedShip = ship({
+    components: {
+      weapon: { id: "weapon-1", category: "weapon", qualities: { purity: 68, density: 68, potency: 68, durability: 55, rarity: 68 }, tier: "Green" },
+      engine: null,
+      shield: null,
+      cargoHold: null,
+    },
+  });
+  const crewMember: CrewMember = {
+    id: "crew-1",
+    hiredByPlayerId: "player-1",
+    tier: "Purple",
+    profession: null,
+    status: "idle",
+    assignedCraftId: null,
+    hiredAt: 0,
+    lastCheckedAt: 0,
+    wageAmount: 35,
+    lastPaidAt: 0,
+    unavailableUntil: 100_000,
+  };
+  const resolution: CombatResolution = {
+    combatEncounter: combatEncounter({ status: "resolved", outcome: "lose" }),
+    updatedShip: damagedShip,
+    updatedCrewMember: crewMember,
+    retreatVoyage: null,
+  };
+  assert.equal(
+    describeCombatResolution(resolution),
+    "Combat lost! Redirected back to the last safe planet. Weapon now Green tier. A Purple crew member is unavailable for a while.",
+  );
+});
+
+test("describeCombatResolution() omits the weapon note when no weapon is installed, and the crew note when no crew was affected", () => {
+  const resolution: CombatResolution = {
+    combatEncounter: combatEncounter({ status: "resolved", outcome: "lose" }),
+    updatedShip: ship(), // weapon: null
+    updatedCrewMember: null,
+    retreatVoyage: null,
+  };
+  assert.equal(describeCombatResolution(resolution), "Combat lost! Redirected back to the last safe planet.");
 });

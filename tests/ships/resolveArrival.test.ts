@@ -81,6 +81,7 @@ test("regression: resolveArrival() called without destinationPlanet/resources (e
   assert.deepEqual(result.cargo, cargo);
   assert.equal(result.destinationPlanetId, "destination");
   assert.deepEqual(result.encounters, []);
+  assert.deepEqual(result.pendingCombats, []); // Combat GDD amendment: same "empty by default" gating as `encounters`
 });
 
 test("regression: arrival timing, cargo delivery, and ship delivery are identical whether or not encounters resolve -- only `encounters` itself differs", () => {
@@ -100,7 +101,11 @@ test("regression: arrival timing, cargo delivery, and ship delivery are identica
     1000,
     destinationPlanet,
     resources,
-    queueRandom([0, 0, 0.5]), // forces one tradeOpportunity encounter
+    // forces one tradeOpportunity encounter (trigger, type, credits roll),
+    // plus a 4th value for the Combat GDD amendment's arrival-triggered
+    // check (0.99, comfortably above ARRIVAL_COMBAT_CHECK_CHANCE -- no
+    // combat detected, keeping this test focused on its original purpose).
+    queueRandom([0, 0, 0.5, 0.99]),
   ) as ArrivalResolved;
 
   assert.equal(withoutEncounters.resolved, withEncounters.resolved);
@@ -123,8 +128,72 @@ test("integration: resolveArrival()'s encounters match a direct resolveEncounter
   const v = voyage({ arrivesAt: 1000 });
   const s = ship();
 
-  const viaArrival = resolveArrival(v, s, 1000, destinationPlanet, resources, queueRandom([0, 0, 0.5])) as ArrivalResolved;
+  // resolveArrival() consumes one extra value beyond resolveEncounters()'s
+  // own sequence, for the Combat GDD amendment's arrival-triggered check
+  // (0.99 -- comfortably above ARRIVAL_COMBAT_CHECK_CHANCE, no combat
+  // detected) -- resolveEncounters() itself never rolls that check, so
+  // the direct call below still needs only its original 3 values.
+  const viaArrival = resolveArrival(v, s, 1000, destinationPlanet, resources, queueRandom([0, 0, 0.5, 0.99])) as ArrivalResolved;
   const direct = resolveEncounters(v, s, destinationPlanet, resources, queueRandom([0, 0, 0.5]));
 
-  assert.deepEqual(viaArrival.encounters, direct);
+  assert.deepEqual(viaArrival.encounters, direct.encounters);
+});
+
+// Combat GDD §2.2/§3 -- Agent 21 (amendment): the arrival-triggered check,
+// separate from the window-roll mechanism above.
+
+test("combat: an arrival-triggered check on a hit creates a pending CombatEncounter with triggerContext 'arrival' and windowIndex null", () => {
+  const destinationPlanet: Planet = {
+    id: "destination",
+    name: "Destination",
+    producibleResourceIds: [igneousOre.id],
+    discovered: false,
+  };
+  const resources: Resource[] = [igneousOre];
+  const v = voyage({ arrivesAt: 1000 });
+
+  // window trigger roll: 1 (no trigger, 1 >= ENCOUNTER_TRIGGER_CHANCE) --
+  // isolates the arrival check from the window mechanism entirely. arrival
+  // check roll: 0.05 (< ARRIVAL_COMBAT_CHECK_CHANCE, a hit). threat roll: 0.5.
+  const result = resolveArrival(v, ship(), 1000, destinationPlanet, resources, queueRandom([1, 0.05, 0.5])) as ArrivalResolved;
+
+  assert.equal(result.encounters.length, 0);
+  assert.equal(result.pendingCombats.length, 1);
+  const combat = result.pendingCombats[0]!;
+  assert.equal(combat.triggerContext, "arrival");
+  assert.equal(combat.windowIndex, null);
+  assert.equal(combat.status, "pending");
+  assert.equal(combat.id, "voyage-1-combat-arrival");
+});
+
+test("combat: a window-detected combat and an arrival-detected combat can both be reported from the same resolveArrival() call", () => {
+  const destinationPlanet: Planet = {
+    id: "destination",
+    name: "Destination",
+    producibleResourceIds: [igneousOre.id],
+    discovered: false,
+  };
+  const resources: Resource[] = [igneousOre];
+  // 2 windows' worth of duration.
+  const v = voyage({ arrivesAt: 48 * 60 * 60 * 1000 });
+
+  const result = resolveArrival(
+    v,
+    ship(),
+    v.arrivesAt,
+    destinationPlanet,
+    resources,
+    queueRandom([
+      0, 0.97, 0.5, // window 0: trigger, combat type, threat roll
+      1, // window 1: no trigger
+      0.05, 0.5, // arrival check: hit, threat roll
+    ]),
+  ) as ArrivalResolved;
+
+  assert.equal(result.pendingCombats.length, 2);
+  const [windowCombat, arrivalCombat] = result.pendingCombats;
+  assert.equal(windowCombat!.triggerContext, "travel");
+  assert.equal(windowCombat!.windowIndex, 0);
+  assert.equal(arrivalCombat!.triggerContext, "arrival");
+  assert.equal(arrivalCombat!.windowIndex, null);
 });

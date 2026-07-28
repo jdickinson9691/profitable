@@ -124,6 +124,12 @@ Encounters (Agent 22) addition:** `describeEncounter()` formats a
 trade-opportunity as a currency grant, a discovery with its resolved name
 and aggregate tier (falling back to the raw `resourceId` when no name is
 given), and a passed hazard distinctly from a failed one (with its cost).
+**Combat (Agent 22) addition:** `describePendingCombat()` reports only the
+opponent's threat tier, nothing else; `describeCombatResolution()` reports
+a win/flee with no damage or crew mention, a lose with the weapon's
+current tier and the affected crew member's tier, and confirms both notes
+are omitted entirely (not padded with "none") when no weapon is installed
+or no crew was affected.
 
 `presentation/loadMvpContent.test.ts` confirms the bundled-JSON-import path
 (distinct from `content/mvpContent.test.ts`'s fs-read path, since this is a
@@ -319,6 +325,41 @@ missing `tier`, and a valid/invalid-nested-candidate `scannerPool`
 example (confirming the `$ref` to `scannerCandidate.schema.json` catches
 it, same pattern as Phase 4/5's crew/ship pool corrections).
 
+`data/combatConstants.test.ts` covers the Agent 1 Combat amendment's 3 new
+standalone tunable constants, same structural-invariant approach:
+`ARRIVAL_COMBAT_CHECK_CHANCE` is a real probability distinct from
+`ENCOUNTER_TRIGGER_CHANCE`, `COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT`
+is a real fraction, `COMBAT_CREW_UNAVAILABLE_DURATION_HOURS` is positive,
+and a dedicated confirmation that `TIER_VARIANCE` (the shared refiner/
+crafter table) is what Combat's variance formula reuses — no second,
+combat-specific variance table exists anywhere.
+
+**Agent 20 Combat Core amendment:** `data/travelEncountersConstants.test.ts`'s
+`ENCOUNTER_TYPE_WEIGHTS` test was updated again, now that this amendment
+set the real (no longer `0`) `combat` weight — it asserts all 4 types are
+positive and sum to 1, and that `combat` is strictly the rarest of all
+four (below `hazard`, itself still below `tradeOpportunity`/`discovery`).
+The original three types' assertions needed no numeric changes at all: the
+new weight was carved out by scaling all three down *proportionally*, which
+preserves their ratio to each other exactly. `ships/resolveEncounters.test.ts`
+and `ships/resolveArrival.test.ts` needed mechanical call-site updates
+(destructuring `.encounters` off `resolveEncounters()`'s new
+`EncounterResolution` return shape; one extra queued random value on two
+`resolveArrival()` calls, for the new arrival-triggered combat check) —
+no assertions or expected values changed, only how the return value is
+reached. `data/schemas.test.ts`
+gained matching schema-level tests: `voyage.schema.json` accepting a
+voyage with no `isRetreat` field at all (backward compatibility),
+`isRetreat: true`, and rejection of a non-boolean value; `crewMember.schema.json`
+accepting no `unavailableUntil` field at all (backward compatibility), an
+explicit `null`, and a real timestamp, plus rejection of a negative one;
+and 6 new `combatEncounter.schema.json` cases — a valid pending/
+travel-triggered encounter, a valid resolved/arrival-triggered one
+(`windowIndex: null`), all three `outcome` values, rejection of an
+invalid `triggerContext`, rejection of an invalid `outcome`, and rejection
+of a record with the `outcome` key missing entirely (must be explicit
+`null` while pending, never absent).
+
 `ships/refreshScannerPool.test.ts` and `ships/purchaseScanner.test.ts`
 cover the Agent 20 Scanner amendment's pool/purchase functions, same
 pattern as `refreshShipyardPool.test.ts`/`purchaseShip.test.ts`: pool size,
@@ -387,7 +428,14 @@ regression test confirming arrival timing/cargo/ship delivery are
 identical whether or not encounters actually resolve, and an integration
 test confirming `resolveArrival()`'s `encounters` output matches a direct
 `resolveEncounters()` call with the same inputs exactly — proving real
-delegation, not a parallel reimplementation.
+delegation, not a parallel reimplementation. **Combat amendment
+additions:** the byte-for-byte regression test above also now asserts
+`pendingCombats` defaults to `[]` (same gating as `encounters`); a
+dedicated test confirms the arrival-triggered check (isolated from the
+window mechanism by forcing every window to miss) creates a pending
+`CombatEncounter` with `triggerContext: "arrival"` and `windowIndex:
+null`; and a mixed test confirms a window-detected combat and an
+arrival-detected combat can both be reported from the same call.
 
 `resolveEncounters.test.ts` (Travel Encounters amendment) covers Agent 20's
 new `resolveEncounters()` against the GDD's own Section 2 rules: the
@@ -408,7 +456,50 @@ own contract), `hazard`'s pass/fail roll correctly shifted by the ship's
 own tier (an identical raw roll fails for Grey but passes for Gold), the
 failure-cost curve matching its escalating shape exactly at 5
 points-below-threshold values, and a passed hazard producing zero currency
-deduction.
+deduction. **Combat amendment additions:** a dedicated test confirms a
+type-split roll landing on `combat` produces a pending `CombatEncounter`
+(not an `EncounterResult`) with the correct `id`/`triggerContext`/
+`windowIndex`/`opponentThreatTier`, and does not resolve an outcome; a
+mixed-scenario test confirms a combat detection in one window doesn't
+affect a `tradeOpportunity` resolving synchronously in another (the two
+output channels — `encounters` and `pendingCombats` — are independent);
+and an explicit test confirms `isRetreat: true` returns immediately with
+*zero* `random()` calls of any kind (using a `random` that throws if
+called at all, not just checking that nothing happened to trigger).
+
+`initiateCombat.test.ts` covers the Combat amendment's shared detection
+helper directly: the returned `CombatEncounter` is always `pending` with
+`outcome: null`; `id`/`voyageId`/`triggerContext`/`windowIndex` pass
+through exactly (including the arrival case's `windowIndex: null`); and
+`opponentThreatTier` is a 1-100 roll through the shared tier breakpoint
+table, consuming exactly one `random()` call (boundary-tested at both
+ends of the range, not approximately).
+
+`resolveCombatChoice.test.ts` covers Agent 20's resolution function
+against Combat GDD Section 2.5 exactly: flee resolves unconditionally
+with zero `random()` calls and no mutation; attack-win at a structurally
+one-sided tier pairing (Gold vs. Grey, worst-case roll on both sides
+still wins) and at an exact tie (identical tier, identical roll — ties
+favor the player, same `>=` convention as `resolveHazard()`); attack-lose
+at a structurally one-sided pairing confirms the weapon's `durability`
+reduced by exactly `COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT`, its tier
+correctly recomputed via the real 5-quality aggregation (a genuine tier
+drop, not a durability-only shortcut), the ship's own derived tier
+following it, one randomly-chosen owned crew member's `unavailableUntil`
+set to exactly `currentTime + COMBAT_CREW_UNAVAILABLE_DURATION_HOURS`,
+and a retreat voyage to the original voyage's `originPlanetId` carrying
+cargo unchanged; a zero-owned-crew case proves the crew consequence is
+skipped gracefully (no crew-pick `random()` call consumed, not just "no
+crew got picked"); a no-weapon-installed case proves the Grey fallback
+and that damage is skipped entirely; a null-durability case proves the
+value is never coerced to 0; and a dedicated test proves
+`opponentThreatTier` is read from the encounter, never re-rolled at
+resolution — two encounters sharing the same stored tier resolve
+identically given the same 2-value random sequence, which would throw
+"exhausted" if a hidden third roll existed. A separate test confirms
+`resolveCombatChoice()` throws (not a rejection union) when called on an
+already-resolved encounter — a caller/programming error, same precedent
+as `assembleShip()`'s category-mismatch check.
 
 `regressionCheck.test.ts` re-runs the same hand-calculated
 `refine()`/`craft()`/`generateGalaxy()`/`purchaseListing()`/`hireCrew()`

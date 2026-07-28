@@ -156,3 +156,26 @@ a valid owned `Scanner`, rejection of a `Scanner` missing `ownerId`, a
 valid `ScannerCandidate` (no `ownerId` field at all), rejection of a
 `ScannerCandidate` missing `tier`, and a `scannerPool` example whose
 nested candidate is invalid, confirming the `$ref` still catches it.
+
+**Combat amendment:** `combatEncounter.schema.json` (new) — same
+not-in-any-content-pipeline situation as `scanner.schema.json`/
+`shipyardPool.schema.json`: a `CombatEncounter` is runtime state Agent 20
+creates (at detection time) and later mutates (at resolution time), not
+static config. Unlike `EncounterResult` (embedded only, no schema of its
+own), `CombatEncounter` gets a standalone schema because it must persist
+independently across its own pending -> resolved lifecycle, the same
+"stored, not just embedded-and-discarded" situation `Scanner`/`ShipyardPool`
+are already in. `outcome` is `required` even though it's nullable --
+explicitly `null` while pending, never simply absent, so a record missing
+the key entirely is rejected (`tests/data/schemas.test.ts`'s dedicated
+case for this). Also `voyage.schema.json` gained one new **optional**
+boolean property, `isRetreat`, and `crewMember.schema.json` gained one new
+**optional, nullable** integer property, `unavailableUntil` -- both
+deliberately optional for the same backward-compatibility reason
+`encounters` was: a `Voyage`/`CrewMember` persisted before this amendment
+shipped has neither field at all. Covered by `tests/data/schemas.test.ts`:
+backward compatibility (no field present), the real-value case, and a
+rejection case for each new property, plus 6 `combatEncounter.schema.json`
+cases (valid pending/travel, valid resolved/arrival with `windowIndex:
+null`, all three `outcome` values, an invalid `triggerContext`, an invalid
+`outcome`, and the missing-`outcome`-field rejection above).
