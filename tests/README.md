@@ -438,6 +438,28 @@ error naming section+index, multiple-invalid-items-across-sections, missing
 required array, non-object input) for Agent 11's Phase 3 content-loading
 path.
 
+`season.test.ts` / `emergency.test.ts` cover the bug fix for the two trade-
+map layers that were never actually implemented in the original Phase 3
+build (see `src/trading/README.md`'s own note). `season.test.ts` covers
+`getCurrentSeason()` cycling through all 4 seasons in order as time advances
+by `SEASON_CYCLE_HOURS`, determinism given fixed inputs, planets landing in
+different seasons at the same instant (their own seed-derived phase
+offsets), `getSeasonalEffect()` returning `null` for no categories, picking
+a cheap/premium pair from only the given categories (distinct when ≥2
+available, the same category for both when only 1 exists), and
+`getSeasonalPriceMultiplier()`'s exact swing math. `emergency.test.ts`
+covers the documented duration-never-exceeds-check-interval invariant,
+`null` for no categories, determinism, an observed trigger rate close to
+`EMERGENCY_TRIGGER_CHANCE` across 500 independent planets (structural, not
+exact), a deterministic search for a triggering `(planetId, window)` pair
+to prove the emergency is active from the *very first instant* of its
+window (no advance-warning delay anywhere in the calculation) and ends
+exactly at `endsAt` (present the millisecond before, gone at or after), and
+`getEmergencyPriceMultiplier()`'s exact premium math. Both are wired into
+`TradeMapScene` for display/classification only — see
+`src/presentation/README.md`'s own note on how that's kept independent of
+the real, trade-driven `currentPrice`.
+
 `content/tradingContent.test.ts` covers Agent 14's testing requirements
 against the *real* `content/tradingBasePrices.json` and
 `content/planetMarketPreferences.json` files (not synthetic fixtures): they
@@ -452,25 +474,35 @@ crafted(3+) pipeline-depth ordering.
 
 `integration/mapVerification.test.ts` is Agent 25's own verification evidence
 for the Galactic Map milestone (`docs/profitable-map-gdd.md` Section 6) —
-unlike every other `integration/*.test.ts` file, this one audits for the
-*absence* of things rather than chaining a working feature end-to-end,
-mirroring `adapters/browserApiIsolation.test.ts`'s own "scan `src/` for a
-forbidden pattern" shape. Confirms no `scanner`/`probe` code exists
-anywhere, confirms `discovered: true` is written in exactly the one
-documented bootstrap-override file and nowhere else (a regression guard
-that also encodes this milestone's own finding: arrival never extends
-discovery beyond the two hardcoded planets), confirms no `season`/
-`emergency` mechanic exists in real code anywhere (comments are stripped
-before matching, since `TradeMapScene.ts`'s own header comment legitimately
-narrates that eventual intent without implementing it), and confirms
-`getGlobalPrice()` reads live state with no internal caching (two calls
-with different market-state inputs return different, non-memoized
-results) and that `PlanetMarketState` carries no staleness/timestamp
-field. See the GDD's Section 6 for the full narrative report, including
-the two genuine gaps this audit surfaced (seasons/emergencies were never
-implemented; discovery-by-travel isn't wired up) and a live-measured
-canvas-overflow finding that isn't covered by an automated test (Phaser
-scenes aren't exercised by `node:test` — see the note below).
+unlike every other `integration/*.test.ts` file, most of this one audits
+for the *absence* of things rather than chaining a working feature
+end-to-end, mirroring `adapters/browserApiIsolation.test.ts`'s own "scan
+`src/` for a forbidden pattern" shape. Confirms no `scanner`/`probe` code
+exists anywhere (comments stripped, so a comment merely *naming* the
+absent concept — e.g. this file's own doc comments — doesn't trip it),
+confirms `discovered: true` is written in exactly one file
+(`presentation/galaxyState.ts`, the two documented bootstrap overrides)
+and that `src/ships/resolveArrival.ts` itself never references
+`discovered` at all (Ships Core correctly stays out of Galaxy-data
+mutation — discovery-by-travel is presentation-layer wiring: a persisted
+`discoveredPlanetIds` side-table in `galaxyState.ts`, not a mutation of any
+`Planet.discovered` field, which is why this assertion still holds after
+that bug was fixed), confirms `getGlobalPrice()` reads live state with no
+internal caching (two calls with different market-state inputs return
+different, non-memoized results) and that `PlanetMarketState` carries no
+staleness/timestamp field. The one test that flipped from "absence" to
+"presence" is the `season`/`emergency` check: it originally asserted zero
+matches anywhere (documenting the gap this milestone found — see
+`src/trading/README.md`'s own note), and now asserts the opposite, that
+`src/trading/season.ts`/`emergency.ts` exist and are actually wired into
+`TradeMapScene`, once that gap was fixed. Full correctness coverage for
+the fix itself lives in the dedicated `trading/season.test.ts`/
+`emergency.test.ts` files above — this file only confirms the wiring, per
+its own "small targeted addition, not a new parallel suite" scope. See the
+GDD's Sections 6-7 for the full narrative report, including the one
+remaining open item (a live-measured canvas-overflow finding that isn't
+covered by an automated test — Phaser scenes aren't exercised by
+`node:test`, see the note below).
 
 **Manual playtest:** `src/presentation`'s scenes (Phaser, canvas-rendered)
 aren't exercised by `node:test` — see `src/presentation/README.md` for how

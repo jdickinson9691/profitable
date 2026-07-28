@@ -34,6 +34,33 @@ every function here is deterministic with no injected `RandomFn`.
   forbids reading Agent 14's raw content directly and nothing else named a
   loading path for it — same category of gap that produced `loadContent()`
   mid-build for the MVP.
+- `season.ts` / `emergency.ts` — **bug fix, not part of the original Phase 3
+  build.** §2.9 names "seasons" and "emergencies" as the trade map's other
+  two data layers alongside baseline drift, but neither was ever actually
+  implemented — a gap the Galactic Map milestone's Agent 25/26 verification
+  found and attributed back to this agent (see `docs/profitable-map-gdd.md`
+  Section 7, item 1). Both are pure functions of `(planetId, now[,
+  categories])` with **zero persisted state** — a deliberate design choice,
+  not just an oversight: §2.9's own text ("a recurring cycle... on a
+  schedule," "randomly-triggered... purely random") gives no concrete cycle
+  length, magnitude, trigger rate, or duration, so
+  `SEASON_CYCLE_HOURS`/`SEASON_PRICE_SWING_PERCENT`/
+  `EMERGENCY_CHECK_INTERVAL_HOURS`/`EMERGENCY_TRIGGER_CHANCE`/
+  `EMERGENCY_DURATION_HOURS`/`EMERGENCY_PRICE_PREMIUM_PERCENT` are all
+  originated defaults in `tradingConfig.ts`, documented as such — same
+  latitude Agent 14 used for base prices. Computing everything live rather
+  than storing it means the map GDD's own §2.2 ("always live, never stale")
+  property holds trivially, the same way it already held for
+  `getGlobalPrice()` — nothing here can go stale because nothing is ever
+  written. `getActiveEmergency()` applies with **no advance-warning delay**
+  (map GDD §2.1): an emergency, when a check window's roll triggers one, is
+  active from that window's very first instant, never a separate
+  pre-announced-then-active two-step. Neither function mutates any stored
+  `PlanetMarketState.currentPrice` — their multiplier outputs
+  (`getSeasonalPriceMultiplier()`/`getEmergencyPriceMultiplier()`) are
+  applied only at display/classification time (`TradeMapScene`), keeping
+  the real, trade-driven `currentPrice` baseline drift alone still owns
+  fully independent.
 
 ## Necessary completions beyond Agent 11's literally-specified signatures
 

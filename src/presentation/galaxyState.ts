@@ -35,12 +35,55 @@ export const galaxy: Galaxy = loadOrCreateGalaxy();
 export const startingPlanet: Planet = { ...galaxy.planets[0]!, discovered: true };
 
 // Phase 5 integration (Agent 22): travel needs at least one real reachable
-// destination to demonstrate against. No "discover a planet by traveling/
-// scanning" mechanic exists yet (out of scope -- CLAUDE.md Section 6, "the
-// galactic map beyond what trading already needed"), so without this,
-// TradeMapScene's travel layer would have zero selectable destinations in
-// a fresh session. Mirrors startingPlanet's own override immediately
-// above, one planet further into the generated list.
+// destination to demonstrate against. Mirrors startingPlanet's own
+// override immediately above, one planet further into the generated list.
 export const secondaryDiscoveredPlanet: Planet | undefined = galaxy.planets[1]
   ? { ...galaxy.planets[1]!, discovered: true }
   : undefined;
+
+// Bug fix (Galactic Map Agent 25/26 verification, Section 6/7 of
+// profitable-map-gdd.md): arriving at a planet via a real Voyage never
+// used to mark it discovered anywhere in the codebase -- only the two
+// bootstrap overrides above were ever reachable, regardless of how much a
+// player traveled. The map GDD's own premise ("a planet becomes
+// discovered: true when physically visited") is the design this closes.
+//
+// `galaxy.planets` itself only round-trips its SEED through SaveSystem
+// (see loadOrCreateGalaxy() above) -- generatePlanet() deterministically
+// reproduces discovered: false for every planet on every reload, so an
+// in-memory-only mutation of galaxy.planets would silently vanish on the
+// next session. Discovery-by-travel therefore needs its own persisted
+// side-table, the same "elsewhere" pattern tradingState.ts's
+// listingQualities already uses for data a regenerated/reloaded structure
+// can't itself carry.
+const DISCOVERED_PLANET_IDS_SAVE_KEY = "profitable:discoveredPlanetIds";
+
+let discoveredPlanetIds: string[] =
+  (saveSystem.load(DISCOVERED_PLANET_IDS_SAVE_KEY) as string[] | null) ?? [];
+
+const bootstrapDiscoveredPlanets: Planet[] = [startingPlanet, secondaryDiscoveredPlanet].filter(
+  (planet): planet is Planet => planet !== undefined,
+);
+const bootstrapDiscoveredIds = new Set(bootstrapDiscoveredPlanets.map((planet) => planet.id));
+
+// The single source of truth for "which planets can the player currently
+// see/travel to" -- the two structural bootstrap planets plus any real
+// generated planet a Voyage has actually delivered a ship to. Presentation
+// code (TradeMapScene) should read this rather than re-deriving its own
+// copy of the discovery rule.
+export function getDiscoveredPlanets(): Planet[] {
+  const traveledTo = galaxy.planets.filter(
+    (planet) => !bootstrapDiscoveredIds.has(planet.id) && discoveredPlanetIds.includes(planet.id),
+  );
+  return [...bootstrapDiscoveredPlanets, ...traveledTo];
+}
+
+// Called only from a successful resolveArrival() (physical visitation) --
+// per the map GDD's own decided property, no other call site should ever
+// exist (see tests/integration/mapVerification.test.ts's scanner/probe
+// regression guard for the adjacent "no alternate discovery path" check).
+export function markPlanetDiscovered(planetId: string): void {
+  if (bootstrapDiscoveredIds.has(planetId) || discoveredPlanetIds.includes(planetId)) return;
+  discoveredPlanetIds = [...discoveredPlanetIds, planetId];
+  saveSystem.save(DISCOVERED_PLANET_IDS_SAVE_KEY, discoveredPlanetIds);
+}

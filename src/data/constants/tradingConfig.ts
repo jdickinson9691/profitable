@@ -46,3 +46,31 @@ export const TRANSACTION_FEE_PERCENT = 0.05;
 // globally, per §2.1.
 export const GLOBAL_LISTABLE_MAX_ITEM_TIER = 5;
 export const MAX_ITEM_TIER = 7;
+
+// §2.9 -- the second and third of the trade map's three data layers
+// (baseline drift above is the first). Bug fix, not part of the original
+// Phase 3 build: "each planet has a recurring cycle... that swings its buy/
+// sell lists on a schedule" and "randomly-triggered events... purely
+// random" both name no concrete numbers, so these are originated defaults,
+// documented as such -- same latitude Agent 14 used for base prices, Agent
+// 20 for ship purchase costs. See src/trading/season.ts and
+// src/trading/emergency.ts for the functions that read them.
+
+// "Slow, predictable" relative to baseline drift's continuous per-trade
+// movement -- one full 4-season cycle every 48 hours.
+export const SEASON_CYCLE_HOURS = 12;
+// Percentage swing applied to a season's favored (cheap) / disfavored
+// (premium) category -- smaller than an emergency's, consistent with
+// "slow, predictable" being a gentler effect than "rare, sudden."
+export const SEASON_PRICE_SWING_PERCENT = 0.08;
+
+// How often each planet independently rolls for a new emergency -- a
+// planet-local check, not a galaxy-wide tick.
+export const EMERGENCY_CHECK_INTERVAL_HOURS = 24;
+// "Rare" -- most check windows produce no emergency.
+export const EMERGENCY_TRIGGER_CHANCE = 0.15;
+// Must be <= EMERGENCY_CHECK_INTERVAL_HOURS, or a still-active emergency
+// from one window could bleed into the next window's own roll window.
+export const EMERGENCY_DURATION_HOURS = 4;
+// "Paying premium" -- meaningfully larger than a season's gentler swing.
+export const EMERGENCY_PRICE_PREMIUM_PERCENT = 0.3;

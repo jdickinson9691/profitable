@@ -38,35 +38,44 @@ function findMatches(pattern: RegExp, stripComments = false): string[] {
 
 test("2.3 -- no scanner/probe or remote-discovery mechanic exists anywhere in src/", () => {
   // A "no matches found" result is a pass, per this agent's own contract --
-  // not an incomplete check.
-  assert.deepEqual(findMatches(/\bscanner\b|\bprobe\b/i), []);
+  // not an incomplete check. Comments stripped for the same reason as the
+  // season/emergency check below -- a comment can legitimately *name* the
+  // absent concept (e.g. pointing at this very regression test) without
+  // implementing it.
+  assert.deepEqual(findMatches(/\bscanner\b|\bprobe\b/i, true), []);
 });
 
-test("2.3 -- 'discovered: true' is written in exactly the two documented bootstrap overrides, nowhere else (discovery-by-arrival is NOT wired up -- see Section 6 finding)", () => {
+test("2.3 -- 'discovered: true' is written in exactly the two documented bootstrap overrides, nowhere else (discovery-by-travel is now wired up via a separate persisted id-list, not by mutating Planet.discovered)", () => {
   const writers = findMatches(/discovered:\s*true/);
   assert.deepEqual(writers.sort(), ["presentation/galaxyState.ts"]);
-  // Confirms there is no third site (e.g. inside src/ships/resolveArrival.ts
-  // or a presentation arrival handler) that transitions a planet to
-  // discovered upon a real Voyage's arrival -- the map GDD's premise that
-  // "physical visitation" is a live, ongoing mechanism does not hold; only
-  // the two planets hardcoded at session bootstrap are ever discovered.
+  // This still holds after the discovery-by-travel bug fix: the fix tracks
+  // extra discovered planets via galaxyState.ts's own persisted
+  // discoveredPlanetIds side-table (see markPlanetDiscovered()), not by
+  // ever setting a third Planet object's `discovered` field to true --
+  // src/ships/resolveArrival.ts correctly still never references
+  // `discovered` at all (Ships Core stays out of Galaxy-data mutation;
+  // extending discovery is presentation-layer wiring, called from
+  // TradeMapScene.onResolveArrival()).
   const resolveArrivalSource = readFileSync(join(SRC_DIR, "ships/resolveArrival.ts"), "utf8");
   assert.doesNotMatch(resolveArrivalSource, /discovered/);
 });
 
-test("2.1 -- no 'season' or 'emergency' mechanic is implemented in real code anywhere in src/ (only baseline drift exists as a live map-data layer)", () => {
-  // The Phase 3 GDD's own data-shape section (Section 3) specifies
-  // `PlanetMarketState.season`, and Section 2.9 names "emergencies" as one
-  // of three layers driving the trade map -- neither was ever actually
-  // built. There is therefore no advance-warning delay to find (nothing
-  // exists to have one), but this is a genuine gap against Phase 3's own
-  // Definition of Done, not a clean confirmation that "emergencies work
-  // correctly with no warning." See Section 6 finding for the full report.
-  // Comments are stripped first -- TradeMapScene.ts's own header comment
-  // legitimately narrates the eventual "baseline drift/seasons/emergencies"
-  // intent; that's documentation, not an implementation to flag here.
-  assert.deepEqual(findMatches(/\bseason\b/i, true), []);
-  assert.deepEqual(findMatches(/\bemergenc(y|ies)\b/i, true), []);
+test("2.1 -- 'season' and 'emergency' are now real, implemented map-data layers (bug fix: previously only baseline drift existed)", () => {
+  // Originally this test asserted the OPPOSITE -- zero matches anywhere --
+  // documenting the gap this milestone found (only baseline drift existed;
+  // Phase 3's own Definition of Done named all three layers). Now fixed:
+  // src/trading/season.ts and src/trading/emergency.ts, wired into
+  // TradeMapScene's renderPlanet(). Both are pure functions of
+  // (planetId, now[, categories]) -- no persisted state, so map GDD §2.2's
+  // "always live, never stale" property holds for these too, the same way
+  // it already held for getGlobalPrice(). Full correctness coverage lives
+  // in tests/trading/season.test.ts and tests/trading/emergency.test.ts
+  // (cycling behavior, no-advance-warning, exact end-of-window boundary,
+  // multiplier math) -- this is just the "it's actually wired in" check.
+  assert.ok(findMatches(/\bseason\b/i, true).includes("trading/season.ts"));
+  assert.ok(findMatches(/\bemergenc(y|ies)\b/i, true).includes("trading/emergency.ts"));
+  assert.ok(findMatches(/getSeasonalEffect|getSeasonalPriceMultiplier/).includes("presentation/scenes/TradeMapScene.ts"));
+  assert.ok(findMatches(/getActiveEmergency|getEmergencyPriceMultiplier/).includes("presentation/scenes/TradeMapScene.ts"));
 });
 
 test("2.2 -- getGlobalPrice() reads live state with no internal caching (two calls with different states never return a stale/memoized value)", () => {

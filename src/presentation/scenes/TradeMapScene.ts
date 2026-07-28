@@ -1,12 +1,14 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content } from "../gameState.ts";
-import { galaxy, startingPlanet, secondaryDiscoveredPlanet } from "../galaxyState.ts";
+import { galaxy, startingPlanet, getDiscoveredPlanets, markPlanetDiscovered } from "../galaxyState.ts";
 import { getMarketStates, getStartingPlanetPreference } from "../tradingState.ts";
 import { getShipRoster, replaceShip, getVoyages, addVoyage, removeVoyage } from "../shipsState.ts";
 import { calculateTravelTime } from "../../ships/calculateTravelTime.ts";
 import { initiateVoyage } from "../../ships/initiateVoyage.ts";
 import { resolveArrival } from "../../ships/resolveArrival.ts";
+import { getSeasonalEffect, getSeasonalPriceMultiplier } from "../../trading/season.ts";
+import { getActiveEmergency, getEmergencyPriceMultiplier } from "../../trading/emergency.ts";
 import type { Planet } from "../../data/types/planet.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { Voyage } from "../../data/types/voyage.ts";
@@ -21,6 +23,17 @@ import type { Voyage } from "../../data/types/voyage.ts";
 // leaning, per its own contract note that it's a day-one seed only.
 const STEADY_BAND = 0.05;
 const MS_PER_HOUR = 60 * 60 * 1000;
+
+// Bug fix (Galactic Map Agent 25/26 verification, item 3 of
+// profitable-map-gdd.md Section 7): this screen's content -- planets,
+// their market lines, season/emergency flavor, and the travel section --
+// already overflowed the 500px-tall canvas at the smallest real session
+// state (live-measured), with no way to reach what was cut off. Everything
+// between the fixed nav bar and the fixed status line now renders inside a
+// scrollable, mask-clipped container instead of directly on the scene, and
+// mouse-wheel input moves it within [0, maxScrollY].
+const VIEWPORT_TOP = 64;
+const VIEWPORT_BOTTOM = 455;
 
 function classify(currentPrice: number, basePrice: number): "sells cheap" | "buys at a premium" | "steady" {
   if (currentPrice < basePrice * (1 - STEADY_BAND)) return "sells cheap";
@@ -39,12 +52,26 @@ export class TradeMapScene extends Phaser.Scene {
   // MarketScene/GlobalMarketScene/CrewScene.
   private pendingMessage = "";
 
+  private contentContainer?: Phaser.GameObjects.Container;
+  private maskShape?: Phaser.GameObjects.Graphics;
+  private scrollY = 0;
+  private maxScrollY = 0;
+
   constructor() {
     super(SCENE_KEYS.tradeMap);
   }
 
   create(): void {
     this.redraw();
+    // Registered once -- children.removeAll() in redraw() clears the
+    // display list, not scene-level input listeners, so this keeps working
+    // across every subsequent redraw() without re-registering.
+    this.input.on("wheel", (_pointer: unknown, _objects: unknown, _dx: number, dy: number) => {
+      if (this.maxScrollY <= 0) return;
+      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, 0, this.maxScrollY);
+      this.contentContainer?.setY(-this.scrollY);
+      this.updateScrollInteractivity();
+    });
   }
 
   private setStatus(message: string): void {
@@ -52,30 +79,70 @@ export class TradeMapScene extends Phaser.Scene {
     this.statusText?.setText(message);
   }
 
-  private discoveredPlanets(): Planet[] {
-    const overrides = [startingPlanet, secondaryDiscoveredPlanet].filter(
-      (planet): planet is Planet => planet !== undefined,
-    );
-    const overrideIds = new Set(overrides.map((planet) => planet.id));
-    const otherDiscovered = galaxy.planets.filter((planet) => planet.discovered && !overrideIds.has(planet.id));
-    return [...overrides, ...otherDiscovered];
+  // Routes through the scrollable container -- every content line in this
+  // scene (title, planets, travel section) uses this instead of
+  // `this.add.text` directly. Nav and the fixed status/scroll-hint lines
+  // are the only things added straight to the scene, since they must stay
+  // put regardless of scroll position.
+  private addText(x: number, y: number, text: string, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text {
+    const object = this.add.text(x, y, text, style);
+    this.contentContainer?.add(object);
+    return object;
+  }
+
+  // A GeometryMask only clips rendering, not input hit-testing -- an
+  // interactive button (e.g. "> Initiate Voyage") scrolled above
+  // VIEWPORT_TOP or below VIEWPORT_BOTTOM is invisible but, without this,
+  // would still be clickable at its now-wrong on-screen position (which
+  // could land it on top of the fixed nav bar). Toggles each interactive
+  // child's own `input.enabled` based on whether it's actually inside the
+  // visible viewport right now -- called after every scroll change, not
+  // just on redraw().
+  private updateScrollInteractivity(): void {
+    const containerY = this.contentContainer?.y ?? 0;
+    for (const child of this.contentContainer?.list ?? []) {
+      const object = child as Phaser.GameObjects.Text;
+      if (!object.input) continue;
+      const worldY = object.y + containerY;
+      object.input.enabled = worldY >= VIEWPORT_TOP && worldY + object.height <= VIEWPORT_BOTTOM;
+    }
   }
 
   private redraw(): void {
+    this.contentContainer?.destroy();
+    this.maskShape?.destroy();
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.tradeMap);
 
-    this.add.text(16, 64, "Trade Map", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
+    this.contentContainer = this.add.container(0, -this.scrollY);
+    this.maskShape = this.make.graphics();
+    this.maskShape.fillRect(0, VIEWPORT_TOP, this.cameras.main.width, VIEWPORT_BOTTOM - VIEWPORT_TOP);
+    this.contentContainer.setMask(this.maskShape.createGeometryMask());
 
-    const discoveredPlanets = this.discoveredPlanets();
+    this.addText(16, VIEWPORT_TOP, "Trade Map", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
 
-    let y = 100;
+    const discoveredPlanets = getDiscoveredPlanets();
+
+    let y = VIEWPORT_TOP + 36;
     for (const planet of discoveredPlanets) {
       y = this.renderPlanet(planet, y);
       y += 16;
     }
 
     y = this.renderTravel(discoveredPlanets, y);
+
+    this.maxScrollY = Math.max(0, y - VIEWPORT_BOTTOM);
+    this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, this.maxScrollY);
+    this.contentContainer.setY(-this.scrollY);
+    this.updateScrollInteractivity();
+
+    if (this.maxScrollY > 0) {
+      this.add.text(16, VIEWPORT_BOTTOM + 3, "(scroll for more)", {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: "#666666",
+      });
+    }
 
     this.statusText = this.add.text(16, 470, this.pendingMessage, {
       fontFamily: "monospace",
@@ -86,7 +153,7 @@ export class TradeMapScene extends Phaser.Scene {
 
   private renderPlanet(planet: Planet, startY: number): number {
     let y = startY;
-    this.add.text(16, y, `${planet.name} (${planet.planetType ?? "?"}, ${planet.tier ?? "?"} tier)`, {
+    this.addText(16, y, `${planet.name} (${planet.planetType ?? "?"}, ${planet.tier ?? "?"} tier)`, {
       fontFamily: "monospace",
       fontSize: "18px",
       color: "#ffd700",
@@ -95,7 +162,7 @@ export class TradeMapScene extends Phaser.Scene {
 
     const states = getMarketStates().filter((state) => state.planetId === planet.id);
     if (states.length === 0) {
-      this.add.text(16, y, "(no market activity tracked)", {
+      this.addText(16, y, "(no market activity tracked)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
@@ -103,11 +170,53 @@ export class TradeMapScene extends Phaser.Scene {
       return y + 22;
     }
 
+    // The trade map's other two data layers (Phase 3 GDD §2.9), computed
+    // live -- never persisted, so they can never go stale (map GDD §2.2).
+    // Both factor into each item's effective price for classification
+    // only; the real, stored currentPrice (what baseline drift/trades
+    // actually move) is untouched.
+    const now = Date.now();
+    const categories = [
+      ...new Set(
+        states
+          .map((state) => content.resources.find((r) => r.id === state.itemId)?.category)
+          .filter((category): category is string => category !== undefined),
+      ),
+    ];
+    const seasonalEffect = getSeasonalEffect(planet.id, now, categories);
+    const emergency = getActiveEmergency(planet.id, now, categories);
+
+    if (seasonalEffect) {
+      const cheapResource = content.resources.find((r) => r.category === seasonalEffect.cheapCategory);
+      const premiumResource = content.resources.find((r) => r.category === seasonalEffect.premiumCategory);
+      this.addText(
+        32,
+        y,
+        `Season: ${seasonalEffect.season} (${cheapResource?.name ?? seasonalEffect.cheapCategory} cheaper, ${premiumResource?.name ?? seasonalEffect.premiumCategory} pricier)`,
+        { fontFamily: "monospace", fontSize: "12px", color: "#888888" },
+      );
+      y += 18;
+    }
+    if (emergency) {
+      const emergencyResource = content.resources.find((r) => r.category === emergency.category);
+      const hoursLeft = ((emergency.endsAt - now) / (60 * 60 * 1000)).toFixed(1);
+      this.addText(
+        32,
+        y,
+        `⚠ Emergency: ${emergencyResource?.name ?? emergency.category} prices spiking (ends in ${hoursLeft}h)`,
+        { fontFamily: "monospace", fontSize: "12px", color: "#ff8844" },
+      );
+      y += 18;
+    }
+
     for (const state of states) {
       const resource = content.resources.find((r) => r.id === state.itemId);
-      const status = classify(state.currentPrice, state.basePrice);
+      const seasonMultiplier = getSeasonalPriceMultiplier(resource?.category ?? "", seasonalEffect);
+      const emergencyMultiplier = getEmergencyPriceMultiplier(resource?.category ?? "", emergency);
+      const effectivePrice = state.currentPrice * seasonMultiplier * emergencyMultiplier;
+      const status = classify(effectivePrice, state.basePrice);
       const line = `${resource?.name ?? state.itemId}: ${status} (now ${state.currentPrice.toFixed(2)}cr, base ${state.basePrice}cr)`;
-      this.add.text(32, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.addText(32, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
 
@@ -116,13 +225,13 @@ export class TradeMapScene extends Phaser.Scene {
       if (preference) {
         const sells = preference.sellsCheap.map((id) => content.resources.find((r) => r.id === id)?.name ?? id);
         const buys = preference.buysAtPremium.map((id) => content.resources.find((r) => r.id === id)?.name ?? id);
-        this.add.text(32, y, `Typically sells cheap: ${sells.join(", ") || "(none)"}`, {
+        this.addText(32, y, `Typically sells cheap: ${sells.join(", ") || "(none)"}`, {
           fontFamily: "monospace",
           fontSize: "12px",
           color: "#666666",
         });
         y += 18;
-        this.add.text(32, y, `Typically buys at a premium: ${buys.join(", ") || "(none)"}`, {
+        this.addText(32, y, `Typically buys at a premium: ${buys.join(", ") || "(none)"}`, {
           fontFamily: "monospace",
           fontSize: "12px",
           color: "#666666",
@@ -136,12 +245,12 @@ export class TradeMapScene extends Phaser.Scene {
 
   private renderTravel(discoveredPlanets: Planet[], startY: number): number {
     let y = startY;
-    this.add.text(16, y, "Travel:", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
+    this.addText(16, y, "Travel:", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
     y += 24;
 
     const ship = getShipRoster()[0];
     if (!ship) {
-      this.add.text(16, y, "(no ship owned yet -- purchase one at the Shipyard)", {
+      this.addText(16, y, "(no ship owned yet -- purchase one at the Shipyard)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
@@ -150,7 +259,7 @@ export class TradeMapScene extends Phaser.Scene {
     }
 
     const originPlanet = galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
-    this.add.text(16, y, `${ship.name} (${ship.tier} tier) — currently at ${originPlanet?.name ?? ship.currentPlanetId}`, {
+    this.addText(16, y, `${ship.name} (${ship.tier} tier) — currently at ${originPlanet?.name ?? ship.currentPlanetId}`, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
@@ -186,14 +295,14 @@ export class TradeMapScene extends Phaser.Scene {
 
     if (remainingMs > 0) {
       const label = `En route to ${destination?.name ?? voyage.destinationPlanetId} — arrives in ${(remainingMs / MS_PER_HOUR).toFixed(2)}h`;
-      this.add.text(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+      this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
       y += 20;
       return y;
     }
 
     const label = `Arrived at ${destination?.name ?? voyage.destinationPlanetId} — ready to resolve`;
-    this.add.text(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
-    const resolveBtn = this.add.text(500, y, "> Resolve Arrival", {
+    this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+    const resolveBtn = this.addText(500, y, "> Resolve Arrival", {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#4caf50",
@@ -208,9 +317,9 @@ export class TradeMapScene extends Phaser.Scene {
     let y = startY;
     const travelTimeMs = calculateTravelTime(originPlanet, destination, ship);
     const label = `${destination.name}: ${(travelTimeMs / MS_PER_HOUR).toFixed(2)}h`;
-    this.add.text(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+    this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
 
-    const goBtn = this.add.text(300, y, "> Initiate Voyage", {
+    const goBtn = this.addText(300, y, "> Initiate Voyage", {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#2196f3",
@@ -240,6 +349,11 @@ export class TradeMapScene extends Phaser.Scene {
     }
     replaceShip(result.updatedShip);
     removeVoyage(voyage.id);
+    // The bug fix this comment marks: physical visitation (a resolved
+    // Voyage) now actually extends discovery, not just the two bootstrap
+    // planets -- see galaxyState.ts's markPlanetDiscovered() for the full
+    // rationale.
+    markPlanetDiscovered(result.destinationPlanetId);
     this.setStatus(`${ship.name} arrived at its destination.`);
     this.redraw();
   }

@@ -222,6 +222,86 @@ actual rendered content bounds against the 800×500 canvas.
   the existing screen(s), present before this milestone and reported as
   such. Full write-up: `docs/profitable-map-gdd.md` Section 6.
 
+**Galactic Map bug fix (discovery-by-travel, agent-25/26's item #2):**
+`galaxyState.ts` gained a persisted `discoveredPlanetIds` side-table
+(`saveSystem` key `profitable:discoveredPlanetIds`) and two new exports,
+`getDiscoveredPlanets()`/`markPlanetDiscovered()`. Necessary because
+`galaxy.planets` itself only round-trips its seed through `SaveSystem` —
+`generatePlanet()` deterministically reproduces `discovered: false` for
+every planet on every reload, so an in-memory-only mutation would vanish
+on the next session; discovery-by-travel needed its own persisted
+side-table, the same "elsewhere" pattern `tradingState.ts`'s
+`listingQualities` already uses for data a regenerated structure can't
+itself carry. `TradeMapScene.discoveredPlanets()` (a private method
+duplicating this logic) was removed in favor of calling the shared
+`getDiscoveredPlanets()`, and `onResolveArrival()` now calls
+`markPlanetDiscovered(result.destinationPlanetId)` on every successful
+arrival. Live-verified: purchased a ship, traveled to the galaxy's third
+planet (never one of the two structural bootstrap planets), confirmed it
+appeared on the Trade Map immediately after `resolveArrival()`, then
+reloaded the page and confirmed all three planets — and the ship's new
+location — were still correctly shown, proving the fix survives a real
+session boundary rather than just an in-memory check.
+
+**Galactic Map bug fix (seasons/emergencies, agent-25/26's item #1):**
+`TradeMapScene.renderPlanet()` now calls the new `src/trading/season.ts`/
+`emergency.ts` (see that directory's own README for why both compute
+everything live from `(planetId, now)` with zero persisted state). For
+each planet, a "Season: X (A cheaper, B pricier)" line always renders, and
+an "⚠ Emergency: C prices spiking (ends in Nh)" line renders only while
+one is actually active — neither is fake flavor text, both feed a real
+`effectivePrice = currentPrice × seasonMultiplier × emergencyMultiplier`
+that the existing `classify()` compares against `basePrice`, so "sells
+cheap"/"buys at a premium"/"steady" now genuinely reflects all three
+documented layers, not just baseline drift. The real, stored
+`currentPrice` (what trades actually move) is never touched by either
+multiplier — they're display/classification-only, computed fresh on every
+`redraw()`. Live-verified (fresh session, `localStorage` cleared): one
+planet showed `Season: Winter` with an active emergency on the same
+category the season favored as "cheaper" — the emergency's larger
+premium (+30%) correctly overrode the season's milder discount (-8%),
+rendering "buys at a premium," a genuine layered-effect interaction, not
+a coincidence. A second, independently-seasoned planet (`Season: Autumn`,
+no active emergency) showed its own cheap/premium categories flip from
+"steady" to the season-driven classification while every other item on
+that planet stayed "steady" — confirming per-planet independence (the
+seed-derived phase offset), not a galaxy-wide synchronized effect.
+
+**Galactic Map bug fix (canvas/nav overflow, agent-25/26's item #3):**
+two independent overflow bugs, fixed separately since they lived in
+different files.
+- `scenes/nav.ts`: the shared 10-entry nav bar now **wraps to a second row**
+  instead of running off the canvas edge — `renderNav()` measures each
+  label against `scene.cameras.main.width` and starts a new row rather
+  than hardcoding an item count or shrinking text, so it scales correctly
+  if more entries are ever added later too. Live-verified: "Assembly" (the
+  10th entry) now renders at `(16, 38)` — row 2 — instead of `x=832`
+  (32px past the 800px-wide canvas).
+- `scenes/TradeMapScene.ts`: every content line (title, planets, travel
+  section — everything except the fixed nav bar and status line) now
+  renders inside a `Phaser.GameObjects.Container`, clipped to a
+  `GeometryMask` covering the visible viewport (`y` 64–455), with
+  mouse-wheel input scrolling the container within `[0, maxScrollY]` and
+  a "(scroll for more)" hint shown whenever `maxScrollY > 0`. **Necessary
+  completion beyond the obvious clip-and-scroll:** a `GeometryMask` only
+  clips *rendering*, not Phaser's input hit-testing — an "Initiate Voyage"
+  button scrolled out of the visible range would otherwise still be
+  clickable at its now-wrong on-screen position (potentially overlapping
+  the fixed nav bar). `updateScrollInteractivity()` toggles each
+  interactive child's own `input.enabled` based on whether its *current*
+  world-space position actually falls inside the visible viewport,
+  called after every scroll change, not just on redraw. Live-verified:
+  a fresh session's content (previously measured overflowing to y=615)
+  now renders with only the 64–455 range visible, `maxScrollY` correctly
+  reflects the real overflow amount, and scrolling to `maxScrollY` reveals
+  the second planet and the full Travel section that were previously
+  unreachable. The specific input-toggle behavior (a button becoming
+  unclickable while scrolled out of view) was verified by code review
+  rather than an interactive click test, since browser-tool connectivity
+  dropped mid-verification for this specific check — the mechanism itself
+  (`object.input.enabled = worldY >= VIEWPORT_TOP && ...`) is a direct,
+  narrow boolean condition with no other moving parts.
+
 **Status: complete.** Render engine: **Phaser** (chosen over PixiJS — see
 commit history for rationale: Phaser's built-in Scene classes/screen-flow/
 tweens map directly onto the GDD's "map/gather/refine/craft scenes"

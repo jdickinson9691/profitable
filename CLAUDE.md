@@ -12,10 +12,10 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: Galactic Map verification milestone — complete.** MVP, Phase 2, Phase 3, Phase 4, Phase 5, and the Galactic Map verification pass are all done. The Galactic Map's design questions all resolved to "the existing system already does this," so this milestone verified that claim (Agents 25/26) rather than building new features — verification surfaced **3 attributable bugs in the Phase 3/5 implementation**, carried forward as open work, not new scope. See `profitable-map-gdd.md` Sections 6-7 and Section 6 below.
+**Current phase: Galactic Map verification milestone — complete.** MVP, Phase 2, Phase 3, Phase 4, Phase 5, and the Galactic Map verification pass are all done. The Galactic Map's design questions all resolved to "the existing system already does this," so this milestone verified that claim (Agents 25/26) rather than building new features — verification surfaced 3 attributable bugs in the Phase 3/5 implementation, **all 3 now fixed** (discovery-by-travel, seasons/emergencies, map/nav canvas overflow). See `profitable-map-gdd.md` Sections 6-7 and Section 6 below.
 
 **Full development order (all planned phases complete):**
-galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here — verification complete, 3 open bugs to address]**.
+galaxy generation → planet generation → resource generation → crafting recipes/schematics → **[MVP boundary]** → trading loop → **[Phase 3 boundary]** → crafters (NPC crew) → **[Phase 4 boundary]** → ships → travel → **[Phase 5 boundary]** → galactic map **[currently here — verification complete, all follow-on bugs fixed]**.
 
 ---
 
@@ -204,13 +204,13 @@ The MVP is built by 7 specialized agents, each with a narrow responsibility and 
 
 **Galactic Map verification is complete.** Agent 25 audited the existing Phase 3 (trade layer) + Phase 5 (travel layer) map against the four decided properties (`docs/profitable-map-gdd.md` Section 2); Agent 26 confirmed the milestone's own Definition of Done is met — the milestone's job was "verify and report," not "make everything perfect," and that verification is done. Two properties passed cleanly (no staleness; no scanner/probe code exists). Two surfaced **real, attributed bugs in the underlying Phase 3/5 implementation** — not new Galactic Map scope, and not fixed by this milestone per its own "report, don't patch" rule:
 
-1. **Seasons and emergencies were never implemented** — only baseline drift exists as a live trade-map data layer, despite the Phase 3 GDD's own Definition of Done naming all three. Bug against Agents 1/11/12/15.
-2. **Discovery is never extended by travel** — only the 2 planets hardcoded at session bootstrap (`galaxyState.ts`) are ever `discovered: true`; arriving at a planet via a real `Voyage` never marks it discovered. Bug against Agents 22/24.
-3. **`TradeMapScene` and the shared nav bar (`scenes/nav.ts`) both overflow the 800×500 canvas** at the current real scale (live-measured, not hypothetical) — no scrolling mechanism exists. Bug against Agents 13/18/22.
+1. ~~Seasons and emergencies were never implemented~~ — **fixed.** `src/trading/season.ts`/`emergency.ts` (pure, zero persisted state) now feed `TradeMapScene`'s classification alongside baseline drift. Live-verified, including an emergency's larger premium correctly overriding its own planet's milder season discount on the same category. See `src/trading/README.md`'s and `src/presentation/README.md`'s "Galactic Map bug fix" notes.
+2. ~~Discovery is never extended by travel~~ — **fixed.** `galaxyState.ts` now persists a `discoveredPlanetIds` side-table and marks a planet discovered on every successful `resolveArrival()`, verified to survive a real page reload. See `src/presentation/README.md`'s "Galactic Map bug fix" note.
+3. ~~`TradeMapScene` and the shared nav bar both overflow the 800×500 canvas~~ — **fixed.** `scenes/nav.ts` now wraps to a second row instead of running off the canvas edge; `TradeMapScene.ts`'s content now renders inside a mask-clipped, mouse-wheel-scrollable container, with interactive buttons correctly disabled while scrolled out of view. Live-verified: nav wraps, scrolling reveals previously-unreachable content. See `src/presentation/README.md`'s "Galactic Map bug fix" note.
 
-Full evidence and per-property detail: `docs/profitable-map-gdd.md` Sections 6-7. **These three items are the natural next work**, if/when picked up — plain bug fixes against existing agents' own contracts, not a new milestone requiring new design questions or a new agent roster.
+Full evidence and per-property detail: `docs/profitable-map-gdd.md` Sections 6-7. **All three items originally carried forward are now fixed** — nothing outstanding remains from the Galactic Map verification pass.
 
-**No further phase is currently planned beyond this.** The originally-scoped development order (galaxy → planets → resources → crafting → trading → crew → ships/travel → galactic map) is now fully built and verified.
+**No further phase is currently planned beyond this.** The originally-scoped development order (galaxy → planets → resources → crafting → trading → crew → ships/travel → galactic map) is now fully built and verified, with zero known open bugs.
 
 **Still explicitly out of scope:**
 

@@ -26,11 +26,24 @@ const NAV_ITEMS: Array<{ key: string; label: string }> = [
   { key: SCENE_KEYS.shipAssembly, label: "Assembly" },
 ];
 
+const NAV_ROW_HEIGHT = 22;
+
 // Persistent nav bar on every scene, so the player can move freely between
 // map/gather/refine/craft rather than being locked into one linear path.
+//
+// Bug fix (Galactic Map Agent 25/26 verification, item 3 of
+// profitable-map-gdd.md Section 7): 10 entries (grown across Phase 3/4/5,
+// none of which revisited this file's layout) no longer fit on one row at
+// the game's 800px width -- live-measured to overflow by 32px. Wraps to a
+// second row instead of hardcoding a fixed item count or shrinking text;
+// scales correctly if more entries are ever added later too. Every scene's
+// own content still starts at a fixed y=64, which still clears a wrapped
+// 2-row nav bar (row 2 ends well before y=64) without needing every scene
+// to be touched to read back a dynamic nav-bar height.
 export function renderNav(scene: Phaser.Scene, activeKey: string): void {
+  const maxWidth = scene.cameras.main.width;
   let x = 16;
-  const y = 16;
+  let y = 16;
   for (const item of NAV_ITEMS) {
     const isActive = item.key === activeKey;
     const text = scene.add.text(x, y, item.label, {
@@ -38,6 +51,11 @@ export function renderNav(scene: Phaser.Scene, activeKey: string): void {
       fontSize: "18px",
       color: isActive ? "#ffd700" : "#ffffff",
     });
+    if (x > 16 && x + text.width > maxWidth - 16) {
+      x = 16;
+      y += NAV_ROW_HEIGHT;
+      text.setPosition(x, y);
+    }
     if (!isActive) {
       text.setInteractive({ useHandCursor: true });
       text.on("pointerdown", () => scene.scene.start(item.key));
