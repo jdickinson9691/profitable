@@ -4,6 +4,8 @@ Concrete starting numbers for Section 2 of `product-alpha-plan.md`. These are **
 
 **Correction to the plan doc:** Refining, Crafting, and Galaxy/Planets were listed as needing tuning, but all three already have exact, locked numbers in `profitable-design-questions.md` — full variance tables, penalty curves, and modifiers, not examples. They need playtesting *validation* (does -0.5%/+15% at Gold refiner tier actually feel right?), not new numbers invented here. The systems below genuinely have no starting values yet.
 
+**Self-correction (2026-07-29):** the Ships/Travel distance-scaling constant and Scanner's base radius/radius-bonus table, below, were originally proposed here as new numbers (1.0 and 50/+0→+80 respectively) — but both were actually already implemented and already live-verified during Phase 5's real browser testing, a fact this doc got wrong by guessing without checking first. Investigation (real `generateGalaxy()` output, `src/presentation/README.md`'s Phase 5/Scanner live-playtest notes) confirmed the *existing* values (0.01 and 120/+0→+350) were the grounded ones; this doc's proposed replacements would have made a live-verified 5.56h trip take ~23 days. Both sections below have been corrected back to the existing, real values, with the reasoning inline.
+
 ---
 
 ## Trading
@@ -53,25 +55,25 @@ No numbers previously proposed — new starting values, using a doubling-per-tie
 | Orange | 40% |
 | Gold | 55% |
 
-**Distance-to-travel-time scaling constant:** 1 distance unit = 1 hour base travel time (simplest possible starting constant — easy to scale uniformly later if travel feels too fast/slow overall).
+**Distance-to-travel-time scaling constant:** 0.01 hours per distance unit (1 distance unit = 0.01 hours) — **already implemented and live-verified**, not a new number. Corrected 2026-07-29: this doc originally proposed 1 distance unit = 1 hour as a "simplest possible starting constant," but that was an ungrounded guess made without checking the existing implementation. Investigation found `DISTANCE_TO_TRAVEL_HOURS_PER_UNIT = 0.01` was already live-verified during Phase 5's real Chrome browser playtest (`src/presentation/README.md`, Agent 22 manual playtest section): a real 741.27-unit hop between two generated planets, at Blue-tier speed, produced a hand-verified 5.56h trip. Real `generateGalaxy()` output across multiple 50-planet seeds confirms 0.01 lands in a reasonable range throughout — nearest-neighbor hops ~1-1.5h, typical any-two-planet trips ~10-11h, and even the observed max distance at zero speed bonus ~24-28h (~1.2 days), never approaching a week. The originally proposed 1.0 would have turned that same verified 5.56h trip into ~23 days, and the max trip into 100+ days. Kept at 0.01; not changed.
 
 **Shipyard pool:** 3 ships per planet, refreshed every 24 hours.
 
 ## Scanner
 
-**Base radius:** 50 distance units (same coordinate scale as the travel-time constant above — worth keeping these two numbers consistent with each other, since both interpret the same `{x,y}` coordinate space).
+**Base radius:** 120 distance units — **already implemented and live-verified**, not a new number. Corrected 2026-07-29: this doc originally proposed 50 (to stay "consistent" with the distance-scaling constant above), but that reasoning inherited the same ungrounded-guess problem as the 1.0 distance constant it was derived from. `SCANNER_BASE_SCAN_RADIUS = 120` paired with the tier radius bonus table below (max effective radius 470) was already live-verified in Phase 5/Scanner's real browser playtest (`src/presentation/README.md`) against real generated planet distances. Kept at 120; not changed.
 
-**Tier radius bonus** (additive, reusing the schematic-contribution table's shape):
+**Tier radius bonus** (additive, reusing the schematic-contribution table's shape) — kept at its original, already-implemented values (not changed to match the rejected 50-base proposal):
 
 | Tier | Radius bonus |
 |---|---|
 | Grey | +0 |
-| White | +10 |
-| Green | +20 |
-| Blue | +30 |
-| Purple | +45 |
-| Orange | +60 |
-| Gold | +80 |
+| White | +40 |
+| Green | +80 |
+| Blue | +130 |
+| Purple | +190 |
+| Orange | +260 |
+| Gold | +350 |
 
 **Pool:** 2 scanners per planet, refreshed every 48 hours (rarer than ships, matching scanners' role as a bigger investment).
 

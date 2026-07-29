@@ -21,19 +21,40 @@ import type { ScannerTierRadiusBonus } from "../types/scannerTierRadiusBonus.ts"
 // of roughly 28 hours at this scale -- consistent with the tens-of-hours
 // range every other Phase 4 timing tunable already uses (wage interval,
 // upkeep grace period, elapsed-time cap).
+//
+// NOT changed to profitable-alpha-tuning-values.md's proposed 1.0 (1 unit
+// = 1 hour) during the 2026-07-29 alpha tuning pass: that doc's number
+// was an ungrounded guess, and investigation (real 50-planet
+// generateGalaxy() output across multiple seeds, plus
+// src/presentation/README.md's Phase 5 Agent 22 live-browser playtest --
+// a real 741.27-unit hop at Blue-tier speed producing a hand-verified
+// 5.56h trip) showed this original 0.01 value is the one that's actually
+// grounded: real nearest-neighbor hops (~105-150 units) land around
+// 1-1.5h, real typical any-two-planet distances (~990-1100 units) land
+// around 10-11h, and the real observed max (~2400-2560, vs. ~2828
+// theoretical) lands around 24-28h even for a Grey-tier ship with no
+// speed bonus -- all comfortably inside "a few hours to a couple of
+// days," never approaching the 1.0 guess's 117+-day worst case. Kept at
+// its original value.
 export const DISTANCE_TO_TRAVEL_HOURS_PER_UNIT = 0.01;
 
 // §2.4 -- ship tier's travel-time multiplier, applied on top of the base
 // distance-derived travel time. Monotonically decreasing by tier: Grey is
 // exactly baseline (no bonus), Gold roughly halves travel time ("a
 // Gold-tier ship travels meaningfully faster," per the design doc).
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): documented there as a "% speed bonus" table (Grey 0% up to
+// Gold 55%); travelTimeMultiplier here is 1 - that bonus. Grey/White/Gold
+// happened to already match the prior originated defaults; Green/Blue/
+// Purple/Orange are corrected below (were 0.85/0.75/0.65/0.55).
 export const SHIP_TIER_SPEED_MODIFIER: readonly ShipTierSpeedModifier[] = [
   { tier: "Grey", travelTimeMultiplier: 1.0 },
   { tier: "White", travelTimeMultiplier: 0.95 },
-  { tier: "Green", travelTimeMultiplier: 0.85 },
-  { tier: "Blue", travelTimeMultiplier: 0.75 },
-  { tier: "Purple", travelTimeMultiplier: 0.65 },
-  { tier: "Orange", travelTimeMultiplier: 0.55 },
+  { tier: "Green", travelTimeMultiplier: 0.9 },
+  { tier: "Blue", travelTimeMultiplier: 0.82 },
+  { tier: "Purple", travelTimeMultiplier: 0.72 },
+  { tier: "Orange", travelTimeMultiplier: 0.6 },
   { tier: "Gold", travelTimeMultiplier: 0.45 },
 ];
 
@@ -73,7 +94,12 @@ export const SHIP_PURCHASE_COST_BY_TIER: readonly ShipPurchaseCostByTier[] = [
 // numbers with a documented rationale is a smaller cost than a cross-
 // domain constant dependency between otherwise-unrelated systems.
 export const ENCOUNTER_CHECK_WINDOW_HOURS = 24;
-export const ENCOUNTER_TRIGGER_CHANCE = 0.15;
+// Alpha starting value (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): 20%, "slightly higher than the emergency system's 15%,
+// since this covers a broader category" -- supersedes the original 0.15
+// originated default (which had directly reused the emergency system's
+// own rate rather than being deliberately set higher than it).
+export const ENCOUNTER_TRIGGER_CHANCE = 0.2;
 
 // §2.2 -- weighted random split when a window's roll triggers an
 // encounter. Hazard (the only downside type) is deliberately the lowest
@@ -100,10 +126,18 @@ export const ENCOUNTER_TRIGGER_CHANCE = 0.15;
 // proportional scaling leaves that already-verified test's targets valid
 // with no changes needed. 0.05 keeps combat genuinely rarer than hazard,
 // consistent with "low-weighted."
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): tradeOpportunity 40% / discovery 35% / hazard 20% / combat
+// 5% -- an explicit, asymmetric split between tradeOpportunity and
+// discovery (not the proportional-scaling derivation above), superseding
+// the prior 0.38/0.38/0.19/0.05. Still sums to 1.0; combat's 5% is
+// unchanged since the doc treats it as already-settled and builds the
+// other three around it.
 export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
-  tradeOpportunity: 0.38,
-  discovery: 0.38,
-  hazard: 0.19,
+  tradeOpportunity: 0.4,
+  discovery: 0.35,
+  hazard: 0.2,
   combat: 0.05,
 };
 
@@ -112,6 +146,9 @@ export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
 // arrival (not a recurring per-window roll like ENCOUNTER_TRIGGER_CHANCE),
 // so set lower -- a discrete, rarer event rather than something that
 // compounds across a long voyage's many windows.
+// Confirmed against docs/profitable-alpha-tuning-values.md (2026-07-29,
+// alpha tuning pass): already matches the doc's 10% starting value
+// exactly -- no change made.
 export const ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
 
 // Combat GDD §2.5/§3 -- "component durability damage percentage" on a
@@ -120,12 +157,19 @@ export const ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
 // Agent 20's job). Meaningful but not crippling in one hit, consistent
 // with the design's own "lightweight, non-permanent" framing (§2.1) --
 // several losses would compound before a component became unusable.
+// Confirmed against docs/profitable-alpha-tuning-values.md (2026-07-29,
+// alpha tuning pass): already matches the doc's 15% starting value
+// exactly (the doc itself notes this was already implemented/verified) --
+// no change made.
 export const COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = 0.15;
 
 // Combat GDD §2.5/§3 -- "crew unavailableUntil duration" on a combat loss.
 // Mirrors the daily-scale timing every other Ships/Crew tunable already
 // uses (WAGE_PAYMENT_INTERVAL_HOURS, UPKEEP_GRACE_PERIOD_HOURS) rather
 // than inventing a new time scale.
+// Confirmed against docs/profitable-alpha-tuning-values.md (2026-07-29,
+// alpha tuning pass): already matches the doc's 24h starting value
+// exactly -- no change made.
 export const COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
 
 // Combat GDD §2.4/§3: "reuses the existing tier-variance table shape (no
@@ -141,8 +185,12 @@ export const COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
 // Wallet. Scaled to feel like a meaningful but modest windfall relative to
 // the existing economy (a Grey-tier ship costs 300cr, a Grey-tier crew
 // hire ~50cr per CREW_HIRE_COST_BY_TIER).
-export const ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = 20;
-export const ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = 150;
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): 50-200 Cr, superseding the original 20-150 Cr originated
+// default.
+export const ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = 50;
+export const ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = 200;
 
 // §2.6 -- hazard: roll 1-100 against this fixed pass threshold, modified
 // additively by the voyage's ship's derived tier via HAZARD_SHIP_TIER_MODIFIER
@@ -169,13 +217,24 @@ export const HAZARD_SHIP_TIER_MODIFIER: readonly HazardTierModifier[] = [
 // its tier bonus) fell below HAZARD_PASS_THRESHOLD. Mirrors PENALTY_CURVE's
 // exact 10-point band boundaries; unlike that curve, there is no "reject"
 // band -- a hazard failure always resolves to some cost.
-export const HAZARD_BASE_FAILURE_COST = 30;
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): the doc hard-specifies only the two endpoints -- "base cost
+// 50 Cr at the mildest fail tier, scaling up to 500 Cr at the worst" --
+// and does not give the 3 middle bands' multipliers, so those are an
+// originated completion here (not sourced from the doc), chosen to
+// escalate monotonically in round numbers across the same 5 band
+// boundaries already established: 50 / 100 / 200 / 350 / 500. Flagged in
+// the alpha tuning pass report as the one value in this pass that's a
+// judgment call, not a direct doc transcription -- revisit during
+// Section 2's actual playtesting.
+export const HAZARD_BASE_FAILURE_COST = 50;
 export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
   { minPointsBelow: 1, maxPointsBelow: 10, costMultiplier: 1.0 },
-  { minPointsBelow: 11, maxPointsBelow: 20, costMultiplier: 1.5 },
-  { minPointsBelow: 21, maxPointsBelow: 30, costMultiplier: 2.0 },
-  { minPointsBelow: 31, maxPointsBelow: 40, costMultiplier: 2.5 },
-  { minPointsBelow: 41, maxPointsBelow: null, costMultiplier: 3.0 },
+  { minPointsBelow: 11, maxPointsBelow: 20, costMultiplier: 2.0 },
+  { minPointsBelow: 21, maxPointsBelow: 30, costMultiplier: 4.0 },
+  { minPointsBelow: 31, maxPointsBelow: 40, costMultiplier: 7.0 },
+  { minPointsBelow: 41, maxPointsBelow: null, costMultiplier: 10.0 },
 ];
 
 // Scanner/Probe GDD §2/§3 -- like the rest of this file, the design doc
@@ -187,21 +246,32 @@ export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
 // as SHIPYARD_POOL_SIZE_PER_PLANET/SHIPYARD_POOL_REFRESH_INTERVAL_HOURS
 // (and Phase 4's crew pool before it), applied to scanners' own pool
 // rather than merged into ShipyardPool (GDD §2.2's explicit call-out).
-export const SCANNER_POOL_SIZE_PER_PLANET = 3;
-export const SCANNER_POOL_REFRESH_INTERVAL_HOURS = 24;
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): 2 scanners / 48h, "rarer than ships, matching scanners'
+// role as a bigger investment" -- supersedes the original 3/24h
+// originated default, which had directly mirrored the ship pool instead
+// of being deliberately rarer.
+export const SCANNER_POOL_SIZE_PER_PLANET = 2;
+export const SCANNER_POOL_REFRESH_INTERVAL_HOURS = 48;
 
 // §3 -- "scanner acquisition cost curve by tier." Scaled below
 // SHIP_PURCHASE_COST_BY_TIER (a whole ship is the bigger investment) but
 // above CREW_HIRE_COST_BY_TIER (a scanner is a standalone piece of
 // equipment the player keeps indefinitely, not a recurring-wage hire).
+//
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): clean doubling from 200 to 12,800, same pattern as crew
+// capacity's cost curve -- supersedes the original 80-2,200 table, which
+// used an irregular (non-doubling) progression.
 export const SCANNER_PURCHASE_COST_BY_TIER: readonly ScannerPurchaseCostByTier[] = [
-  { tier: "Grey", cost: 80 },
-  { tier: "White", cost: 160 },
-  { tier: "Green", cost: 320 },
-  { tier: "Blue", cost: 550 },
-  { tier: "Purple", cost: 900 },
-  { tier: "Orange", cost: 1400 },
-  { tier: "Gold", cost: 2200 },
+  { tier: "Grey", cost: 200 },
+  { tier: "White", cost: 400 },
+  { tier: "Green", cost: 800 },
+  { tier: "Blue", cost: 1600 },
+  { tier: "Purple", cost: 3200 },
+  { tier: "Orange", cost: 6400 },
+  { tier: "Gold", cost: 12800 },
 ];
 
 // §2.4 -- "base scan radius (with no scanner, or as the floor before tier
@@ -210,6 +280,18 @@ export const SCANNER_PURCHASE_COST_BY_TIER: readonly ScannerPurchaseCostByTier[]
 // POSITION_RANGE) -- chosen as a modest fraction of that space, so a scan
 // reveals a meaningful local neighborhood without trivializing discovery
 // galaxy-wide even at Gold tier.
+//
+// NOT changed to profitable-alpha-tuning-values.md's proposed 50 during
+// the 2026-07-29 alpha tuning pass: that number was derived specifically
+// to match the doc's own (ungrounded) 1.0 distance-scaling proposal,
+// which investigation rejected -- see DISTANCE_TO_TRAVEL_HOURS_PER_UNIT's
+// comment above. This value and SCANNER_TIER_RADIUS_BONUS below are a
+// matched pair (max effective radius = base + highest tier bonus) and
+// are being held together pending a real decision grounded in actual
+// coordinate data, not moved to match a rejected constant. Kept at its
+// original value; src/presentation/README.md's Scanner/Probe live-browser
+// playtest already exercised this exact 120-base/470-max-radius pairing
+// successfully (computed real planet distances by hand against it).
 export const SCANNER_BASE_SCAN_RADIUS = 120;
 
 // §2.4 -- "scanner tier radius-bonus table... reusing the shape of the
@@ -218,6 +300,10 @@ export const SCANNER_BASE_SCAN_RADIUS = 120;
 // increasing by tier, Grey = +0 (the floor, not a penalty) -- same
 // convention HAZARD_SHIP_TIER_MODIFIER/SHIP_TIER_SPEED_MODIFIER already
 // established for a skill/equipment investment axis.
+//
+// NOT changed to profitable-alpha-tuning-values.md's proposed table
+// (+0 up to +80) during the 2026-07-29 alpha tuning pass -- held pending
+// the same base-radius decision above. Kept at its original values.
 export const SCANNER_TIER_RADIUS_BONUS: readonly ScannerTierRadiusBonus[] = [
   { tier: "Grey", radiusBonus: 0 },
   { tier: "White", radiusBonus: 40 },

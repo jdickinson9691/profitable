@@ -119,7 +119,7 @@ test("type distribution over many trials roughly matches ENCOUNTER_TYPE_WEIGHTS,
 
   assert.ok(Math.abs(hazardRate - 0.2) < 0.05, `hazard rate ${hazardRate} too far from 0.2`);
   assert.ok(Math.abs(tradeRate - 0.4) < 0.05, `tradeOpportunity rate ${tradeRate} too far from 0.4`);
-  assert.ok(Math.abs(discoveryRate - 0.4) < 0.05, `discovery rate ${discoveryRate} too far from 0.4`);
+  assert.ok(Math.abs(discoveryRate - 0.35) < 0.05, `discovery rate ${discoveryRate} too far from 0.35`);
   assert.ok(counts.hazard! < counts.tradeOpportunity!);
   assert.ok(counts.hazard! < counts.discovery!);
 });
@@ -203,10 +203,10 @@ test("hazard: failure cost curve matches the escalating shape exactly at several
   // is used directly as pointsBelow = threshold - effectiveRoll.
   const cases: Array<{ rawRoll: number; expectedPointsBelow: number; expectedMultiplier: number }> = [
     { rawRoll: HAZARD_PASS_THRESHOLD - 5, expectedPointsBelow: 5, expectedMultiplier: 1.0 },
-    { rawRoll: HAZARD_PASS_THRESHOLD - 15, expectedPointsBelow: 15, expectedMultiplier: 1.5 },
-    { rawRoll: HAZARD_PASS_THRESHOLD - 25, expectedPointsBelow: 25, expectedMultiplier: 2.0 },
-    { rawRoll: HAZARD_PASS_THRESHOLD - 35, expectedPointsBelow: 35, expectedMultiplier: 2.5 },
-    { rawRoll: HAZARD_PASS_THRESHOLD - 45, expectedPointsBelow: 45, expectedMultiplier: 3.0 },
+    { rawRoll: HAZARD_PASS_THRESHOLD - 15, expectedPointsBelow: 15, expectedMultiplier: 2.0 },
+    { rawRoll: HAZARD_PASS_THRESHOLD - 25, expectedPointsBelow: 25, expectedMultiplier: 4.0 },
+    { rawRoll: HAZARD_PASS_THRESHOLD - 35, expectedPointsBelow: 35, expectedMultiplier: 7.0 },
+    { rawRoll: HAZARD_PASS_THRESHOLD - 45, expectedPointsBelow: 45, expectedMultiplier: 10.0 },
   ];
 
   for (const { rawRoll, expectedMultiplier } of cases) {

@@ -42,7 +42,7 @@ test("hireCrew() creates an idle crew member with the candidate's tier/professio
     assignedCraftId: null,
     hiredAt: 100,
     lastCheckedAt: 100,
-    wageAmount: 35, // Blue tier wage
+    wageAmount: 40, // Blue tier wage
     lastPaidAt: 100,
   });
 });

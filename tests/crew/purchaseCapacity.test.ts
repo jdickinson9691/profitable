@@ -10,16 +10,16 @@ test("purchaseCapacity() increments purchasedSlots and deducts the exact base co
 
   assert.equal(result.purchased, true);
   assert.equal(result.updatedCapacity.purchasedSlots, 1);
-  assert.equal(result.updatedWallet.credits, 1000 - 200); // CREW_CAPACITY_EXPANSION_BASE_COST
+  assert.equal(result.updatedWallet.credits, 1000 - 500); // CREW_CAPACITY_EXPANSION_BASE_COST
 });
 
 test("purchaseCapacity() costs more for each successive slot (the multiplier curve)", () => {
   const capacity: CrewCapacity = { playerId: "player-1", baseCapacity: 2, purchasedSlots: 2 };
-  const result = purchaseCapacity(capacity, { playerId: "player-1", credits: 1000 }) as PurchaseCapacitySucceeded;
+  const result = purchaseCapacity(capacity, { playerId: "player-1", credits: 5000 }) as PurchaseCapacitySucceeded;
 
   assert.equal(result.purchased, true);
-  // 200 * 1.5^2 = 450
-  assert.equal(result.updatedWallet.credits, 1000 - 450);
+  // 500 * 2^2 = 2000
+  assert.equal(result.updatedWallet.credits, 5000 - 2000);
 });
 
 test("purchaseCapacity() rejects when the wallet can't cover the cost", () => {

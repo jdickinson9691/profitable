@@ -16,8 +16,12 @@ export const BASE_CREW_CAPACITY = 2;
 // CREW_CAPACITY_EXPANSION_BASE_COST * CREW_CAPACITY_EXPANSION_COST_MULTIPLIER^(N-1),
 // so each additional slot costs more than the last (a real "who do I
 // keep" tension, not a flat/arbitrary cap per §2.4's own reasoning).
-export const CREW_CAPACITY_EXPANSION_BASE_COST = 200;
-export const CREW_CAPACITY_EXPANSION_COST_MULTIPLIER = 1.5;
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): base 500, doubling per slot -- slot 3: 500, slot 4: 1,000,
+// slot 5: 2,000, slot 6: 4,000. Supersedes this constant's original
+// originated-default values (200 / 1.5x).
+export const CREW_CAPACITY_EXPANSION_BASE_COST = 500;
+export const CREW_CAPACITY_EXPANSION_COST_MULTIPLIER = 2.0;
 
 // §2.3 -- one-time hire cost by tier ("better = more valuable/harder to
 // get," same pattern as every other tier system).
@@ -32,14 +36,19 @@ export const CREW_HIRE_COST_BY_TIER: readonly CrewHireCostByTier[] = [
 ];
 
 // §2.6 -- recurring upkeep wage by tier, paid every WAGE_PAYMENT_INTERVAL_HOURS.
+// Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
+// 2026-07-29): doubling per tier throughout, for consistency with the
+// doubling pattern used elsewhere (capacity/scanner cost curves).
+// Supersedes this table's original originated-default Blue-Gold rows
+// (35/55/80/120), which used a gentler, non-doubling curve.
 export const CREW_WAGE_BY_TIER: readonly CrewWageByTier[] = [
   { tier: "Grey", wage: 5 },
   { tier: "White", wage: 10 },
   { tier: "Green", wage: 20 },
-  { tier: "Blue", wage: 35 },
-  { tier: "Purple", wage: 55 },
-  { tier: "Orange", wage: 80 },
-  { tier: "Gold", wage: 120 },
+  { tier: "Blue", wage: 40 },
+  { tier: "Purple", wage: 80 },
+  { tier: "Orange", wage: 160 },
+  { tier: "Gold", wage: 320 },
 ];
 
 // §2.6 -- how often wages are due.

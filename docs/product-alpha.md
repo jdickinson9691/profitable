@@ -25,12 +25,12 @@
 ## 2. Balance Tuning
 *Detail: `profitable-alpha-tuning-values.md`*
 
-- [ ] Load Trading starting values (drift ±2%/unit, floor/ceiling 50-150%, global markup/discount ±10%, fee 5%, listing expiry 72h)
-- [ ] Load Crew starting values (wage table, capacity cost curve, 48h upkeep grace period)
-- [ ] Load Ships/Travel starting values (speed modifier table, 1 unit = 1 hour scaling constant, shipyard pool 3/24h)
-- [ ] Load Scanner starting values (radius table, cost curve, pool 2/48h)
-- [ ] Load Travel Encounters starting values (20% trigger chance, type weights, trade-opportunity range, hazard cost curve)
-- [ ] Load Combat starting values (10% arrival check chance — durability damage % and crew unavailable duration already implemented)
+- [x] Load Trading starting values (drift ±2%/unit, floor/ceiling 50-150%, global markup/discount ±10%, fee 5%, listing expiry 72h) — already matched the doc exactly, no code change needed
+- [x] Load Crew starting values (wage table, capacity cost curve, 48h upkeep grace period) — wage table (Blue-Gold) and capacity cost curve corrected to match the doc; grace period already matched
+- [~] Load Ships/Travel starting values (speed modifier table, 1 unit = 1 hour scaling constant, shipyard pool 3/24h) — speed table (Green-Orange) corrected to match the doc; shipyard pool already matched. **Distance scaling constant NOT changed** — the doc's proposed 1.0 was investigated against real `generateGalaxy()` output and Phase 5's live-browser playtest and found to be an ungrounded guess that would make max-diagonal travel 117+ days; the original 0.01 is the one with real grounding (see `shipsAndTravelConfig.ts`'s comment). Kept as-is; doc should be corrected, not the code.
+- [~] Load Scanner starting values (radius table, cost curve, pool 2/48h) — cost curve and pool size/refresh corrected to match the doc. **Base radius and radius bonus table NOT changed** — the doc's proposed values were derived from the same rejected distance-scaling reasoning above; held pending a real decision (see `shipsAndTravelConfig.ts`'s comment).
+- [x] Load Travel Encounters starting values (20% trigger chance, type weights, trade-opportunity range, hazard cost curve) — trigger chance, type weights, and currency range corrected to match the doc exactly; hazard cost curve's 2 documented endpoints (50/500) are exact, its 3 undocumented middle-band multipliers are an originated completion (see code comment)
+- [x] Load Combat starting values (10% arrival check chance — durability damage % and crew unavailable duration already implemented) — arrival check chance, durability damage %, and crew unavailable duration all already matched the doc exactly, confirmed not re-set
 - [ ] **Validate** (not re-derive) already-locked Refining/Crafting/Galaxy-Planet numbers through actual play
 - [ ] Run a dedicated playtesting pass adjusting all of the above against real content from Section 1
 - [ ] Re-record final tuned values back into `profitable-design-questions.md` once stable, so the design doc stays the source of truth
