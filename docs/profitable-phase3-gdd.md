@@ -2,6 +2,8 @@
 
 Status: **Phase 3 complete and verified** (Agent 1 amendment, Agents 11-15 all delivered; full roster committed). This document remains the historical record of the Phase 3 build; see `CLAUDE.md` for current project status and the next milestone (crew crafters).
 
+**Retroactive correction (2026-07-29):** the same `getTierColor()` boundary gap described in `profitable-mvp-gdd.md`'s correction note also affected `computeAggregateTier()` — used for crafted-item display tier, ship-component tier, and market listing tier (`createListing.ts`) — live since this phase's original implementation. Undetected for the same reason: existing tests used inputs that happened to avoid all six gap boundaries. Fixed alongside the MVP-level fix; see that document's note for full detail.
+
 ---
 
 ## 1. Phase 3 Scope

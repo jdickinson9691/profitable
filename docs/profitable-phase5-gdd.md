@@ -2,6 +2,8 @@
 
 Status: **Phase 5 complete and verified** (Agent 1 amendment, Agents 20-24 all delivered; full roster committed, 397/397 tests passing, Definition of Done confirmed both live and via automated integration test). This document remains the historical record of the Phase 5 build; see `CLAUDE.md` for current project status and the next milestone (the galactic map).
 
+**Retroactive correction (2026-07-29):** the same `getTierColor()` boundary gap affected `deriveShipTier()` specifically severely — a brute-force check of every 1-to-4-component tier combination, accounting for which of the 4 distinct slots (weapon/engine/shield/cargoHold) each tier lands in, found 296 real, buildable ship configurations that would have thrown under the old comparison logic, since `tierMidpoint()`'s values are themselves fractional for 5 of the 7 tiers. Undetected because `deriveShipTier.test.ts`'s existing test cases (uniform 4x-same-tier, a two-component Grey+Gold mix, a single-component install, and zero components) all happen to average to a value inside a tier band rather than in a gap between two bands. Fixed alongside the MVP-level fix; see `profitable-mvp-gdd.md`'s correction note for full detail. This is the most consequential of the three sites, given how commonly asymmetric component builds (the entire point of the Ships design) would trigger it.
+
 ---
 
 ## 1. Phase 5 Scope
