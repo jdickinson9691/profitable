@@ -13,7 +13,7 @@ rolling a candidate's tier, same pattern as `src/galaxy`'s
 - `refreshCrewPool.ts` — `refreshCrewPool()` (§2.3): rolls
   `CREW_POOL_SIZE_PER_PLANET` candidates via the shared tier breakpoint
   table; a tier 6-7 (Orange/Gold) candidate also gets a rolled profession
-  placeholder (see below).
+  from `TIER_6_7_PROFESSIONS` (see below).
 - `hireCrew.ts` — `hireCrew()` (§2.3/§2.4): rejects at capacity or on
   insufficient funds, deducts the tier-scaled hire cost, removes the
   candidate from its pool, creates a live `idle` `CrewMember`.
@@ -71,11 +71,15 @@ here rather than silently made:
   stays a purely informational label on the `CrewMember` for now. Binding
   it to specific recipes is future work once the taxonomy exists, not
   something to invent here.
-- **`refreshCrewPool()`'s rolled profession is a clearly-labeled
-  placeholder** (`"unspecified-profession-N"`), not invented lore — the
-  real taxonomy is an open design question (§2.2's own follow-on note),
-  and this project's convention is to mark a pending value as pending,
-  not guess content for it.
+- **`refreshCrewPool()`'s rolled profession now comes from the real
+  taxonomy**, `TIER_6_7_PROFESSIONS` (`src/data/constants/crewConfig.ts`:
+  Weaponsmith, Engineer, Shield Technician, Cargo Specialist, Artisan) --
+  per the alpha content roster (`docs/profitable-alpha-content-roster.md`
+  §6), which closed §2.2's previously-open taxonomy question. Previously
+  a clearly-labeled placeholder (`"unspecified-profession-N"`); the
+  taxonomy is no longer undecided, so the placeholder is retired. Binding
+  a profession to specific recipes (the "no mechanical effect on craft()
+  yet" point above) remains separate, still-open future work.
 - **`resolveBackgroundCrafting()`'s `backgroundRate` parameter defaults to
   `BACKGROUND_IDLE_OUTPUT_RATE` (currently `null`) but is injectable**,
   mirroring this codebase's existing injectable-with-a-default pattern

@@ -26,14 +26,28 @@ const content = loadContent({
 
 test("the real componentRecipes.json loads through loadShipsContent() with no errors", () => {
   const loaded = loadShipsContent({ componentRecipes: readJson("componentRecipes.json") });
-  assert.equal(loaded.componentRecipes.length, 4);
+  // Alpha content roster (docs/profitable-alpha-content-roster.md §4): 4
+  // recipes per category (16 total), not 1 -- so players can choose a
+  // build direction instead of every ship being identical.
+  assert.equal(loaded.componentRecipes.length, 16);
 });
 
-test("every component category (weapon/engine/shield/cargoHold) has exactly one recipe link, no more, no fewer", () => {
+test("every component category (weapon/engine/shield/cargoHold) has at least one recipe link, and every link's category is valid", () => {
   const loaded = loadShipsContent({ componentRecipes: readJson("componentRecipes.json") });
   const categories = loaded.componentRecipes.map((entry) => entry.category);
   const expected: ComponentCategory[] = ["weapon", "engine", "shield", "cargoHold"];
-  assert.deepEqual([...categories].sort(), [...expected].sort());
+  for (const category of expected) {
+    assert.ok(categories.includes(category), `no componentRecipes entry for category "${category}"`);
+  }
+  for (const category of categories) {
+    assert.ok(expected.includes(category), `unexpected component category "${category}"`);
+  }
+});
+
+test("no component category has a duplicate recipe link (same recipeId linked twice)", () => {
+  const loaded = loadShipsContent({ componentRecipes: readJson("componentRecipes.json") });
+  const recipeIds = loaded.componentRecipes.map((entry) => entry.recipeId);
+  assert.equal(new Set(recipeIds).size, recipeIds.length, "componentRecipes.json has a duplicate recipeId");
 });
 
 test("every componentRecipes.json entry references a real recipe in recipes.json -- no dangling references", () => {

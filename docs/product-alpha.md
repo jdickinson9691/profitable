@@ -11,15 +11,15 @@
 ## 1. Content Authoring
 *Detail: `profitable-alpha-content-roster.md`*
 
-- [ ] Implement 21 resources (9 solid, 6 gas, 6 crystal) with correct per-category quality applicability (gases: no durability; crystals: no purity)
-- [ ] Implement 10 refining recipes
-- [ ] Implement 13 crafting recipes (8 tier 3-5, 5 tier 6-7)
-- [ ] Implement 16 ship component recipes (4 per category: weapon, engine, shield, cargo hold)
-- [ ] Mark 5 starter recipes as known-by-default (no schematic required): 1 general craft + 1 per component category
-- [ ] Generate/place schematics for the remaining 17 recipes into the existing schematic market-pool mechanism
-- [ ] Define the 5 tier 6-7 crew professions (Weaponsmith, Engineer, Shield Technician, Cargo Specialist, Artisan)
-- [ ] Document 4 ship build presets as onboarding reference content (Starter Runner, Hauler, Scout, Skirmisher)
-- [ ] **Decide and lock:** crafted-item aggregate tier formula (recommend: straight average, matching ship tier and market listing tier)
+- [x] Implement 21 resources (9 solid, 6 gas, 6 crystal) with correct per-category quality applicability (gases: no durability; crystals: no purity)
+- [x] Implement 10 refining recipes
+- [x] Implement 13 crafting recipes (8 tier 3-5, 5 tier 6-7)
+- [x] Implement 16 ship component recipes (4 per category: weapon, engine, shield, cargo hold)
+- [x] Mark 5 starter recipes as known-by-default (no schematic required): 1 general craft + 1 per component category
+- [x] Generate/place schematics for the remaining 24 recipes into the existing schematic market-pool mechanism (corrected from this item's original "17" — 29 total crafting/component recipes minus the 5 known-by-default is 24, not 17)
+- [x] Define the 5 tier 6-7 crew professions (Weaponsmith, Engineer, Shield Technician, Cargo Specialist, Artisan)
+- [x] Document 4 ship build presets as onboarding reference content (Starter Runner, Hauler, Scout, Skirmisher)
+- [x] **Decide and lock:** crafted-item aggregate tier formula (recommend: straight average, matching ship tier and market listing tier) — already implemented as a straight average (`src/simulation/aggregateTier.ts`); now formally confirmed as locked, not a stub
 - [ ] **Decide:** schematic tier ↔ acquisition rarity connection (can wait until schematic pool-refresh is implemented)
 
 ## 2. Balance Tuning

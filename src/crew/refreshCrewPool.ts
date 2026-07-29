@@ -3,7 +3,7 @@ import type { CrewCandidate } from "../data/types/crewCandidate.ts";
 import type { RandomFn } from "../data/types/random.ts";
 import { getTierColor } from "../simulation/tierColor.ts";
 import { createSeededRandom, generateRandomSeed } from "../galaxy/seededRandom.ts";
-import { CREW_POOL_SIZE_PER_PLANET } from "../data/constants/crewConfig.ts";
+import { CREW_POOL_SIZE_PER_PLANET, TIER_6_7_PROFESSIONS } from "../data/constants/crewConfig.ts";
 
 // Phase 4 GDD §2.3. Reuses getTierColor() for the tier roll, same pattern
 // as Agent 8's rollPlanetTier() -- never reimplements breakpoint logic.
@@ -12,15 +12,14 @@ function rollCandidateTier(random: RandomFn): ReturnType<typeof getTierColor> {
   return getTierColor(roll);
 }
 
-// A tier 6-7 candidate's profession is rolled, but the actual profession
-// taxonomy is an explicitly open design question (see profession.ts) --
-// this produces a clearly-labeled placeholder identifier, not invented
-// lore/content, matching the same restraint Agent 1's amendment applied
-// to BACKGROUND_IDLE_OUTPUT_RATE.
-const PLACEHOLDER_PROFESSION_COUNT = 3;
-function rollPlaceholderProfession(random: RandomFn): string {
-  const index = Math.floor(random() * PLACEHOLDER_PROFESSION_COUNT) + 1;
-  return `unspecified-profession-${index}`;
+// A tier 6-7 candidate's profession is rolled from the real profession
+// taxonomy (alpha content roster §6, TIER_6_7_PROFESSIONS) -- this used to
+// produce a clearly-labeled placeholder ("unspecified-profession-N") while
+// the taxonomy was still an open design question; that question is now
+// closed, so this rolls a real profession instead.
+function rollProfession(random: RandomFn): string {
+  const index = Math.floor(random() * TIER_6_7_PROFESSIONS.length);
+  return TIER_6_7_PROFESSIONS[index]!;
 }
 
 // Tier 6-7 in the numbered sense (Grey=1 ... Gold=7): Orange and Gold.
@@ -40,7 +39,7 @@ export function refreshCrewPool(planetId: string, seed?: string, now: number = D
   for (let i = 0; i < CREW_POOL_SIZE_PER_PLANET; i++) {
     const tier = rollCandidateTier(random);
     const isSpecializedTier = tier === "Orange" || tier === "Gold";
-    const profession = isSpecializedTier ? rollPlaceholderProfession(random) : null;
+    const profession = isSpecializedTier ? rollProfession(random) : null;
     availableHires.push({
       id: `crew-candidate-${poolSeed}-${i}`,
       tier,

@@ -1,6 +1,18 @@
 [
-  { "recipeId": "weapon-component", "category": "weapon" },
-  { "recipeId": "engine-component", "category": "engine" },
-  { "recipeId": "shield-component", "category": "shield" },
-  { "recipeId": "cargo-hold-component", "category": "cargoHold" }
+  { "recipeId": "pulse-cannon", "category": "weapon" },
+  { "recipeId": "rail-driver", "category": "weapon" },
+  { "recipeId": "plasma-emitter", "category": "weapon" },
+  { "recipeId": "ion-beam-array", "category": "weapon" },
+  { "recipeId": "chemical-thruster", "category": "engine" },
+  { "recipeId": "ion-drive", "category": "engine" },
+  { "recipeId": "fusion-engine", "category": "engine" },
+  { "recipeId": "quantum-thruster", "category": "engine" },
+  { "recipeId": "basic-deflector", "category": "shield" },
+  { "recipeId": "reinforced-barrier", "category": "shield" },
+  { "recipeId": "energy-shield-array", "category": "shield" },
+  { "recipeId": "aegis-field-generator", "category": "shield" },
+  { "recipeId": "standard-cargo-bay", "category": "cargoHold" },
+  { "recipeId": "reinforced-hold", "category": "cargoHold" },
+  { "recipeId": "expanded-freight-bay", "category": "cargoHold" },
+  { "recipeId": "vault-class-container", "category": "cargoHold" }
 ]

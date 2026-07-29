@@ -1,22 +1,31 @@
 [
   {
     "planetType": "Terrestrial",
-    "sellsCheap": ["igneous-ore", "autunite-crystal"],
-    "buysAtPremium": ["hydrogen-gas", "ion-forged-hull-plate"]
+    "sellsCheap": [
+      "igneous-ore",
+      "autunite-crystal",
+      "ferrite-ore",
+      "cobalt-vein",
+      "titanium-shard",
+      "silicate-rock",
+      "quartz-shard",
+      "beryl-crystal"
+    ],
+    "buysAtPremium": ["hydrogen-gas", "helium-3", "ion-forged-hull-plate", "pulse-cannon", "chemical-thruster"]
   },
   {
     "planetType": "SuperEarth",
-    "sellsCheap": ["igneous-ore", "hydrogen-gas", "autunite-crystal"],
-    "buysAtPremium": ["radiant-alloy-bar", "ion-forged-hull-plate"]
+    "sellsCheap": ["igneous-ore", "hydrogen-gas", "autunite-crystal", "ferrite-ore", "helium-3", "quartz-shard"],
+    "buysAtPremium": ["radiant-alloy-bar", "ion-forged-hull-plate", "pulse-cannon", "basic-deflector"]
   },
   {
     "planetType": "Neptunian",
-    "sellsCheap": ["hydrogen-gas", "autunite-crystal"],
-    "buysAtPremium": ["igneous-ore", "radiant-alloy-bar"]
+    "sellsCheap": ["hydrogen-gas", "helium-3", "methane-cloud", "autunite-crystal", "quartz-shard", "selenite-crystal"],
+    "buysAtPremium": ["igneous-ore", "ferrite-ore", "radiant-alloy-bar", "ion-forged-hull-plate"]
   },
   {
     "planetType": "GasGiant",
-    "sellsCheap": ["hydrogen-gas"],
+    "sellsCheap": ["hydrogen-gas", "helium-3", "methane-cloud", "nitrogen-vapor", "argon-mist", "ammonia-gas"],
     "buysAtPremium": ["igneous-ore", "autunite-crystal", "radiant-alloy-bar", "ion-forged-hull-plate"]
   }
 ]

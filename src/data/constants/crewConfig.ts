@@ -64,3 +64,17 @@ export const ELAPSED_TIME_CAP_HOURS = 48;
 // Agent 16 must treat this as "not yet available" rather than defaulting
 // to some guessed fraction.
 export const BACKGROUND_IDLE_OUTPUT_RATE: number | null = null;
+
+// Alpha content roster (docs/profitable-alpha-content-roster.md §6) --
+// closes the tier 6-7 profession taxonomy that profession.ts's own
+// comment left as an explicitly open design question. Mapped one-to-one
+// to the 4 ship component categories plus general (non-component) tier
+// 6-7 crafted goods, replacing refreshCrewPool.ts's placeholder
+// "unspecified-profession-N" identifiers.
+export const TIER_6_7_PROFESSIONS: readonly string[] = [
+  "Weaponsmith",
+  "Engineer",
+  "Shield Technician",
+  "Cargo Specialist",
+  "Artisan",
+];

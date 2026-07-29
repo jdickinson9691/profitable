@@ -115,3 +115,83 @@ and a real output resource (no dangling references), and — the
 contract's own explicit Definition of Done — every component recipe is
 actually craftable end-to-end via the real `craft()` using only existing
 resources.
+
+**Alpha (Content Authoring, docs/profitable-alpha-content-roster.md):**
+turns the verified proof-of-concept content set into an actually-playable
+roster. Every file grew substantially; the 4 old generic Phase-5 component
+placeholders (`weapon-component`/`engine-component`/`shield-component`/
+`cargo-hold-component`, and their one recipe/componentRecipes entry each)
+are **retired**, replaced by 16 named component recipes (4 per category)
+so ships can actually differ by build choice.
+
+- `resources.json`: **60 entries** (was 9) — 21 raw (9 solid/6 gas/6
+  crystal, gas lacking `durability` and crystal lacking `purity` per the
+  existing MVP precedent), 10 refined (1 kept + 9 new, each refined
+  output's `category` set to its own id so category-based recipe-input
+  resolution — see below — never collides with another resource), 13
+  general crafted (1 kept `ion-forged-hull-plate` + 12 new), 16 ship
+  components (all new, `category` = the exact `ComponentCategory` string,
+  same as Phase 5). `itemTier` follows the existing pipeline-depth rule
+  (raw=1, refined=2, first-order-crafted=3); 7 component recipes that
+  consume another *crafted* item (Ion Beam Array, Fusion Engine, Quantum
+  Thruster, Aegis Field Generator, Reinforced Hold, Expanded Freight Bay,
+  Vault-Class Container) are `itemTier: 4`.
+- `refiningRecipes.json`: **10 entries** (was 1) — 1 kept + 9 new, each
+  n:1 (or n:1-from-multiple-resources) purely from raw inputs.
+- `recipes.json`: **29 entries** (was 5) — `ion-forged-hull-plate` stays
+  first (preserving `CraftScene`/`CrewScene`'s `content.recipes[0]`
+  assumption); 12 new general crafting recipes + 16 new component
+  recipes (4 per category), replacing the old 4 generic ones. **Every
+  non-raw input `category` is unique to exactly one resource** (verified
+  by `tests/content/mvpContent.test.ts`'s dedicated test) — necessary
+  because `CraftScene`/`CrewScene`/`ShipAssemblyScene` all resolve a
+  recipe slot's category via `resources.find((r) => r.category ===
+  category)`, a first-match lookup that would silently pick the wrong
+  resource if two ever shared a category.
+- `componentRecipes.json`: **16 entries** (was 4) — 4 per category, no
+  longer "exactly one recipe per category." `ShipAssemblyScene` (see
+  `src/presentation/scenes/ShipAssemblyScene.ts`) was extended alongside
+  this — `findRecipeForCategory()` (singular, `.find()`) became
+  `findRecipesForCategory()` (plural, `.filter()`), and the scene now
+  lists every craftable recipe per component slot instead of only ever
+  reaching the first one.
+- `schematics.json`: **24 entries** (was 1) — **5 recipes are known by
+  default** (no schematic needed): Iron Hull Plate (the one general
+  starter craft) plus the first tier in each component category (Pulse
+  Cannon, Chemical Thruster, Basic Deflector, Standard Cargo Bay), so a
+  new player can craft something immediately. This corrects the content
+  roster doc's own first draft, which inconsistently said 12 recipes were
+  known by default in one place while `docs/product-alpha.md`'s tracked
+  checklist said 5 elsewhere — the checklist is authoritative. The
+  remaining 24 recipes each get one schematic, tiers skewed toward
+  Grey/White/Green (pre-tuning placeholder values, same latitude Agent 14
+  used for base prices).
+- `tradingBasePrices.json`: **60 entries** (was 9) — every resource
+  priced above its own recipe's combined input cost, verified generically
+  by two new tests in `tests/content/tradingContent.test.ts` (one per
+  refining recipe, one per crafting recipe) rather than by hand for a
+  couple of hardcoded ids.
+- `planetMarketPreferences.json`: each Planet Type's `sellsCheap` list
+  expanded to a representative sample of the raw resources it's actually
+  eligible to produce (`PLANET_TYPE_ELIGIBILITY`); `buysAtPremium`
+  expanded to a sample of refined/crafted goods no planet type produces
+  directly, plus raw categories that type can't reach.
+- `src/data/constants/crewConfig.ts` gained `TIER_6_7_PROFESSIONS`
+  (Weaponsmith, Engineer, Shield Technician, Cargo Specialist, Artisan),
+  closing the profession taxonomy `profession.ts`/`refreshCrewPool.ts`
+  had left as an explicit placeholder (`"unspecified-profession-N"`).
+  `refreshCrewPool.ts`'s `rollProfession()` now rolls a real profession
+  for tier 6-7 candidates instead.
+- Ship build presets (Starter Runner, Hauler, Scout, Skirmisher) are
+  documented in `docs/profitable-alpha-content-roster.md` §7 only, per
+  the roster's own "not a new data structure" recommendation — no code
+  change, since alpha's onboarding UI (which would surface these) is a
+  separate, not-yet-built milestone (alpha Section 4).
+
+Validated by the expanded assertions in `tests/content/mvpContent.test.ts`
+and `tests/content/tradingContent.test.ts` (every id referenced across
+*every* recipe/schematic/refining-recipe now resolves, not just index
+0 as before — a real gap in the MVP-era tests that this pass also
+closed) and `tests/content/shipsContent.test.ts`'s updated component
+tests (every category has at least one recipe, no duplicate recipe
+links, still craftable end-to-end via the real `craft()`).

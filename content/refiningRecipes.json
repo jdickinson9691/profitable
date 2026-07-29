@@ -8,5 +8,86 @@
     ],
     "outputResourceId": "radiant-alloy-bar",
     "outputQuantity": 1
+  },
+  {
+    "id": "iron-ingot",
+    "name": "Iron Ingot",
+    "inputs": [{ "resourceId": "ferrite-ore", "quantity": 3 }],
+    "outputResourceId": "iron-ingot",
+    "outputQuantity": 1
+  },
+  {
+    "id": "hardened-alloy-bar",
+    "name": "Hardened Alloy Bar",
+    "inputs": [
+      { "resourceId": "cobalt-vein", "quantity": 2 },
+      { "resourceId": "titanium-shard", "quantity": 1 }
+    ],
+    "outputResourceId": "hardened-alloy-bar",
+    "outputQuantity": 1
+  },
+  {
+    "id": "glass-panel",
+    "name": "Glass Panel",
+    "inputs": [{ "resourceId": "silicate-rock", "quantity": 2 }],
+    "outputResourceId": "glass-panel",
+    "outputQuantity": 1
+  },
+  {
+    "id": "carbon-composite",
+    "name": "Carbon Composite",
+    "inputs": [
+      { "resourceId": "graphite-deposit", "quantity": 2 },
+      { "resourceId": "basalt-chunk", "quantity": 1 }
+    ],
+    "outputResourceId": "carbon-composite",
+    "outputQuantity": 1
+  },
+  {
+    "id": "meteoric-steel-bar",
+    "name": "Meteoric Steel Bar",
+    "inputs": [{ "resourceId": "nickel-iron-fragment", "quantity": 3 }],
+    "outputResourceId": "meteoric-steel-bar",
+    "outputQuantity": 1
+  },
+  {
+    "id": "focusing-lens",
+    "name": "Focusing Lens",
+    "inputs": [
+      { "resourceId": "quartz-shard", "quantity": 2 },
+      { "resourceId": "beryl-crystal", "quantity": 1 }
+    ],
+    "outputResourceId": "focusing-lens",
+    "outputQuantity": 1
+  },
+  {
+    "id": "enriched-fuel-rod",
+    "name": "Enriched Fuel Rod",
+    "inputs": [
+      { "resourceId": "uranium-ore", "quantity": 2 },
+      { "resourceId": "zircon-fragment", "quantity": 1 }
+    ],
+    "outputResourceId": "enriched-fuel-rod",
+    "outputQuantity": 1
+  },
+  {
+    "id": "fusion-gas-mix",
+    "name": "Fusion Gas Mix",
+    "inputs": [
+      { "resourceId": "helium-3", "quantity": 2 },
+      { "resourceId": "hydrogen-gas", "quantity": 1 }
+    ],
+    "outputResourceId": "fusion-gas-mix",
+    "outputQuantity": 1
+  },
+  {
+    "id": "polished-crystal-lattice",
+    "name": "Polished Crystal Lattice",
+    "inputs": [
+      { "resourceId": "selenite-crystal", "quantity": 2 },
+      { "resourceId": "corundum-crystal", "quantity": 1 }
+    ],
+    "outputResourceId": "polished-crystal-lattice",
+    "outputQuantity": 1
   }
 ]

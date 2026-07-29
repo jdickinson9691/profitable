@@ -56,10 +56,17 @@ export class ShipAssemblyScene extends Phaser.Scene {
     return content.resources.find((resource) => resource.category === category);
   }
 
-  private findRecipeForCategory(category: ComponentCategory): Recipe | undefined {
-    const link = getShipsContent().componentRecipes.find((entry) => entry.category === category);
-    if (!link) return undefined;
-    return content.recipes.find((recipe) => recipe.id === link.recipeId);
+  // Alpha content roster (docs/profitable-alpha-content-roster.md §4):
+  // returns every recipe linked to this category, not just the first --
+  // the roster deliberately authors 4 recipes per component category
+  // ("multiple recipes per category let players actually choose a build
+  // direction"), so resolving only the first match would make the other
+  // 3 permanently uncraftable through this scene.
+  private findRecipesForCategory(category: ComponentCategory): Recipe[] {
+    const links = getShipsContent().componentRecipes.filter((entry) => entry.category === category);
+    return links
+      .map((link) => content.recipes.find((recipe) => recipe.id === link.recipeId))
+      .filter((recipe): recipe is Recipe => recipe !== undefined);
   }
 
   private hasEnoughInputs(recipe: Recipe): boolean {
@@ -122,19 +129,22 @@ export class ShipAssemblyScene extends Phaser.Scene {
       const installed = ship.components[category];
       const label = installed ? `${category}: ${installed.tier} tier` : `${category}: (empty)`;
       this.add.text(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+      y += 18;
 
-      const recipe = this.findRecipeForCategory(category);
-      const canCraft = recipe !== undefined && this.hasEnoughInputs(recipe);
-      const craftBtn = this.add.text(420, y, "> Craft & Install", {
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: canCraft ? "#4caf50" : "#555555",
-      });
-      if (canCraft) {
-        craftBtn.setInteractive({ useHandCursor: true });
-        craftBtn.on("pointerdown", () => this.onCraftAndInstall(ship, category, recipe!));
+      for (const recipe of this.findRecipesForCategory(category)) {
+        const canCraft = this.hasEnoughInputs(recipe);
+        this.add.text(48, y, recipe.name, { fontFamily: "monospace", fontSize: "12px", color: "#aaaaaa" });
+        const craftBtn = this.add.text(420, y, "> Craft & Install", {
+          fontFamily: "monospace",
+          fontSize: "12px",
+          color: canCraft ? "#4caf50" : "#555555",
+        });
+        if (canCraft) {
+          craftBtn.setInteractive({ useHandCursor: true });
+          craftBtn.on("pointerdown", () => this.onCraftAndInstall(ship, category, recipe));
+        }
+        y += 18;
       }
-      y += 20;
     }
     return y;
   }

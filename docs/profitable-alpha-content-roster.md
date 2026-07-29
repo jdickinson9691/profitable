@@ -101,14 +101,20 @@ Tiers 6-7 (specialized crafter, higher threshold):
 **Cargo Holds:**
 | Output | Inputs | Threshold |
 |---|---|---|
-| Standard Cargo Bay | 2 Basic Cargo Crate | durability 30+ |
+| Standard Cargo Bay | 2 Glass Panel + 1 Iron Ingot | durability 30+ |
 | Reinforced Hold | 2 Reinforced Panel + 1 Carbon Composite | durability 55+ |
 | Expanded Freight Bay | 3 Exotic Composite Hull | durability 75+ |
 | Vault-Class Container | 2 Precision Alloy Frame + 1 Meteoric Steel Bar | durability 85+ |
 
 ## 5. Schematics
 
-**Recommendation:** the 8 tier 3-5 crafting recipes and the first tier in each component category (Iron Hull Plate-equivalent, Pulse Cannon, Chemical Thruster, Basic Deflector, Standard Cargo Bay) are **known by default** — no schematic required, so a new player can craft *something* immediately without needing to find anything first. Every other recipe (the 5 tier 6-7 crafting recipes + the remaining 12 component recipes = 17 total) requires discovering its schematic from a planet's market pool, per the existing schematic mechanic — no new schematic-specific content needed beyond mapping one schematic per recipe.
+**Correction during implementation:** this section's original wording ("the 8 tier 3-5 crafting recipes and the first tier in each component category... are known by default") contradicted `product-alpha.md`'s own checklist item ("Mark **5** starter recipes as known-by-default: 1 general craft + 1 per component category"). The checklist is the authoritative source (it's the tracked list itself), so implementation follows **5** known-by-default, not 12.
+
+**Implemented:** exactly 5 recipes are known by default — **Iron Hull Plate** (the one general craft) plus the first tier in each component category (**Pulse Cannon, Chemical Thruster, Basic Deflector, Standard Cargo Bay**) — no schematic required, so a new player can craft *something* immediately without needing to find anything first. Every other recipe (24 total: the remaining 7 tier 3-5 general recipes + the 5 tier 6-7 general recipes + the remaining 12 component recipes) requires discovering its schematic from a planet's market pool, per the existing schematic mechanic — see `content/schematics.json`.
+
+**Second correction during implementation:** Standard Cargo Bay originally consumed 2 Basic Cargo Crate (itself a crafted item), which would have made a "known by default, craft immediately" starter recipe depend on crafting a prerequisite item first — defeating the point of being a starter. Changed to consume Glass Panel + Iron Ingot directly (both refined-tier), matching the other three starter component recipes' shape (refined inputs only, no crafted-item prerequisite). Basic Cargo Crate remains a valid standalone recipe in Section 3's table, just no longer feeds Standard Cargo Bay.
+
+**Also worth noting:** despite the crafting tables above being labeled "Tiers 3-5" and "Tiers 6-7", every general crafting recipe's *computed* `itemTier` (raw=1, refined=2, first-order-crafted=3, per `content/README.md`'s pipeline-depth rule) lands at 3, since none of them consume another crafted item as an input — only `itemTier` reaches 4, for the four component recipes (Ion Beam Array, Fusion Engine, Quantum Thruster, Aegis Field Generator, Reinforced Hold, Expanded Freight Bay, Vault-Class Container) that consume another crafted item. The "3-5"/"6-7" labels in this doc describe intended *crafting difficulty/threshold band*, not the `itemTier` pipeline-depth field — two different concepts that happen to share the word "tier."
 
 ## 6. Tier 6-7 Crew Professions (5)
 

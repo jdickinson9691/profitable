@@ -16,9 +16,9 @@ test("the real trading content files load through loadTradingContent() with no e
     planetMarketPreferences: readJson("planetMarketPreferences.json"),
   });
 
-  // 5 MVP items + 4 Phase 5 ship component outputs -- see
-  // content/README.md's Phase 5 section.
-  assert.equal(loaded.tradingBasePrices.length, 9);
+  // Alpha content roster: 60 total resources, each with a base price --
+  // see content/README.md's Alpha Content Roster section.
+  assert.equal(loaded.tradingBasePrices.length, 60);
   assert.equal(loaded.planetMarketPreferences.length, 4);
 });
 
@@ -43,6 +43,48 @@ test("base prices are internally consistent: each output tier costs more than it
   // Ion-Forged Hull Plate crafts from 1x Radiant Alloy Bar + 1x Hydrogen Gas.
   const hullPlateInputCost = price("radiant-alloy-bar") + price("hydrogen-gas");
   assert.ok(price("ion-forged-hull-plate") > hullPlateInputCost);
+});
+
+test("alpha content roster: every refining recipe's output costs more than its inputs combined", () => {
+  const basePrices = readJson("tradingBasePrices.json") as Array<{ itemId: string; basePrice: number }>;
+  const price = (id: string) => basePrices.find((p) => p.itemId === id)?.basePrice ?? 0;
+  const refiningRecipes = readJson("refiningRecipes.json") as Array<{
+    id: string;
+    inputs: Array<{ resourceId: string; quantity: number }>;
+    outputResourceId: string;
+  }>;
+
+  for (const recipe of refiningRecipes) {
+    const inputCost = recipe.inputs.reduce((sum, input) => sum + price(input.resourceId) * input.quantity, 0);
+    assert.ok(
+      price(recipe.outputResourceId) > inputCost,
+      `refining recipe "${recipe.id}": output price ${price(recipe.outputResourceId)} does not exceed input cost ${inputCost}`,
+    );
+  }
+});
+
+test("alpha content roster: every crafting recipe's output costs more than its inputs combined", () => {
+  const basePrices = readJson("tradingBasePrices.json") as Array<{ itemId: string; basePrice: number }>;
+  const price = (id: string) => basePrices.find((p) => p.itemId === id)?.basePrice ?? 0;
+  const resources = readJson("resources.json") as Array<{ id: string; category: string }>;
+  const recipes = readJson("recipes.json") as Array<{
+    id: string;
+    inputs: Array<{ category: string; quantity: number }>;
+    outputResourceId: string;
+  }>;
+  const resourceForCategory = (category: string) => resources.find((r) => r.category === category);
+
+  for (const recipe of recipes) {
+    const inputCost = recipe.inputs.reduce((sum, input) => {
+      const resource = resourceForCategory(input.category);
+      assert.ok(resource, `recipe "${recipe.id}": no resource for category "${input.category}"`);
+      return sum + price(resource!.id) * input.quantity;
+    }, 0);
+    assert.ok(
+      price(recipe.outputResourceId) > inputCost,
+      `recipe "${recipe.id}": output price ${price(recipe.outputResourceId)} does not exceed input cost ${inputCost}`,
+    );
+  }
 });
 
 test("planet market preferences reference only real resource ids -- no dangling references", () => {

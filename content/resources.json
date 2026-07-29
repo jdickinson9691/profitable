@@ -39,6 +39,132 @@
     "itemTier": 1
   },
   {
+    "id": "ferrite-ore",
+    "name": "Ferrite Ore",
+    "category": "ferrous solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "cobalt-vein",
+    "name": "Cobalt Vein",
+    "category": "cobalt solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "titanium-shard",
+    "name": "Titanium Shard",
+    "category": "titanium solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "graphite-deposit",
+    "name": "Graphite Deposit",
+    "category": "carbon solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "silicate-rock",
+    "name": "Silicate Rock",
+    "category": "silicate solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "uranium-ore",
+    "name": "Uranium Ore",
+    "category": "radioactive solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "nickel-iron-fragment",
+    "name": "Nickel-Iron Fragment",
+    "category": "metallic solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "basalt-chunk",
+    "name": "Basalt Chunk",
+    "category": "volcanic solid",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "helium-3",
+    "name": "Helium-3",
+    "category": "noble gas",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": false, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "methane-cloud",
+    "name": "Methane Cloud",
+    "category": "hydrocarbon gas",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": false, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "nitrogen-vapor",
+    "name": "Nitrogen Vapor",
+    "category": "inert gas",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": false, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "argon-mist",
+    "name": "Argon Mist",
+    "category": "trace gas",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": false, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "ammonia-gas",
+    "name": "Ammonia Gas",
+    "category": "reactive gas",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": false, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "quartz-shard",
+    "name": "Quartz Shard",
+    "category": "silicate crystal",
+    "applicableQualities": { "purity": false, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "beryl-crystal",
+    "name": "Beryl Crystal",
+    "category": "beryllium crystal",
+    "applicableQualities": { "purity": false, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "selenite-crystal",
+    "name": "Selenite Crystal",
+    "category": "mineral crystal",
+    "applicableQualities": { "purity": false, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "zircon-fragment",
+    "name": "Zircon Fragment",
+    "category": "zirconium crystal",
+    "applicableQualities": { "purity": false, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
+    "id": "corundum-crystal",
+    "name": "Corundum Crystal",
+    "category": "corundum crystal",
+    "applicableQualities": { "purity": false, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 1
+  },
+  {
     "id": "radiant-alloy-bar",
     "name": "Radiant Alloy Bar",
     "category": "refined-metal",
@@ -49,6 +175,69 @@
       "durability": true,
       "rarity": true
     },
+    "itemTier": 2
+  },
+  {
+    "id": "iron-ingot",
+    "name": "Iron Ingot",
+    "category": "iron-ingot",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "hardened-alloy-bar",
+    "name": "Hardened Alloy Bar",
+    "category": "hardened-alloy-bar",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "glass-panel",
+    "name": "Glass Panel",
+    "category": "glass-panel",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "carbon-composite",
+    "name": "Carbon Composite",
+    "category": "carbon-composite",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "meteoric-steel-bar",
+    "name": "Meteoric Steel Bar",
+    "category": "meteoric-steel-bar",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "focusing-lens",
+    "name": "Focusing Lens",
+    "category": "focusing-lens",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "enriched-fuel-rod",
+    "name": "Enriched Fuel Rod",
+    "category": "enriched-fuel-rod",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "fusion-gas-mix",
+    "name": "Fusion Gas Mix",
+    "category": "fusion-gas-mix",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 2
+  },
+  {
+    "id": "polished-crystal-lattice",
+    "name": "Polished Crystal Lattice",
+    "category": "polished-crystal-lattice",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
     "itemTier": 2
   },
   {
@@ -65,55 +254,199 @@
     "itemTier": 3
   },
   {
-    "id": "weapon-component",
-    "name": "Weapon Component",
+    "id": "iron-hull-plate",
+    "name": "Iron Hull Plate",
+    "category": "iron-hull-plate",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "reinforced-panel",
+    "name": "Reinforced Panel",
+    "category": "reinforced-panel",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "basic-cargo-crate",
+    "name": "Basic Cargo Crate",
+    "category": "basic-cargo-crate",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "standard-toolkit",
+    "name": "Standard Toolkit",
+    "category": "standard-toolkit",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "simple-circuit-board",
+    "name": "Simple Circuit Board",
+    "category": "simple-circuit-board",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "fuel-canister",
+    "name": "Fuel Canister",
+    "category": "fuel-canister",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "basic-power-cell",
+    "name": "Basic Power Cell",
+    "category": "basic-power-cell",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "precision-alloy-frame",
+    "name": "Precision Alloy Frame",
+    "category": "precision-alloy-frame",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "master-crystal-array",
+    "name": "Master Crystal Array",
+    "category": "master-crystal-array",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "high-yield-fuel-core",
+    "name": "High-Yield Fuel Core",
+    "category": "high-yield-fuel-core",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "exotic-composite-hull",
+    "name": "Exotic Composite Hull",
+    "category": "exotic-composite-hull",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "superconductor-coil",
+    "name": "Superconductor Coil",
+    "category": "superconductor-coil",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "pulse-cannon",
+    "name": "Pulse Cannon",
     "category": "weapon",
-    "applicableQualities": {
-      "purity": true,
-      "density": true,
-      "potency": true,
-      "durability": true,
-      "rarity": true
-    },
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
     "itemTier": 3
   },
   {
-    "id": "engine-component",
-    "name": "Engine Component",
+    "id": "rail-driver",
+    "name": "Rail Driver",
+    "category": "weapon",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "plasma-emitter",
+    "name": "Plasma Emitter",
+    "category": "weapon",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "ion-beam-array",
+    "name": "Ion Beam Array",
+    "category": "weapon",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "chemical-thruster",
+    "name": "Chemical Thruster",
     "category": "engine",
-    "applicableQualities": {
-      "purity": true,
-      "density": true,
-      "potency": true,
-      "durability": true,
-      "rarity": true
-    },
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
     "itemTier": 3
   },
   {
-    "id": "shield-component",
-    "name": "Shield Component",
+    "id": "ion-drive",
+    "name": "Ion Drive",
+    "category": "engine",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "fusion-engine",
+    "name": "Fusion Engine",
+    "category": "engine",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "quantum-thruster",
+    "name": "Quantum Thruster",
+    "category": "engine",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "basic-deflector",
+    "name": "Basic Deflector",
     "category": "shield",
-    "applicableQualities": {
-      "purity": true,
-      "density": true,
-      "potency": true,
-      "durability": true,
-      "rarity": true
-    },
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
     "itemTier": 3
   },
   {
-    "id": "cargo-hold-component",
-    "name": "Cargo Hold Component",
-    "category": "cargoHold",
-    "applicableQualities": {
-      "purity": true,
-      "density": true,
-      "potency": true,
-      "durability": true,
-      "rarity": true
-    },
+    "id": "reinforced-barrier",
+    "name": "Reinforced Barrier",
+    "category": "shield",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
     "itemTier": 3
+  },
+  {
+    "id": "energy-shield-array",
+    "name": "Energy Shield Array",
+    "category": "shield",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "aegis-field-generator",
+    "name": "Aegis Field Generator",
+    "category": "shield",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "standard-cargo-bay",
+    "name": "Standard Cargo Bay",
+    "category": "cargoHold",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 3
+  },
+  {
+    "id": "reinforced-hold",
+    "name": "Reinforced Hold",
+    "category": "cargoHold",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "expanded-freight-bay",
+    "name": "Expanded Freight Bay",
+    "category": "cargoHold",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
+  },
+  {
+    "id": "vault-class-container",
+    "name": "Vault-Class Container",
+    "category": "cargoHold",
+    "applicableQualities": { "purity": true, "density": true, "potency": true, "durability": true, "rarity": true },
+    "itemTier": 4
   }
 ]

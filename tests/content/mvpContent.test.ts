@@ -19,13 +19,15 @@ test("the real content/ files load through loadContent() with no errors", () => 
     planets: readJson("planets.json"),
   });
 
-  // 5 MVP resources + 4 Phase 5 ship component outputs (weapon/engine/
-  // shield/cargoHold); 1 MVP recipe + 4 Phase 5 component recipes -- see
-  // content/README.md's Phase 5 section.
-  assert.equal(loaded.resources.length, 9);
-  assert.equal(loaded.recipes.length, 5);
-  assert.equal(loaded.refiningRecipes.length, 1);
-  assert.equal(loaded.schematics.length, 1);
+  // Alpha content roster (docs/profitable-alpha-content-roster.md): 21 raw
+  // + 10 refined + 13 general-crafted + 16 ship-component resources; 13
+  // general crafting recipes + 16 component recipes; 10 refining recipes;
+  // 24 schematics (29 recipes minus the 5 known-by-default starters) --
+  // see content/README.md's Alpha Content Roster section.
+  assert.equal(loaded.resources.length, 60);
+  assert.equal(loaded.recipes.length, 29);
+  assert.equal(loaded.refiningRecipes.length, 10);
+  assert.equal(loaded.schematics.length, 24);
   assert.equal(loaded.planets.length, 1);
 });
 
@@ -85,27 +87,80 @@ test("the schematic is neither Grey nor Gold, so ceiling-raise and forgiveness a
 });
 
 test("every id referenced across content files resolves to a real entry", () => {
-  const resources = readJson("resources.json") as Array<{ id: string }>;
+  const resources = readJson("resources.json") as Array<{ id: string; category: string }>;
   const resourceIds = new Set(resources.map((r) => r.id));
   const planets = readJson("planets.json") as Array<{ producibleResourceIds: string[] }>;
   const refiningRecipes = readJson("refiningRecipes.json") as Array<{
+    id: string;
     inputs: Array<{ resourceId: string }>;
     outputResourceId: string;
   }>;
-  const recipes = readJson("recipes.json") as Array<{ outputResourceId: string; id: string }>;
+  const recipes = readJson("recipes.json") as Array<{
+    id: string;
+    outputResourceId: string;
+    inputs: Array<{ category: string }>;
+  }>;
   const schematics = readJson("schematics.json") as Array<{ recipeId: string }>;
   const recipeIds = new Set(recipes.map((r) => r.id));
 
-  for (const id of planets[0]?.producibleResourceIds ?? []) {
-    assert.ok(resourceIds.has(id), `planet references unknown resource id "${id}"`);
+  // Alpha content roster: checked across every entry, not just index 0 --
+  // with 10 refining recipes, 29 crafting recipes, and 24 schematics now
+  // in real content (vs. the MVP's original 1 each), only checking index
+  // 0 would leave the other 9/28/23 entries structurally unverified.
+  for (const planet of planets) {
+    for (const id of planet.producibleResourceIds) {
+      assert.ok(resourceIds.has(id), `planet "${planet.producibleResourceIds}" references unknown resource id "${id}"`);
+    }
   }
-  for (const input of refiningRecipes[0]?.inputs ?? []) {
-    assert.ok(
-      resourceIds.has(input.resourceId),
-      `refining recipe references unknown resource id "${input.resourceId}"`,
+  for (const recipe of refiningRecipes) {
+    for (const input of recipe.inputs) {
+      assert.ok(
+        resourceIds.has(input.resourceId),
+        `refining recipe "${recipe.id}" references unknown resource id "${input.resourceId}"`,
+      );
+    }
+    assert.ok(resourceIds.has(recipe.outputResourceId), `refining recipe "${recipe.id}" outputs unknown resource id`);
+  }
+  for (const recipe of recipes) {
+    assert.ok(resourceIds.has(recipe.outputResourceId), `recipe "${recipe.id}" outputs unknown resource id`);
+  }
+  for (const schematic of schematics) {
+    assert.ok(recipeIds.has(schematic.recipeId), `schematic references unknown recipe id "${schematic.recipeId}"`);
+  }
+});
+
+test("every crafting recipe's input category resolves to exactly one resource (CraftScene/CrewScene/ShipAssemblyScene resolve by first-match)", () => {
+  // CraftScene.resolveSlotResource() et al. resolve a recipe input's
+  // category via `resources.find((r) => r.category === category)` -- the
+  // first match wins. If two different resources ever shared a non-raw
+  // category, a recipe naming that category would silently resolve to
+  // whichever resource happens to sort first, never the other one.
+  const resources = readJson("resources.json") as Array<{ id: string; category: string }>;
+  const recipes = readJson("recipes.json") as Array<{ id: string; inputs: Array<{ category: string }> }>;
+
+  const categoryCounts = new Map<string, number>();
+  for (const resource of resources) {
+    categoryCounts.set(resource.category, (categoryCounts.get(resource.category) ?? 0) + 1);
+  }
+
+  const referencedCategories = new Set<string>();
+  for (const recipe of recipes) {
+    for (const input of recipe.inputs) referencedCategories.add(input.category);
+  }
+
+  for (const category of referencedCategories) {
+    const count = categoryCounts.get(category) ?? 0;
+    assert.ok(count > 0, `recipe input category "${category}" matches no resource`);
+    assert.equal(
+      count,
+      1,
+      `recipe input category "${category}" matches ${count} resources -- .find()-based resolution would silently pick only the first`,
     );
   }
-  assert.ok(resourceIds.has(refiningRecipes[0]?.outputResourceId ?? ""));
-  assert.ok(resourceIds.has(recipes[0]?.outputResourceId ?? ""));
-  assert.ok(recipeIds.has(schematics[0]?.recipeId ?? ""));
+});
+
+test("every componentRecipes.json category is unique enough that ShipAssemblyScene shows every recipe (no two recipes with the same id linked twice)", () => {
+  const componentRecipes = readJson("componentRecipes.json") as Array<{ recipeId: string; category: string }>;
+  const recipeIds = componentRecipes.map((entry) => entry.recipeId);
+  assert.equal(new Set(recipeIds).size, recipeIds.length);
 });
