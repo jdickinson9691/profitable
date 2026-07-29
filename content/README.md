@@ -195,3 +195,22 @@ and `tests/content/tradingContent.test.ts` (every id referenced across
 closed) and `tests/content/shipsContent.test.ts`'s updated component
 tests (every category has at least one recipe, no duplicate recipe
 links, still craftable end-to-end via the real `craft()`).
+
+**End-to-end craftability spot-check** (`tests/content/alphaContentSpotCheck.test.ts`):
+runs one refining recipe, one tier 3-5 crafting recipe, one tier 6-7
+crafting recipe, one component recipe, and a full raw→refined→crafted
+chain through the real `refine()`/`craft()` with real (`rollQuality()`)
+input rolls — not schema validation, and not the synthetic
+`tests/fixtures/*.ts` resources every other simulation-core test uses.
+Confirms threshold-penalty engagement with exact hand-derived multiplier
+math (e.g. Reinforced Panel: 76 potency above threshold vs. 53 with the
+same inputs 25 points below — an exact `0.70` multiplier match, not just
+"lower"), confirms 41+-points-below rejection, and confirms derived tier
+never ranks better than a worse-input run. Found and fixed a real,
+pre-existing bug this way: `getTierColor()`'s integer-only breakpoints
+(`value <= max`) left a gap at every tier boundary for non-integer
+inputs (e.g. 85.2, between Blue's max=85 and Purple's min=86) —
+`computeAggregateTier()`/`refine()`'s `outputTier` both average 5
+already-rounded integers, which is fractional 4 times out of 5, so this
+wasn't a rare edge case. Fixed in `src/simulation/tierColor.ts`
+(`value < max + 1`); regression-tested in `tests/simulation/tierColor.test.ts`.

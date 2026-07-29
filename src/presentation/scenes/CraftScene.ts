@@ -5,6 +5,7 @@ import { content, getInventory, setInventory } from "../gameState.ts";
 import { consume, addBatch, totalQuantity } from "../inventory.ts";
 import type { InventoryBatch } from "../inventory.ts";
 import { craft } from "../../simulation/craft.ts";
+import { resolveSchematicTier } from "../../simulation/schematicTier.ts";
 import { formatQualityRoll, formatQualityLabel, describeCraftResult } from "../display.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
@@ -24,6 +25,7 @@ export class CraftScene extends Phaser.Scene {
 
     const recipe = content.recipes[0];
     const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
+    const schematicTier = resolveSchematicTier(schematic);
 
     this.add.text(16, 64, `Craft — ${recipe?.name ?? "Ion-Forged Hull Plate"}`, {
       fontFamily: "monospace",
@@ -31,11 +33,19 @@ export class CraftScene extends Phaser.Scene {
       color: "#ffffff",
     });
 
-    this.add.text(16, 100, `Schematic tier: ${schematic?.tier ?? "?"}`, {
-      fontFamily: "monospace",
-      fontSize: "16px",
-      color: "#ffd700",
-    });
+    // Known-by-default recipes (docs/profitable-alpha-content-roster.md
+    // §5) have no owned Schematic entity at all -- resolveSchematicTier()
+    // resolves that to Grey (no bonus), not a blocked/error state.
+    this.add.text(
+      16,
+      100,
+      `Schematic tier: ${schematicTier}${schematic ? "" : " (no schematic owned -- Grey-equivalent, no bonus)"}`,
+      {
+        fontFamily: "monospace",
+        fontSize: "16px",
+        color: "#ffd700",
+      },
+    );
 
     this.statusText = this.add.text(16, 130, "", {
       fontFamily: "monospace",
@@ -108,10 +118,15 @@ export class CraftScene extends Phaser.Scene {
   private doCraft(): void {
     const recipe = content.recipes[0];
     const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
-    if (!recipe || !schematic || !this.hasEnoughInputs()) {
+    // A missing schematic is not a blocking condition -- known-by-default
+    // recipes have none by design (resolveSchematicTier() resolves that
+    // to Grey, the correct no-bonus default). Only missing inputs/recipe
+    // actually block a craft attempt.
+    if (!recipe || !this.hasEnoughInputs()) {
       this.resultText?.setText("Not enough materials gathered/refined yet.");
       return;
     }
+    const schematicTier = resolveSchematicTier(schematic);
 
     let inventory = getInventory();
     const inputs: ResourceInstance[] = [];
@@ -128,7 +143,7 @@ export class CraftScene extends Phaser.Scene {
       }
     }
 
-    const result = craft(inputs, recipe, schematic.tier, this.selectedCrafterTier);
+    const result = craft(inputs, recipe, schematicTier, this.selectedCrafterTier);
 
     if (!result.accepted) {
       // A rejected craft never happened -- give the consumed materials

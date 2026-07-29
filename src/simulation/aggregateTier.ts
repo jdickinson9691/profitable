@@ -4,8 +4,12 @@ import { QUALITIES } from "../data/types/quality.ts";
 import { getTierColor } from "./tierColor.ts";
 
 // GDD §3.1: tiers 3-7 (crafted items) aggregate the 5 qualities into one
-// overall tier -- "exact aggregation formula is post-MVP, stub with a
-// straight average for now." Originally implemented only in
+// overall tier via a straight average -- originally shipped as a "post-MVP,
+// stub for now" placeholder, formally locked 2026-07-29 during alpha
+// content authoring (profitable-design-questions.md's Resources & 5
+// Qualities section) with no formula change, since this is the same
+// straight-average-to-tier formula ship tier and market listing tier
+// already reused from this function. Originally implemented only in
 // src/presentation/display.ts (a display concern, per the GDD's own
 // wording); moved here for Phase 3 because Listing.marketTier (GDD §2.4)
 // needs the identical formula and src/trading (Agent 11) must not import

@@ -2,6 +2,8 @@
 
 Status: MVP scope locked. All Must-Answer-for-MVP questions resolved (see `docs/profitable-design-questions.md`). This document defines what gets built, in what order, and which AI agents build it.
 
+**Retroactive correction (2026-07-29):** `getTierColor()`'s boundary comparison (`value <= max`) had a gap at every tier boundary — a fractional quality value landing strictly between two adjacent integer breakpoints (e.g., 85.2, between Blue's max=85 and Purple's min=86) would throw a `RangeError` instead of resolving to the lower tier. This affected `refine()`'s output tier calculation, live in shipped code since the original MVP implementation (commit `7ba2917`, July 25). It was never caught by MVP verification because `refine.test.ts`'s hand-calculated regression cases used specific numbers that happened to avoid all six gap boundaries — not because the formula was exercised against real boundary cases. Found and fixed during alpha content authoring (see `docs/profitable-alpha-content-roster.md` and the `getTierColor` regression test in `tests/simulation/tierColor.test.ts`). No MVP milestone claim is retracted — the loop worked correctly for every input actually tested — but the verification's blind spot (narrow/hand-picked test inputs rather than boundary-inclusive coverage) is now documented rather than silently absorbed.
+
 ---
 
 ## 1. Vision

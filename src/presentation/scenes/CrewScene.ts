@@ -17,6 +17,7 @@ import {
 import { hireCrew } from "../../crew/hireCrew.ts";
 import { assignToCraft } from "../../crew/assignToCraft.ts";
 import { resolveBackgroundCrafting } from "../../crew/resolveBackgroundCrafting.ts";
+import { resolveSchematicTier } from "../../simulation/schematicTier.ts";
 import { payUpkeep } from "../../crew/payUpkeep.ts";
 import { checkAttrition } from "../../crew/checkAttrition.ts";
 import { dismissCrew } from "../../crew/dismissCrew.ts";
@@ -81,7 +82,10 @@ export class CrewScene extends Phaser.Scene {
   private buildCraftAction(id: string): CraftAction | null {
     const recipe = content.recipes[0];
     const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
-    if (!recipe || !schematic || !this.hasEnoughInputs()) return null;
+    // A missing schematic doesn't block assignment -- known-by-default
+    // recipes have none by design; resolveSchematicTier() below resolves
+    // that to Grey (no bonus), the correct default, not an error state.
+    if (!recipe || !this.hasEnoughInputs()) return null;
 
     let inventory = getInventory();
     const inputs: ResourceInstance[] = [];
@@ -96,7 +100,7 @@ export class CrewScene extends Phaser.Scene {
     }
     setInventory(inventory);
 
-    return { id, inputs, recipe, schematicTier: schematic.tier };
+    return { id, inputs, recipe, schematicTier: resolveSchematicTier(schematic) };
   }
 
   private redraw(): void {

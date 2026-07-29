@@ -74,7 +74,7 @@ Resources, recipes, qualities, and every tier/formula table are defined in **con
 - Qualities **persist at every item tier** (raw → refined → crafted, tiers 1–7) — no conversion into a separate stat system, no relabeling.
 - **Color display differs by tier band:**
   - **Tiers 1–2 (raw/refined):** each of the 5 qualities displays its **own individual color tier**.
-  - **Tiers 3–7 (crafted):** the 5 qualities **aggregate into a single overall color tier** (exact aggregation formula is post-MVP — stub with a straight average for now), used for at-a-glance rarity and to help drive sell value.
+  - **Tiers 3–7 (crafted):** the 5 qualities **aggregate into a single overall color tier** via a **straight average** (formally locked 2026-07-29, see `profitable-design-questions.md`'s Resources & 5 Qualities section — matches ship tier and market listing tier, which already used this formula), used for at-a-glance rarity and to help drive sell value.
 
 ### 3.2 Refining Formula
 
