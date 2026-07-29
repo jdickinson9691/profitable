@@ -12,13 +12,13 @@ This is the root reference for Claude Code (or any agent) working in this reposi
 
 **This is a specific implementation for one game, not a reusable engine/framework.** Single-player for the initial build; multiplayer (shared economy or otherwise) is a planned future evolution, not in current scope.
 
-**Current phase: Combat** — complete and verified (Agent 29 confirmation, `profitable-combat-gdd.md` Section 6). Travel Encounters (Non-Combat), Scanner/Probe, and Combat are all complete and verified — see `profitable-travel-encounters-gdd.md`, `profitable-scanner-gdd.md`, and `profitable-combat-gdd.md`. Combat introduced this codebase's first pending/deferred-resolution mechanic (a combat encounter is detected and reported before it resolves, waiting on an explicit player attack/flee choice) — read GDD Section 1 before touching this milestone. Multiplayer is next.
+**Current phase: Alpha** — all four deferred-gaps design work is complete (Travel Encounters, Scanner/Probe, Combat all implemented and verified; Multiplayer's design is fully resolved but its implementation is deliberately deferred until the project moves toward being an app — see `profitable-design-questions.md`'s Multiplayer section). The project has pivoted to turning the verified proof-of-concept into a first-playable alpha. See Section 6 below and `docs/product-alpha.md` for the active checklist.
 
 **Original development order (fully complete):**
 galaxy generation → planet generation → resource generation → crafting recipes/schematics → trading loop → crafters (NPC crew) → ships → travel → galactic map.
 
-**Deferred-gaps sequence:**
-~~Scanner~~ (deferred, picked up second) → **Travel Encounters (complete)** → **Scanner (complete)** → **Combat (complete)** → Multiplayer.
+**Deferred-gaps sequence (all resolved):**
+~~Scanner~~ (deferred, picked up second) → **Travel Encounters (complete)** → **Scanner (complete)** → **Combat (complete)** → **Multiplayer (design complete, implementation deferred)**.
 
 ---
 
@@ -213,19 +213,22 @@ The Galactic Map verification milestone is complete — all three bugs found (se
 
 **Combat is complete and verified.** Full scope, decisions, and agent contracts live in `docs/profitable-combat-gdd.md` (Section 6 holds the Agent 29 confirmation) and `docs/agents/agent-01-amendment-combat-schema.md`, `agent-20-amendment-combat-core.md`, `agent-21-amendment-combat-test.md`, `agent-22-amendment-combat-presentation.md`, `agent-29-combat-confirmation.md`. Same "amendments to existing agents (1, 20, 21, 22), not new Core/Presentation/Content agents" pattern as Travel Encounters/Scanner — Combat's own twist is this codebase's first pending/deferred-resolution mechanic (a combat encounter is detected and reported as `pending`, then resolves later via a separate explicit attack/flee choice); read GDD Section 1 before touching this milestone. One non-blocking follow-up noted in the Agent 29 confirmation: `resolveArrival.test.ts`'s two Combat-detection tests don't also assert `resolved`/`updatedShip`/`cargo`/`destinationPlanetId` in a scenario where combat actually triggers (the behavior itself is independently confirmed correct — this is a test-coverage gap, not a functional defect).
 
-**Active now: Multiplayer** — the last item in the deferred-gaps sequence. No design pass has begun.
+**Multiplayer's design pass is complete** (see `profitable-design-questions.md`'s Multiplayer section): asynchronous, market-and-leaderboard-only scope, no shared real-time presence. Two channels of player interaction: a Universe layer (private per-player galaxies report anonymized aggregate trade signal to a backend, which computes a per-item universal price modifier feeding into the existing `getGlobalPrice()`) and identity-attached leaderboards (net worth, trading volume, highest crafted tier at launch). This is the first system in the project requiring an actual backend. **Implementation is deliberately deferred** to when the project moves toward being an app rather than purely web-driven — roughly aligned with Electron packaging (Section 5 of the alpha plan). Building the Universe backend and any Unity migration are orthogonal decisions.
+
+**Active now: Alpha.** With all four deferred gaps resolved (three built, Multiplayer designed-but-deferred), the project pivoted to turning the verified proof-of-concept into a first-playable alpha rather than building Multiplayer's backend immediately. Full plan lives in `docs/product-alpha-plan.md` (rationale) and `docs/product-alpha.md` (the trackable checklist), with detail docs `docs/profitable-alpha-tuning-values.md`, `docs/profitable-alpha-scale-performance-plan.md`, `docs/profitable-alpha-uiux-onboarding-plan.md`, and `docs/profitable-alpha-electron-plan.md`. Five sections, sequenced (each depends on the one before): **1. Content Authoring** (21 resources, 10 refining recipes, 13 crafting recipes, 16 ship component recipes, schematics, crew professions, ship-build presets — current content set is only the original MVP/milestone placeholders, nowhere near enough to actually play) → **2. Balance Tuning** (every numeric value is a functionally-correct placeholder, never tuned through real play) → **3. Scale & Performance** (fix galaxy at 50 planets, verify map/travel rendering and `getGlobalPrice()` performance at that scale) → **4. UI/UX & Onboarding** (skippable tutorial flow, settings screen, debug/tuning panel, tier-color legibility pass) → **5. Electron Packaging** (wrap the existing Vite/Phaser build, swap `SaveSystem` to filesystem access, package for Windows/macOS). Electron packaging's last item is a deliberate decision point: whether to begin Multiplayer backend work once the app-conversion milestone is reached, or keep deferring it.
 
 **Still explicitly out of scope:**
 
 - The Galactic Map's two still-undecided recorded ideas (emergency advance warning, a new galaxy-wide/zoom-out view) — the other two (map data staleness, a scanner/probe mechanic) are resolved: staleness was confirmed a non-issue during map verification, and Scanner/Probe is now built
 - Multi-round/real-time combat, any UI beyond a binary attack/flee choice, and any permanent ship/crew loss — all explicitly ruled out by the Combat GDD itself and confirmed absent by Agent 29 (component damage and crew unavailability are both temporary, not destruction/removal)
-- Multiplayer (planned future evolution, single-player only for now; also the groundwork already laid throughout — trade attribution, self-trade prevention, timestamp-not-duration for background crafting — exists specifically for when this milestone arrives)
+- Multiplayer's actual implementation (design complete per above, but deliberately unbuilt for now; also the groundwork already laid throughout — trade attribution, self-trade prevention, timestamp-not-duration for background crafting — exists specifically for when this milestone arrives)
+- Any Unity migration work, and any new gameplay system beyond what's already designed — alpha is about making the *existing* design playable, not extending it
 
 ---
 
 ## 7. Reference Documents
 
-- `docs/profitable-design-questions.md` — full design rationale for every decision across the entire project, including the deferred-gaps sections (Travel Encounters, Scanner/Probe, and Combat, all resolved; Multiplayer still to come).
+- `docs/profitable-design-questions.md` — full design rationale for every decision across the entire project, including the deferred-gaps sections (Travel Encounters, Scanner/Probe, Combat, and Multiplayer — all design-resolved; Multiplayer's implementation is deliberately deferred).
 - `docs/profitable-mvp-gdd.md` — MVP (resource/refine/craft core loop). Complete.
 - `docs/profitable-phase2-gdd.md` — Galaxy & Planet Generation. Complete.
 - `docs/profitable-phase3-gdd.md` — Trading Loop. Complete (seasons/emergencies gap closed during Galactic Map verification).
@@ -237,3 +240,6 @@ The Galactic Map verification milestone is complete — all three bugs found (se
 - `docs/profitable-combat-gdd.md` — Combat. Complete; Section 6 holds the Agent 29 confirmation.
 - `docs/agents/README.md` — agent contract index and cross-cutting rules in full, including the boundary rules each phase has added.
 - `docs/agents/agent-*.md` — individual agent contracts; numbering and amendment relationships are explained in `README.md`.
+- `docs/product-alpha-plan.md` — rationale and recommendations behind the alpha checklist (content volume, tuning approach, scale targets, UI/UX scope, packaging plan, suggested sequencing).
+- `docs/product-alpha.md` — the trackable alpha checklist itself (5 sections); current active work.
+- `docs/profitable-alpha-tuning-values.md`, `docs/profitable-alpha-scale-performance-plan.md`, `docs/profitable-alpha-uiux-onboarding-plan.md`, `docs/profitable-alpha-electron-plan.md` — detail docs for alpha Sections 2-5 respectively.
