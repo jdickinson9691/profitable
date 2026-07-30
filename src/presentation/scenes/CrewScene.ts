@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
-import { startingPlanet } from "../galaxyState.ts";
+import { getCurrentPlanet } from "../currentPlanet.ts";
 import { consume, addBatch } from "../inventory.ts";
 import { getWallet, setWallet, PLAYER_ID } from "../tradingState.ts";
 import {
@@ -30,6 +30,7 @@ import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 import type { HireSucceeded } from "../../data/types/hireResult.ts";
 import type { AssignSucceeded } from "../../data/types/assignResult.ts";
 import type { PurchaseCapacitySucceeded } from "../../data/types/purchaseCapacityResult.ts";
+import type { Planet } from "../../data/types/planet.ts";
 
 // Agent 18 (Crew Presentation). Every number shown is sourced directly
 // from Agent 16's actual function outputs -- this scene formats and
@@ -121,7 +122,12 @@ export class CrewScene extends Phaser.Scene {
       this.pendingMessage = `Departed (unpaid upkeep): ${departedNames.join(", ")}`;
     }
 
-    this.add.text(16, 64, `Crew — ${startingPlanet.name}`, {
+    // Planet-aware fix: reads wherever the player's ship currently is
+    // (previously hardcoded to startingPlanet, so the crew pool never
+    // reflected travel). Computed once per redraw().
+    const planet = getCurrentPlanet();
+
+    this.add.text(16, 64, `Crew — ${planet.name}`, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffffff",
@@ -150,7 +156,7 @@ export class CrewScene extends Phaser.Scene {
     purchaseBtn.on("pointerdown", () => this.onPurchaseCapacity());
     y += 28;
 
-    y = this.renderPool(y);
+    y = this.renderPool(y, planet);
     y += 12;
     y = this.renderRoster(y, roster);
 
@@ -161,12 +167,12 @@ export class CrewScene extends Phaser.Scene {
     });
   }
 
-  private renderPool(startY: number): number {
+  private renderPool(startY: number, planet: Planet): number {
     let y = startY;
     this.add.text(16, y, "Crew pool at this planet:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
-    const pool = getCrewPool();
+    const pool = getCrewPool(planet.id);
     if (pool.availableHires.length === 0) {
       this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
@@ -179,7 +185,7 @@ export class CrewScene extends Phaser.Scene {
 
       const hireBtn = this.add.text(500, y, "> Hire", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       hireBtn.setInteractive({ useHandCursor: true });
-      hireBtn.on("pointerdown", () => this.onHire(candidate));
+      hireBtn.on("pointerdown", () => this.onHire(candidate, planet));
       y += 22;
     }
     return y;
@@ -241,14 +247,14 @@ export class CrewScene extends Phaser.Scene {
     return y;
   }
 
-  private onHire(candidate: CrewCandidate): void {
-    const result = hireCrew(candidate, getCrewPool(), getCrewCapacity(), getCrewRoster(), getWallet(), PLAYER_ID);
+  private onHire(candidate: CrewCandidate, planet: Planet): void {
+    const result = hireCrew(candidate, getCrewPool(planet.id), getCrewCapacity(), getCrewRoster(), getWallet(), PLAYER_ID);
     if (!result.hired) {
       this.setStatus(`Hire failed: ${result.reason}`);
       return;
     }
     const succeeded = result as HireSucceeded;
-    setCrewPool(succeeded.updatedPool);
+    setCrewPool(planet.id, succeeded.updatedPool);
     setWallet(succeeded.updatedWallet);
     addCrewMember(succeeded.crewMember);
     this.setStatus(`Hired a ${succeeded.crewMember.tier} tier crew member.`);

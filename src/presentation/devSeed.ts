@@ -205,7 +205,7 @@ function seedDiscoveredPlanets(): void {
 }
 
 function seedScannerPool(now: number): void {
-  setScannerPool(refreshScannerPool(startingPlanet.id, SCANNER_POOL_SEED, now));
+  setScannerPool(startingPlanet.id, refreshScannerPool(startingPlanet.id, SCANNER_POOL_SEED, now));
 }
 
 // The single entry point -- exposed on `window` from main.ts, behind

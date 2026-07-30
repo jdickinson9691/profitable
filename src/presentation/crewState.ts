@@ -1,5 +1,4 @@
 import { saveSystem } from "./gameState.ts";
-import { startingPlanet } from "./galaxyState.ts";
 import { PLAYER_ID } from "./tradingState.ts";
 import { refreshCrewPool } from "../crew/refreshCrewPool.ts";
 import type { CrewCapacity } from "../data/types/crewCapacity.ts";
@@ -8,13 +7,17 @@ import type { PlanetCrewPool } from "../data/types/planetCrewPool.ts";
 import { BASE_CREW_CAPACITY } from "../data/constants/crewConfig.ts";
 
 // Agent 18's own cross-scene state, same pattern tradingState.ts already
-// established -- scoped to startingPlanet only (the one planet the
-// player can currently reach without a travel system), same scope
-// boundary Agent 13 drew for its own market state.
+// established. The crew pool is keyed per planet (below) -- planet-aware
+// fix, see CrewScene.ts -- generated on demand for whichever planet is
+// actually requested, not just startingPlanet.
 
 const CREW_CAPACITY_SAVE_KEY = "profitable:crewCapacity";
 const CREW_ROSTER_SAVE_KEY = "profitable:crewRoster";
-const CREW_POOL_SAVE_KEY = "profitable:crewPool";
+// Renamed from the old "profitable:crewPool" single-pool key: that key
+// held one PlanetCrewPool total, always for startingPlanet. This holds a
+// per-planet map instead, so an old save's single pool is simply
+// regenerated fresh under the new key rather than misread as a map.
+const CREW_POOLS_SAVE_KEY = "profitable:crewPoolsByPlanet";
 
 function loadOrCreateCapacity(): CrewCapacity {
   const stored = saveSystem.load(CREW_CAPACITY_SAVE_KEY) as CrewCapacity | null;
@@ -24,17 +27,10 @@ function loadOrCreateCapacity(): CrewCapacity {
   return capacity;
 }
 
-function loadOrCreatePool(): PlanetCrewPool {
-  const stored = saveSystem.load(CREW_POOL_SAVE_KEY) as PlanetCrewPool | null;
-  if (stored) return stored;
-  const pool = refreshCrewPool(startingPlanet.id);
-  saveSystem.save(CREW_POOL_SAVE_KEY, pool);
-  return pool;
-}
-
 let capacity: CrewCapacity = loadOrCreateCapacity();
 let roster: CrewMember[] = (saveSystem.load(CREW_ROSTER_SAVE_KEY) as CrewMember[] | null) ?? [];
-let pool: PlanetCrewPool = loadOrCreatePool();
+let crewPoolsByPlanet: Record<string, PlanetCrewPool> =
+  (saveSystem.load(CREW_POOLS_SAVE_KEY) as Record<string, PlanetCrewPool> | null) ?? {};
 
 export function getCrewCapacity(): CrewCapacity {
   return capacity;
@@ -66,11 +62,18 @@ export function removeCrewMember(id: string): void {
   setCrewRoster(roster.filter((member) => member.id !== id));
 }
 
-export function getCrewPool(): PlanetCrewPool {
+// Generates a planet's pool on first request and persists it, the same
+// "load or create, then cache" behavior the old single-pool getCrewPool()
+// had -- just keyed per planet now instead of assuming startingPlanet.
+export function getCrewPool(planetId: string): PlanetCrewPool {
+  const stored = crewPoolsByPlanet[planetId];
+  if (stored) return stored;
+  const pool = refreshCrewPool(planetId);
+  setCrewPool(planetId, pool);
   return pool;
 }
 
-export function setCrewPool(next: PlanetCrewPool): void {
-  pool = next;
-  saveSystem.save(CREW_POOL_SAVE_KEY, pool);
+export function setCrewPool(planetId: string, next: PlanetCrewPool): void {
+  crewPoolsByPlanet = { ...crewPoolsByPlanet, [planetId]: next };
+  saveSystem.save(CREW_POOLS_SAVE_KEY, crewPoolsByPlanet);
 }

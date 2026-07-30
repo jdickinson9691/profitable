@@ -8,8 +8,16 @@ import { formatQualityRoll, formatQualityLabel, describeRefineResult } from "../
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 
+const RECIPE_LIST_COLUMN_WIDTH = 380;
+const RECIPE_LIST_ROW_HEIGHT = 18;
+
 export class RefineScene extends Phaser.Scene {
   private selectedTier: TierColor = "Grey";
+  // Presentation-layer selector only -- refine() itself takes no recipe
+  // parameter, so this never touches simulation logic, only which
+  // RefiningRecipe's inputs/output this scene reads. Defaults to the
+  // first recipe, matching this scene's previous hardcoded behavior.
+  private selectedRecipeId: string = content.refiningRecipes[0]?.id ?? "";
   private statusText?: Phaser.GameObjects.Text;
   private resultText?: Phaser.GameObjects.Text;
 
@@ -17,42 +25,55 @@ export class RefineScene extends Phaser.Scene {
     super(SCENE_KEYS.refine);
   }
 
+  private getSelectedRecipe() {
+    return content.refiningRecipes.find((r) => r.id === this.selectedRecipeId) ?? content.refiningRecipes[0];
+  }
+
   create(): void {
     renderNav(this, SCENE_KEYS.refine);
 
-    const recipe = content.refiningRecipes[0];
-
-    this.add.text(16, 64, `Refine — ${recipe?.name ?? "Radiant Alloy Bar"}`, {
+    this.add.text(16, 64, "Refine", {
       fontFamily: "monospace",
       fontSize: "24px",
       color: "#ffffff",
     });
 
-    this.statusText = this.add.text(16, 110, "", {
+    this.add.text(16, 96, "Recipe:", {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+    let y = this.renderRecipeList(112) + 8;
+
+    this.statusText = this.add.text(16, y, "", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#cccccc",
     });
+    y += 60;
 
-    this.add.text(16, 220, "Refiner tier:", {
+    this.add.text(16, y, "Refiner tier:", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
     });
-    renderTierSelector(this, 16, 240, this.selectedTier, (tier) => {
+    y += 20;
+    renderTierSelector(this, 16, y, this.selectedTier, (tier) => {
       this.selectedTier = tier;
       this.scene.restart();
     });
+    y += 30;
 
-    const refineButton = this.add.text(16, 270, "> Refine", {
+    const refineButton = this.add.text(16, y, "> Refine", {
       fontFamily: "monospace",
       fontSize: "18px",
       color: "#4caf50",
     });
     refineButton.setInteractive({ useHandCursor: true });
     refineButton.on("pointerdown", () => this.doRefine());
+    y += 40;
 
-    this.resultText = this.add.text(16, 310, "", {
+    this.resultText = this.add.text(16, y, "", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
@@ -61,8 +82,41 @@ export class RefineScene extends Phaser.Scene {
     this.refreshStatus();
   }
 
+  // Lists every one of the alpha roster's 10 refining recipes (previously
+  // only content.refiningRecipes[0] was ever reachable) -- same "list all,
+  // let the player choose" shape ShipAssemblyScene.findRecipesForCategory()
+  // already established, laid out as a 2-column grid so 10 entries fit
+  // comfortably within the scene's fixed 800x500 canvas.
+  private renderRecipeList(startY: number): number {
+    let maxRow = 0;
+    content.refiningRecipes.forEach((recipe, index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      maxRow = Math.max(maxRow, row);
+      const isSelected = recipe.id === this.selectedRecipeId;
+      const label = this.add.text(
+        16 + col * RECIPE_LIST_COLUMN_WIDTH,
+        startY + row * RECIPE_LIST_ROW_HEIGHT,
+        isSelected ? `[${recipe.name}]` : recipe.name,
+        {
+          fontFamily: "monospace",
+          fontSize: "13px",
+          color: isSelected ? "#ffd700" : "#4caf50",
+        },
+      );
+      if (!isSelected) {
+        label.setInteractive({ useHandCursor: true });
+        label.on("pointerdown", () => {
+          this.selectedRecipeId = recipe.id;
+          this.scene.restart();
+        });
+      }
+    });
+    return startY + (maxRow + 1) * RECIPE_LIST_ROW_HEIGHT;
+  }
+
   private hasEnoughInputs(): boolean {
-    const recipe = content.refiningRecipes[0];
+    const recipe = this.getSelectedRecipe();
     if (!recipe) return false;
     const inventory = getInventory();
     return recipe.inputs.every(
@@ -71,7 +125,7 @@ export class RefineScene extends Phaser.Scene {
   }
 
   private refreshStatus(): void {
-    const recipe = content.refiningRecipes[0];
+    const recipe = this.getSelectedRecipe();
     if (!recipe) {
       this.statusText?.setText("No refining recipe loaded.");
       return;
@@ -82,11 +136,11 @@ export class RefineScene extends Phaser.Scene {
       const have = totalQuantity(inventory, input.resourceId);
       return `${resource?.name ?? input.resourceId}: ${have} / ${input.quantity} needed`;
     });
-    this.statusText?.setText(["Requires:", ...lines]);
+    this.statusText?.setText([`Requires (${recipe.name}):`, ...lines]);
   }
 
   private doRefine(): void {
-    const recipe = content.refiningRecipes[0];
+    const recipe = this.getSelectedRecipe();
     if (!recipe || !this.hasEnoughInputs()) {
       this.resultText?.setText("Not enough materials gathered yet.");
       return;

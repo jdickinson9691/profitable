@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
-import { startingPlanet } from "../galaxyState.ts";
+import { getCurrentPlanet } from "../currentPlanet.ts";
 import { getWallet, setWallet, PLAYER_ID } from "../tradingState.ts";
 import {
   getShipyardPool,
@@ -20,6 +20,7 @@ import type { ShipCandidate } from "../../data/types/shipCandidate.ts";
 import type { ScannerCandidate } from "../../data/types/scannerCandidate.ts";
 import type { Scanner } from "../../data/types/scanner.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
+import type { Planet } from "../../data/types/planet.ts";
 
 // Grey..Gold, read off the shared breakpoint table rather than a locally
 // invented ordering -- a pure tier-*name* comparison for the "which owned
@@ -62,7 +63,12 @@ export class ShipyardScene extends Phaser.Scene {
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.shipyard);
 
-    this.add.text(16, 64, `Shipyard — ${startingPlanet.name}`, {
+    // Planet-aware fix: reads wherever the player's ship currently is
+    // (previously hardcoded to startingPlanet, so the shipyard/scanner
+    // pools never reflected travel). Computed once per redraw().
+    const planet = getCurrentPlanet();
+
+    this.add.text(16, 64, `Shipyard — ${planet.name}`, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffffff",
@@ -74,11 +80,11 @@ export class ShipyardScene extends Phaser.Scene {
     });
 
     let y = 120;
-    y = this.renderPool(y);
+    y = this.renderPool(y, planet);
     y += 12;
-    y = this.renderRoster(y);
+    y = this.renderRoster(y, planet);
     y += 12;
-    y = this.renderScannerPool(y);
+    y = this.renderScannerPool(y, planet);
     y += 12;
     y = this.renderScannerRoster(y);
 
@@ -89,12 +95,12 @@ export class ShipyardScene extends Phaser.Scene {
     });
   }
 
-  private renderPool(startY: number): number {
+  private renderPool(startY: number, planet: Planet): number {
     let y = startY;
     this.add.text(16, y, "Ships for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
-    const pool = getShipyardPool();
+    const pool = getShipyardPool(planet.id);
     if (pool.availableShips.length === 0) {
       this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
@@ -107,13 +113,13 @@ export class ShipyardScene extends Phaser.Scene {
 
       const buyBtn = this.add.text(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       buyBtn.setInteractive({ useHandCursor: true });
-      buyBtn.on("pointerdown", () => this.onPurchase(candidate));
+      buyBtn.on("pointerdown", () => this.onPurchase(candidate, planet));
       y += 22;
     }
     return y;
   }
 
-  private renderRoster(startY: number): number {
+  private renderRoster(startY: number, planet: Planet): number {
     let y = startY;
     this.add.text(16, y, "Your ships:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
@@ -125,21 +131,21 @@ export class ShipyardScene extends Phaser.Scene {
     }
 
     for (const ship of roster) {
-      const atHome = ship.currentPlanetId === startingPlanet.id;
-      const label = `${ship.name} — ${ship.tier} tier — at ${atHome ? startingPlanet.name : ship.currentPlanetId}`;
+      const atHome = ship.currentPlanetId === planet.id;
+      const label = `${ship.name} — ${ship.tier} tier — at ${atHome ? planet.name : ship.currentPlanetId}`;
       this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
     return y;
   }
 
-  private onPurchase(candidate: ShipCandidate): void {
-    const result = purchaseShip(candidate, getShipyardPool(), getWallet(), PLAYER_ID);
+  private onPurchase(candidate: ShipCandidate, planet: Planet): void {
+    const result = purchaseShip(candidate, getShipyardPool(planet.id), getWallet(), PLAYER_ID);
     if (!result.purchased) {
       this.setStatus(`Purchase failed: ${result.reason}`);
       return;
     }
-    setShipyardPool(result.updatedPool);
+    setShipyardPool(planet.id, result.updatedPool);
     setWallet(result.updatedWallet);
     addShip(result.ship);
     this.setStatus(`Purchased ${result.ship.name} (${result.ship.tier} tier).`);
@@ -150,12 +156,12 @@ export class ShipyardScene extends Phaser.Scene {
   // alongside the existing shipyard listings, per the contract's own "no
   // new screen -- integrate into the existing shipyard-adjacent market UI"
   // requirement. Same format as renderPool() above.
-  private renderScannerPool(startY: number): number {
+  private renderScannerPool(startY: number, planet: Planet): number {
     let y = startY;
     this.add.text(16, y, "Scanners for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
-    const pool = getScannerPool();
+    const pool = getScannerPool(planet.id);
     if (pool.availableScanners.length === 0) {
       this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
@@ -168,7 +174,7 @@ export class ShipyardScene extends Phaser.Scene {
 
       const buyBtn = this.add.text(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       buyBtn.setInteractive({ useHandCursor: true });
-      buyBtn.on("pointerdown", () => this.onPurchaseScanner(candidate));
+      buyBtn.on("pointerdown", () => this.onPurchaseScanner(candidate, planet));
       y += 22;
     }
     return y;
@@ -201,13 +207,13 @@ export class ShipyardScene extends Phaser.Scene {
     return y;
   }
 
-  private onPurchaseScanner(candidate: ScannerCandidate): void {
-    const result = purchaseScanner(candidate, getScannerPool(), getWallet(), PLAYER_ID);
+  private onPurchaseScanner(candidate: ScannerCandidate, planet: Planet): void {
+    const result = purchaseScanner(candidate, getScannerPool(planet.id), getWallet(), PLAYER_ID);
     if (!result.purchased) {
       this.setStatus(`Purchase failed: ${result.reason}`);
       return;
     }
-    setScannerPool(result.updatedPool);
+    setScannerPool(planet.id, result.updatedPool);
     setWallet(result.updatedWallet);
     addScanner(result.scanner);
     this.setStatus(`Purchased a ${result.scanner.tier} tier scanner.`);

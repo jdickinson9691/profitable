@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
-import { startingPlanet } from "../galaxyState.ts";
+import { getCurrentPlanet } from "../currentPlanet.ts";
 import { removeBatchAt } from "../inventory.ts";
 import {
   PLAYER_ID,
@@ -19,6 +19,7 @@ import { createListing } from "../../trading/createListing.ts";
 import { purchaseListing } from "../../trading/purchaseListing.ts";
 import type { PurchaseSucceeded } from "../../data/types/purchaseResult.ts";
 import type { Listing } from "../../data/types/listing.ts";
+import type { Planet } from "../../data/types/planet.ts";
 
 // Agent 13 (Trading Presentation): the planet-local market screen. Every
 // number shown is sourced directly from Agent 11's actual function
@@ -51,7 +52,14 @@ export class MarketScene extends Phaser.Scene {
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.market);
 
-    this.add.text(16, 64, `Market — ${startingPlanet.name}`, {
+    // Planet-aware fix: reads wherever the player's ship currently is
+    // (previously hardcoded to startingPlanet, so buying/selling never
+    // reflected travel). Computed once per redraw() and threaded through
+    // to buy()/sell() below, rather than re-read from inside them, so a
+    // single redraw() always acts on one consistent planet.
+    const planet = getCurrentPlanet();
+
+    this.add.text(16, 64, `Market — ${planet.name}`, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffffff",
@@ -73,7 +81,7 @@ export class MarketScene extends Phaser.Scene {
     const planetListings = getListings().filter(
       (listing) =>
         listing.location !== "global" &&
-        listing.location.planetId === startingPlanet.id &&
+        listing.location.planetId === planet.id &&
         listing.quantity > 0,
     );
 
@@ -93,7 +101,7 @@ export class MarketScene extends Phaser.Scene {
         color: "#4caf50",
       });
       buyOne.setInteractive({ useHandCursor: true });
-      buyOne.on("pointerdown", () => this.buy(listing, 1));
+      buyOne.on("pointerdown", () => this.buy(listing, 1, planet));
 
       if (listing.quantity > 1) {
         const buyAll = this.add.text(650, y, "> Buy All", {
@@ -102,7 +110,7 @@ export class MarketScene extends Phaser.Scene {
           color: "#4caf50",
         });
         buyAll.setInteractive({ useHandCursor: true });
-        buyAll.on("pointerdown", () => this.buy(listing, listing.quantity));
+        buyAll.on("pointerdown", () => this.buy(listing, listing.quantity, planet));
       }
 
       y += 22;
@@ -123,7 +131,7 @@ export class MarketScene extends Phaser.Scene {
 
     inventory.forEach((batch, index) => {
       const resource = content.resources.find((r) => r.id === batch.resourceId);
-      const marketState = getMarketState(startingPlanet.id, batch.resourceId);
+      const marketState = getMarketState(planet.id, batch.resourceId);
       const suggestedPrice = marketState ? Math.round(marketState.currentPrice) : 10;
       const label = `${resource?.name ?? batch.resourceId} x${batch.quantity} — list @ ${suggestedPrice}cr/unit`;
       const button = this.add.text(16, y, `> ${label}`, {
@@ -132,7 +140,7 @@ export class MarketScene extends Phaser.Scene {
         color: "#2196f3",
       });
       button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.sell(index, suggestedPrice));
+      button.on("pointerdown", () => this.sell(index, suggestedPrice, planet));
       y += 22;
     });
 
@@ -143,8 +151,8 @@ export class MarketScene extends Phaser.Scene {
     });
   }
 
-  private buy(listing: Listing, quantity: number): void {
-    const marketState = getMarketState(startingPlanet.id, listing.itemId) ?? null;
+  private buy(listing: Listing, quantity: number, planet: Planet): void {
+    const marketState = getMarketState(planet.id, listing.itemId) ?? null;
     const result = purchaseListing(listing, quantity, PLAYER_ID, marketState);
 
     if (!result.success) {
@@ -178,7 +186,7 @@ export class MarketScene extends Phaser.Scene {
     this.redraw();
   }
 
-  private sell(inventoryIndex: number, pricePerUnit: number): void {
+  private sell(inventoryIndex: number, pricePerUnit: number, planet: Planet): void {
     const inventory = getInventory();
     const batch = inventory[inventoryIndex];
     if (!batch) return;
@@ -190,7 +198,7 @@ export class MarketScene extends Phaser.Scene {
       { resource, quantity: batch.quantity, qualities: batch.qualities },
       batch.quantity,
       pricePerUnit,
-      { planetId: startingPlanet.id },
+      { planetId: planet.id },
       PLAYER_ID,
       `listing-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     );

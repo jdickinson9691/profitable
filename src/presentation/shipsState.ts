@@ -1,5 +1,4 @@
 import { saveSystem } from "./gameState.ts";
-import { startingPlanet } from "./galaxyState.ts";
 import { loadShipsContent } from "../ships/loadShipsContent.ts";
 import type { LoadedShipsContent } from "../ships/loadShipsContent.ts";
 import { refreshShipyardPool } from "../ships/refreshShipyardPool.ts";
@@ -13,13 +12,18 @@ import type { CombatEncounter } from "../data/types/combatEncounter.ts";
 import componentRecipes from "../../content/componentRecipes.json" with { type: "json" };
 
 // Agent 22's own cross-scene state, same pattern crewState.ts/tradingState.ts
-// already established. The shipyard pool is scoped to startingPlanet only
-// (the one planet a player can browse without traveling there first) --
-// same boundary Agent 13/18 already drew for their own state. The owned
-// ship roster and active voyages aren't planet-scoped, since a ship (once
-// purchased) and its voyages belong to the player, not to any one planet.
+// already established. The shipyard pool is keyed per planet (below) --
+// planet-aware fix, see ShipyardScene.ts -- generated on demand for
+// whichever planet is actually requested, not just startingPlanet. The
+// owned ship roster and active voyages aren't planet-scoped, since a ship
+// (once purchased) and its voyages belong to the player, not to any one
+// planet.
 
-const SHIPYARD_POOL_SAVE_KEY = "profitable:shipyardPool";
+// Renamed from "profitable:shipyardPool": that key held one ShipyardPool
+// total, always for startingPlanet. This holds a per-planet map instead,
+// so an old save's single pool is simply regenerated fresh under the new
+// key rather than misread as a map.
+const SHIPYARD_POOLS_SAVE_KEY = "profitable:shipyardPoolsByPlanet";
 const SHIP_ROSTER_SAVE_KEY = "profitable:shipRoster";
 const VOYAGES_SAVE_KEY = "profitable:voyages";
 
@@ -34,25 +38,26 @@ export function getShipsContent(): LoadedShipsContent {
   return cachedShipsContent;
 }
 
-function loadOrCreatePool(): ShipyardPool {
-  const stored = saveSystem.load(SHIPYARD_POOL_SAVE_KEY) as ShipyardPool | null;
-  if (stored) return stored;
-  const pool = refreshShipyardPool(startingPlanet.id);
-  saveSystem.save(SHIPYARD_POOL_SAVE_KEY, pool);
-  return pool;
-}
-
-let pool: ShipyardPool = loadOrCreatePool();
+let shipyardPoolsByPlanet: Record<string, ShipyardPool> =
+  (saveSystem.load(SHIPYARD_POOLS_SAVE_KEY) as Record<string, ShipyardPool> | null) ?? {};
 let roster: Ship[] = (saveSystem.load(SHIP_ROSTER_SAVE_KEY) as Ship[] | null) ?? [];
 let voyages: Voyage[] = (saveSystem.load(VOYAGES_SAVE_KEY) as Voyage[] | null) ?? [];
 
-export function getShipyardPool(): ShipyardPool {
+// Generates a planet's pool on first request and persists it, the same
+// "load or create, then cache" behavior the old single-pool
+// getShipyardPool() had -- just keyed per planet now instead of assuming
+// startingPlanet.
+export function getShipyardPool(planetId: string): ShipyardPool {
+  const stored = shipyardPoolsByPlanet[planetId];
+  if (stored) return stored;
+  const pool = refreshShipyardPool(planetId);
+  setShipyardPool(planetId, pool);
   return pool;
 }
 
-export function setShipyardPool(next: ShipyardPool): void {
-  pool = next;
-  saveSystem.save(SHIPYARD_POOL_SAVE_KEY, pool);
+export function setShipyardPool(planetId: string, next: ShipyardPool): void {
+  shipyardPoolsByPlanet = { ...shipyardPoolsByPlanet, [planetId]: next };
+  saveSystem.save(SHIPYARD_POOLS_SAVE_KEY, shipyardPoolsByPlanet);
 }
 
 export function getShipRoster(): Ship[] {
@@ -92,33 +97,36 @@ export function removeVoyage(id: string): void {
 // Scanner/Probe amendment: same cross-scene state pattern as the shipyard
 // pool/roster above, applied to scanners' own separate pool (ScannerPool,
 // not merged into ShipyardPool, per the Scanner GDD §2.2's explicit
-// call-out). Also scoped to startingPlanet only, same reasoning as the
-// shipyard pool -- the one planet a player can browse without traveling
-// there first. Owned scanners aren't planet-scoped, same as the ship
-// roster -- once purchased, a scanner belongs to the player, usable from
-// wherever their ship is currently docked.
+// call-out). Keyed per planet (below), same planet-aware fix as the
+// shipyard pool -- see ShipyardScene.ts. Owned scanners aren't
+// planet-scoped, same as the ship roster -- once purchased, a scanner
+// belongs to the player, usable from wherever their ship is currently
+// docked.
 
-const SCANNER_POOL_SAVE_KEY = "profitable:scannerPool";
+// Renamed from "profitable:scannerPool": that key held one ScannerPool
+// total, always for startingPlanet. This holds a per-planet map instead.
+const SCANNER_POOLS_SAVE_KEY = "profitable:scannerPoolsByPlanet";
 const SCANNER_ROSTER_SAVE_KEY = "profitable:scannerRoster";
 
-function loadOrCreateScannerPool(): ScannerPool {
-  const stored = saveSystem.load(SCANNER_POOL_SAVE_KEY) as ScannerPool | null;
+let scannerPoolsByPlanet: Record<string, ScannerPool> =
+  (saveSystem.load(SCANNER_POOLS_SAVE_KEY) as Record<string, ScannerPool> | null) ?? {};
+let ownedScanners: Scanner[] = (saveSystem.load(SCANNER_ROSTER_SAVE_KEY) as Scanner[] | null) ?? [];
+
+// Generates a planet's pool on first request and persists it, the same
+// "load or create, then cache" behavior the old single-pool
+// getScannerPool() had -- just keyed per planet now instead of assuming
+// startingPlanet.
+export function getScannerPool(planetId: string): ScannerPool {
+  const stored = scannerPoolsByPlanet[planetId];
   if (stored) return stored;
-  const pool = refreshScannerPool(startingPlanet.id);
-  saveSystem.save(SCANNER_POOL_SAVE_KEY, pool);
+  const pool = refreshScannerPool(planetId);
+  setScannerPool(planetId, pool);
   return pool;
 }
 
-let scannerPool: ScannerPool = loadOrCreateScannerPool();
-let ownedScanners: Scanner[] = (saveSystem.load(SCANNER_ROSTER_SAVE_KEY) as Scanner[] | null) ?? [];
-
-export function getScannerPool(): ScannerPool {
-  return scannerPool;
-}
-
-export function setScannerPool(next: ScannerPool): void {
-  scannerPool = next;
-  saveSystem.save(SCANNER_POOL_SAVE_KEY, scannerPool);
+export function setScannerPool(planetId: string, next: ScannerPool): void {
+  scannerPoolsByPlanet = { ...scannerPoolsByPlanet, [planetId]: next };
+  saveSystem.save(SCANNER_POOLS_SAVE_KEY, scannerPoolsByPlanet);
 }
 
 export function getOwnedScanners(): Scanner[] {

@@ -6,13 +6,22 @@ import { consume, addBatch, totalQuantity } from "../inventory.ts";
 import type { InventoryBatch } from "../inventory.ts";
 import { craft } from "../../simulation/craft.ts";
 import { resolveSchematicTier } from "../../simulation/schematicTier.ts";
+import { getShipsContent } from "../shipsState.ts";
 import { formatQualityRoll, formatQualityLabel, describeCraftResult } from "../display.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 import type { Resource } from "../../data/types/resource.ts";
+import type { Recipe } from "../../data/types/recipe.ts";
+
+const RECIPE_LIST_COLUMN_WIDTH = 380;
+const RECIPE_LIST_ROW_HEIGHT = 18;
 
 export class CraftScene extends Phaser.Scene {
   private selectedCrafterTier: TierColor = "Grey";
+  // Presentation-layer selector only, same shape as RefineScene's own.
+  // Defaults to the first general recipe, matching this scene's previous
+  // hardcoded behavior.
+  private selectedRecipeId: string = CraftScene.generalRecipes()[0]?.id ?? "";
   private statusText?: Phaser.GameObjects.Text;
   private resultText?: Phaser.GameObjects.Text;
 
@@ -20,25 +29,47 @@ export class CraftScene extends Phaser.Scene {
     super(SCENE_KEYS.craft);
   }
 
+  // Ship component recipes (the 16 linked via content/componentRecipes.json)
+  // are ShipAssemblyScene's exclusive domain -- it already lists all 4 per
+  // category there. This scene covers the alpha roster's remaining 13
+  // general crafting recipes, so the two scenes never offer the same recipe
+  // through two different craft paths.
+  private static generalRecipes(): Recipe[] {
+    const componentRecipeIds = new Set(getShipsContent().componentRecipes.map((link) => link.recipeId));
+    return content.recipes.filter((recipe) => !componentRecipeIds.has(recipe.id));
+  }
+
+  private getSelectedRecipe(): Recipe | undefined {
+    const recipes = CraftScene.generalRecipes();
+    return recipes.find((r) => r.id === this.selectedRecipeId) ?? recipes[0];
+  }
+
   create(): void {
     renderNav(this, SCENE_KEYS.craft);
 
-    const recipe = content.recipes[0];
-    const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
-    const schematicTier = resolveSchematicTier(schematic);
-
-    this.add.text(16, 64, `Craft — ${recipe?.name ?? "Ion-Forged Hull Plate"}`, {
+    this.add.text(16, 64, "Craft", {
       fontFamily: "monospace",
       fontSize: "24px",
       color: "#ffffff",
     });
+
+    this.add.text(16, 96, "Recipe:", {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+    let y = this.renderRecipeList(112) + 8;
+
+    const recipe = this.getSelectedRecipe();
+    const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
+    const schematicTier = resolveSchematicTier(schematic);
 
     // Known-by-default recipes (docs/profitable-alpha-content-roster.md
     // §5) have no owned Schematic entity at all -- resolveSchematicTier()
     // resolves that to Grey (no bonus), not a blocked/error state.
     this.add.text(
       16,
-      100,
+      y,
       `Schematic tier: ${schematicTier}${schematic ? "" : " (no schematic owned -- Grey-equivalent, no bonus)"}`,
       {
         fontFamily: "monospace",
@@ -46,38 +77,74 @@ export class CraftScene extends Phaser.Scene {
         color: "#ffd700",
       },
     );
+    y += 30;
 
-    this.statusText = this.add.text(16, 130, "", {
+    this.statusText = this.add.text(16, y, "", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#cccccc",
     });
+    y += 70;
 
-    this.add.text(16, 250, "Crafter tier:", {
+    this.add.text(16, y, "Crafter tier:", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
     });
-    renderTierSelector(this, 16, 270, this.selectedCrafterTier, (tier) => {
+    y += 20;
+    renderTierSelector(this, 16, y, this.selectedCrafterTier, (tier) => {
       this.selectedCrafterTier = tier;
       this.scene.restart();
     });
+    y += 30;
 
-    const craftButton = this.add.text(16, 300, "> Craft", {
+    const craftButton = this.add.text(16, y, "> Craft", {
       fontFamily: "monospace",
       fontSize: "18px",
       color: "#4caf50",
     });
     craftButton.setInteractive({ useHandCursor: true });
     craftButton.on("pointerdown", () => this.doCraft());
+    y += 40;
 
-    this.resultText = this.add.text(16, 340, "", {
+    this.resultText = this.add.text(16, y, "", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
     });
 
     this.refreshStatus();
+  }
+
+  // Same 2-column grid RefineScene.renderRecipeList() already established,
+  // sized for the alpha roster's 13 general crafting recipes.
+  private renderRecipeList(startY: number): number {
+    const recipes = CraftScene.generalRecipes();
+    let maxRow = 0;
+    recipes.forEach((recipe, index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      maxRow = Math.max(maxRow, row);
+      const isSelected = recipe.id === this.selectedRecipeId;
+      const label = this.add.text(
+        16 + col * RECIPE_LIST_COLUMN_WIDTH,
+        startY + row * RECIPE_LIST_ROW_HEIGHT,
+        isSelected ? `[${recipe.name}]` : recipe.name,
+        {
+          fontFamily: "monospace",
+          fontSize: "13px",
+          color: isSelected ? "#ffd700" : "#4caf50",
+        },
+      );
+      if (!isSelected) {
+        label.setInteractive({ useHandCursor: true });
+        label.on("pointerdown", () => {
+          this.selectedRecipeId = recipe.id;
+          this.scene.restart();
+        });
+      }
+    });
+    return startY + (maxRow + 1) * RECIPE_LIST_ROW_HEIGHT;
   }
 
   // Crafting recipes are category-based, not resource-id-based (GDD:
@@ -90,7 +157,7 @@ export class CraftScene extends Phaser.Scene {
   }
 
   private hasEnoughInputs(): boolean {
-    const recipe = content.recipes[0];
+    const recipe = this.getSelectedRecipe();
     if (!recipe) return false;
     const inventory = getInventory();
     return recipe.inputs.every((slot) => {
@@ -100,7 +167,7 @@ export class CraftScene extends Phaser.Scene {
   }
 
   private refreshStatus(): void {
-    const recipe = content.recipes[0];
+    const recipe = this.getSelectedRecipe();
     if (!recipe) {
       this.statusText?.setText("No crafting recipe loaded.");
       return;
@@ -112,11 +179,11 @@ export class CraftScene extends Phaser.Scene {
       return `${resource?.name ?? slot.category}: ${have} / ${slot.quantity} needed`;
     });
     const craftedCount = totalQuantity(inventory, recipe.outputResourceId);
-    this.statusText?.setText(["Requires:", ...lines, `Already crafted: ${craftedCount}`]);
+    this.statusText?.setText([`Requires (${recipe.name}):`, ...lines, `Already crafted: ${craftedCount}`]);
   }
 
   private doCraft(): void {
-    const recipe = content.recipes[0];
+    const recipe = this.getSelectedRecipe();
     const schematic = content.schematics.find((s) => s.recipeId === recipe?.id);
     // A missing schematic is not a blocking condition -- known-by-default
     // recipes have none by design (resolveSchematicTier() resolves that
