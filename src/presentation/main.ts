@@ -22,6 +22,24 @@ const game = new Phaser.Game({
   parent: "game",
   width: 800,
   height: 500,
+  // Alpha Section 5 (profitable-alpha-electron-plan.md §6): 800x500 above
+  // stays the scenes' fixed logical/base resolution -- no scene draws
+  // anything relative to window size, so none of them need to change.
+  // This `scale` block only controls how that fixed-resolution canvas is
+  // *displayed* within its host: FIT scales it up/down to the largest
+  // size that fits the actual window (index.html's #game div, sized to
+  // the full viewport) without cropping or distorting, CENTER_BOTH keeps
+  // it centered in any leftover letterboxing. Without this, a resizable
+  // host window bigger than 800x500 -- routine now that Electron's
+  // BrowserWindow (unlike a browser tab) actively invites maximizing --
+  // left the canvas pinned at its literal pixel size, stranded in a sea
+  // of background color. Same "fixed-dimension assumption" bug class as
+  // the Galactic Map milestone's canvas-overflow bug, just triggered by
+  // the host window instead of in-scene content.
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   backgroundColor: "#111111",
   scene: [
     MapScene,

@@ -4,8 +4,15 @@
     <meta charset="UTF-8" />
     <title>Profitable</title>
     <style>
-      html, body { margin: 0; padding: 0; background: #111; }
-      #game { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+      html, body { margin: 0; padding: 0; background: #111; width: 100%; height: 100%; overflow: hidden; }
+      /* Explicit 100vw/100vh (not just min-height, which left width to
+         implicit block sizing) so Phaser's Scale.FIT below has a parent
+         with reliable real dimensions to fit the canvas into -- see
+         main.ts's scale config comment for why this pairing matters now
+         that Electron's resizable/maximizable window (Alpha Section 5)
+         made a host viewport bigger than the game's fixed 800x500 base
+         resolution a routine case, not an edge case. */
+      #game { display: flex; align-items: center; justify-content: center; width: 100vw; height: 100vh; }
     </style>
   </head>
   <body>
