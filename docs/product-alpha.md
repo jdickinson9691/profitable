@@ -64,13 +64,13 @@
 ## 5. Electron Packaging
 *Detail: `profitable-alpha-electron-plan.md`*
 
-- [ ] Wrap existing Vite/Phaser build in Electron
-- [ ] Swap `SaveSystem` to Electron file-system access (keep `localStorage` fallback behind a flag during testing)
-- [ ] Confirm `AudioManager` works unchanged in Electron's Chromium runtime
-- [ ] Add basic native app menu (Quit, Reload, debug panel toggle)
-- [ ] Package/build for Windows and macOS
-- [ ] Set up macOS notarization for internal playtest distribution
-- [ ] Confirm resizable/maximizable window doesn't resurface the Map milestone's overflow bug class
+- [x] Wrap existing Vite/Phaser build in Electron — `electron/main.cjs` loads the built output (or the Vite dev server URL via `npm run electron:dev`); boot-verified, window launches with no console/renderer errors.
+- [x] Swap `SaveSystem` to Electron file-system access (keep `localStorage` fallback behind a flag during testing) — `src/adapters/electronSaveSystem.ts` (file-system-backed, single JSON file in the app's userData dir) + `electron/preload.cjs` IPC bridge; `gameState.ts`'s `FORCE_LOCAL_STORAGE_SAVE_SYSTEM` flag keeps the old backend available as the plan's testing escape hatch.
+- [x] Confirm `AudioManager` works unchanged in Electron's Chromium runtime — `audioManager.ts` has zero direct browser/Electron API calls of its own (no sound content is registered yet, per the Section 4 note above), and its one real side effect (persisting the enabled flag) already runs through the same verified `saveSystem` path.
+- [x] Add basic native app menu (Quit, Reload, debug panel toggle) — `electron/main.cjs`'s `buildMenu()`; debug toggle writes through `window.electronSaveAPI` and reloads so `isDebugModeEnabled()` re-reads it, since a packaged build has no `?debug=1` URL bar.
+- [ ] Package/build for Windows and macOS — `electron-builder` config is in `package.json` (`electron:build:win`/`:mac` scripts) but an actual packaged build hasn't been run/verified yet.
+- [ ] Set up macOS notarization for internal playtest distribution — `electron/notarize.cjs` (afterSign hook, gated on `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` env vars) and `electron/entitlements.mac.plist` are written, but unverified end-to-end — needs an actual Apple Developer account and a macOS build to confirm.
+- [x] Confirm resizable/maximizable window doesn't resurface the Map milestone's overflow bug class — it did, in a new form: `main.ts`'s fixed 800x500 canvas stayed pinned at its literal pixel size when the (now-resizable, unlike a browser tab) window grew past it, stranded in letterboxing. Fixed via Phaser's `Scale.FIT` + `CENTER_BOTH` (`main.ts`) plus giving `index.html`'s `#game` container real viewport dimensions to fit into; verified by resizing the live window from 800x500 to 1400x900 and confirming the canvas scales instead of staying fixed.
 - [ ] **Decision point:** consciously decide whether to begin Multiplayer backend work now that this "app, not web-driven" milestone is reached, or continue deferring it
 
 ---
