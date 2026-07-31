@@ -5,6 +5,7 @@ import { content, getInventory, setInventory } from "../gameState.ts";
 import { consume, addBatch, totalQuantity } from "../inventory.ts";
 import { refine } from "../../simulation/refine.ts";
 import { formatQualityRoll, formatQualityLabel, describeRefineResult } from "../display.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 
@@ -80,6 +81,13 @@ export class RefineScene extends Phaser.Scene {
     });
 
     this.refreshStatus();
+
+    renderOnboardingStep(
+      this,
+      "Refine",
+      "Choose a recipe from the list below, pick a refiner tier, then click \"> Refine\" to combine resources into something more valuable.",
+      () => this.scene.restart(),
+    );
   }
 
   // Lists every one of the alpha roster's 10 refining recipes (previously

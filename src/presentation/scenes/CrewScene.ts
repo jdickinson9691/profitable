@@ -23,6 +23,7 @@ import { checkAttrition } from "../../crew/checkAttrition.ts";
 import { dismissCrew } from "../../crew/dismissCrew.ts";
 import { purchaseCapacity } from "../../crew/purchaseCapacity.ts";
 import { CREW_HIRE_COST_BY_TIER } from "../../data/constants/crewConfig.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { CrewCandidate } from "../../data/types/crewCandidate.ts";
 import type { CrewMember } from "../../data/types/crewMember.ts";
 import type { CraftAction } from "../../data/types/craftAction.ts";
@@ -165,6 +166,13 @@ export class CrewScene extends Phaser.Scene {
       fontSize: "14px",
       color: departedNames.length > 0 ? "#ff6666" : "#cccccc",
     });
+
+    renderOnboardingStep(
+      this,
+      "Crew",
+      "Hire crew to work while you're away. Idle crew can be assigned to craft; active crew produce output over time.",
+      () => this.redraw(),
+    );
   }
 
   private renderPool(startY: number, planet: Planet): number {

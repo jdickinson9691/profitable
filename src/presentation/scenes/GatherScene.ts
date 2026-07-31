@@ -5,6 +5,7 @@ import { getCurrentPlanet } from "../currentPlanet.ts";
 import { addBatch, totalQuantity } from "../inventory.ts";
 import { rollQualityOnPlanet } from "../../galaxy/rollQualityOnPlanet.ts";
 import { formatQualityRoll, formatQualityLabel } from "../display.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { Resource } from "../../data/types/resource.ts";
 import type { Planet } from "../../data/types/planet.ts";
 
@@ -69,6 +70,13 @@ export class GatherScene extends Phaser.Scene {
     });
 
     this.refreshInventoryDisplay(planet);
+
+    renderOnboardingStep(
+      this,
+      "Gather",
+      "This is your starting planet. Click a \"> Gather <resource>\" button to collect a raw resource and see its quality roll.",
+      () => this.scene.restart(),
+    );
   }
 
   private getGatherableResources(planet: Planet): Resource[] {

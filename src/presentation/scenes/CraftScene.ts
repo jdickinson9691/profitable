@@ -8,6 +8,7 @@ import { craft } from "../../simulation/craft.ts";
 import { resolveSchematicTier } from "../../simulation/schematicTier.ts";
 import { getShipsContent } from "../shipsState.ts";
 import { formatQualityRoll, formatQualityLabel, describeCraftResult } from "../display.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 import type { Resource } from "../../data/types/resource.ts";
@@ -114,6 +115,13 @@ export class CraftScene extends Phaser.Scene {
     });
 
     this.refreshStatus();
+
+    renderOnboardingStep(
+      this,
+      "Craft",
+      "Choose a recipe from the list below, pick a crafter tier, then click \"> Craft\" to turn refined materials into a finished good.",
+      () => this.scene.restart(),
+    );
   }
 
   // Same 2-column grid RefineScene.renderRecipeList() already established,

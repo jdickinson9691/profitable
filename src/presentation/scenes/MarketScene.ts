@@ -17,6 +17,7 @@ import {
 } from "../tradingState.ts";
 import { createListing } from "../../trading/createListing.ts";
 import { purchaseListing } from "../../trading/purchaseListing.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { PurchaseSucceeded } from "../../data/types/purchaseResult.ts";
 import type { Listing } from "../../data/types/listing.ts";
 import type { Planet } from "../../data/types/planet.ts";
@@ -149,6 +150,13 @@ export class MarketScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#cccccc",
     });
+
+    renderOnboardingStep(
+      this,
+      "Market",
+      "Sell what you've made -- list items from your inventory below, or buy what's for sale here.",
+      () => this.redraw(),
+    );
   }
 
   private buy(listing: Listing, quantity: number, planet: Planet): void {

@@ -16,6 +16,7 @@ import { purchaseShip } from "../../ships/purchaseShip.ts";
 import { purchaseScanner } from "../../ships/purchaseScanner.ts";
 import { SHIP_PURCHASE_COST_BY_TIER, SCANNER_PURCHASE_COST_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
 import { TIER_COLOR_BREAKPOINTS } from "../../data/constants/tierColor.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { ShipCandidate } from "../../data/types/shipCandidate.ts";
 import type { ScannerCandidate } from "../../data/types/scannerCandidate.ts";
 import type { Scanner } from "../../data/types/scanner.ts";
@@ -93,6 +94,13 @@ export class ShipyardScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#cccccc",
     });
+
+    renderOnboardingStep(
+      this,
+      "Shipyard",
+      "Buy your first ship here -- a Grey or White tier runner is a solid, affordable first pick.",
+      () => this.redraw(),
+    );
   }
 
   private renderPool(startY: number, planet: Planet): number {

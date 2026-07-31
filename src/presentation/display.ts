@@ -19,12 +19,26 @@ export { computeAggregateTier };
 // Presentation-only visual mapping (Agent 1 defines the 7 tier *names* and
 // breakpoints, not display colors) -- roughly conventional MMO loot-rarity
 // colors.
+//
+// Alpha Section 4 tier-color legibility pass: WCAG contrast ratio checked
+// for all 7 against this game's #111111 canvas background. Purple was the
+// one failure -- the original Material "Purple 500" (0x9c27b0) measures
+// 2.99:1, well under WCAG AA's 4.5:1 minimum for normal text, i.e.
+// genuinely hard to read for every player, not just a colorblindness
+// concern. Replaced with Material "Purple 300" (0xba68c8, same official
+// Material palette family as every other tier color here), which measures
+// 5.31:1. Every other tier already clears 4.5:1 (Grey 7.05, White 18.88,
+// Green 6.79, Blue 6.04, Orange 8.76, Gold 13.46) -- no other change
+// needed. Colorblind-safe differentiation is handled separately: the only
+// place this map ever renders as a real color fill (tierSelector.ts) always
+// draws the tier's full name as the colored text itself, never a bare color
+// swatch -- already stronger insurance than a short letter code would add.
 export const TIER_COLOR_HEX: Record<TierColor, number> = {
   Grey: 0x9e9e9e,
   White: 0xffffff,
   Green: 0x4caf50,
   Blue: 0x2196f3,
-  Purple: 0x9c27b0,
+  Purple: 0xba68c8,
   Orange: 0xff9800,
   Gold: 0xffd700,
 };

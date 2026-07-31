@@ -4,20 +4,44 @@
 // for several of these) -- but they must still live here, as the single
 // source every trading formula reads, rather than as magic numbers
 // scattered through Agent 11's logic (GDD §5.3).
+//
+// Alpha Section 4 debug/tuning panel: every balance-tunable value below is
+// `let` (not `const`) with a paired setter, so the panel can live-adjust it
+// without a redeploy. This is the same "module-level mutable binding + a
+// setter function" shape crewState.ts/tradingState.ts already use for
+// cross-scene state -- an ES module import is a live binding, so every
+// existing call site (`import { X } from "./tradingConfig.ts"`) keeps
+// working unchanged and sees the new value on its very next read. No
+// formula/logic here changes, only whether the number behind it can move
+// at runtime. Structural, non-tunable constants (GLOBAL_LISTABLE_MAX_ITEM_TIER,
+// MAX_ITEM_TIER -- these define market *mechanics*, not balance feel) stay
+// plain `const`.
 
 // §2.5 -- how long an unsold listing stays active before expiring.
-export const LISTING_EXPIRY_HOURS = 72;
+export let LISTING_EXPIRY_HOURS = 72;
+export function setListingExpiryHours(value: number): void {
+  LISTING_EXPIRY_HOURS = value;
+}
 
 // §2.6 -- percentage of currentPrice each traded unit moves the price by,
 // diminishing on successive units since it compounds against an
 // already-moved price rather than a flat amount.
-export const BASELINE_DRIFT_PERCENT = 0.02;
+export let BASELINE_DRIFT_PERCENT = 0.02;
+export function setBaselineDriftPercent(value: number): void {
+  BASELINE_DRIFT_PERCENT = value;
+}
 
 // §2.6 -- bounds currentPrice as a fraction of basePrice; drift must never
 // push currentPrice outside [basePrice * PRICE_FLOOR_PERCENT, basePrice *
 // PRICE_CEILING_PERCENT], even transiently mid-calculation.
-export const PRICE_FLOOR_PERCENT = 0.5;
-export const PRICE_CEILING_PERCENT = 1.5;
+export let PRICE_FLOOR_PERCENT = 0.5;
+export function setPriceFloorPercent(value: number): void {
+  PRICE_FLOOR_PERCENT = value;
+}
+export let PRICE_CEILING_PERCENT = 1.5;
+export function setPriceCeilingPercent(value: number): void {
+  PRICE_CEILING_PERCENT = value;
+}
 
 // §2.6 -- necessary completion, added while implementing Agent 11
 // (applyRecovery): the GDD says prices "drift back toward base over time
@@ -27,23 +51,37 @@ export const PRICE_CEILING_PERCENT = 1.5;
 // per-trade effect, not a per-time-elapsed one). Recovery needs its own
 // rate since it moves toward basePrice on the clock, not on trade volume.
 // Fraction of the remaining gap to basePrice closed per elapsed hour.
-export const PRICE_RECOVERY_PERCENT_PER_HOUR = 0.01;
+export let PRICE_RECOVERY_PERCENT_PER_HOUR = 0.01;
+export function setPriceRecoveryPercentPerHour(value: number): void {
+  PRICE_RECOVERY_PERCENT_PER_HOUR = value;
+}
 
 // §2.7 -- global price is derived from the best live planet price, never
 // better for the player: buy = lowest planet sell price + markup, sell =
 // highest planet buy price - discount.
-export const GLOBAL_MARKET_MARKUP_PERCENT = 0.1;
-export const GLOBAL_MARKET_DISCOUNT_PERCENT = 0.1;
+export let GLOBAL_MARKET_MARKUP_PERCENT = 0.1;
+export function setGlobalMarketMarkupPercent(value: number): void {
+  GLOBAL_MARKET_MARKUP_PERCENT = value;
+}
+export let GLOBAL_MARKET_DISCOUNT_PERCENT = 0.1;
+export function setGlobalMarketDiscountPercent(value: number): void {
+  GLOBAL_MARKET_DISCOUNT_PERCENT = value;
+}
 
 // §2.11 -- flat fee taken on every sale, removed from the economy (not
 // paid to any player) as a currency sink against the single-currency model.
-export const TRANSACTION_FEE_PERCENT = 0.05;
+export let TRANSACTION_FEE_PERCENT = 0.05;
+export function setTransactionFeePercent(value: number): void {
+  TRANSACTION_FEE_PERCENT = value;
+}
 
 // §2.1/§2.8 -- item-tier range (see Resource.itemTier) and the global
 // market's sell restriction: tiers above GLOBAL_LISTABLE_MAX_ITEM_TIER
 // (i.e. 6-7) cannot be listed with location: 'global', only on a planet
 // market. Buying has no tier restriction -- any tier 1-7 is buyable
-// globally, per §2.1.
+// globally, per §2.1. Structural market-mechanics constants, not a
+// balance-tuning knob -- left as plain `const`, not exposed on the debug
+// panel.
 export const GLOBAL_LISTABLE_MAX_ITEM_TIER = 5;
 export const MAX_ITEM_TIER = 7;
 
@@ -58,19 +96,37 @@ export const MAX_ITEM_TIER = 7;
 
 // "Slow, predictable" relative to baseline drift's continuous per-trade
 // movement -- one full 4-season cycle every 48 hours.
-export const SEASON_CYCLE_HOURS = 12;
+export let SEASON_CYCLE_HOURS = 12;
+export function setSeasonCycleHours(value: number): void {
+  SEASON_CYCLE_HOURS = value;
+}
 // Percentage swing applied to a season's favored (cheap) / disfavored
 // (premium) category -- smaller than an emergency's, consistent with
 // "slow, predictable" being a gentler effect than "rare, sudden."
-export const SEASON_PRICE_SWING_PERCENT = 0.08;
+export let SEASON_PRICE_SWING_PERCENT = 0.08;
+export function setSeasonPriceSwingPercent(value: number): void {
+  SEASON_PRICE_SWING_PERCENT = value;
+}
 
 // How often each planet independently rolls for a new emergency -- a
 // planet-local check, not a galaxy-wide tick.
-export const EMERGENCY_CHECK_INTERVAL_HOURS = 24;
+export let EMERGENCY_CHECK_INTERVAL_HOURS = 24;
+export function setEmergencyCheckIntervalHours(value: number): void {
+  EMERGENCY_CHECK_INTERVAL_HOURS = value;
+}
 // "Rare" -- most check windows produce no emergency.
-export const EMERGENCY_TRIGGER_CHANCE = 0.15;
+export let EMERGENCY_TRIGGER_CHANCE = 0.15;
+export function setEmergencyTriggerChance(value: number): void {
+  EMERGENCY_TRIGGER_CHANCE = value;
+}
 // Must be <= EMERGENCY_CHECK_INTERVAL_HOURS, or a still-active emergency
 // from one window could bleed into the next window's own roll window.
-export const EMERGENCY_DURATION_HOURS = 4;
+export let EMERGENCY_DURATION_HOURS = 4;
+export function setEmergencyDurationHours(value: number): void {
+  EMERGENCY_DURATION_HOURS = value;
+}
 // "Paying premium" -- meaningfully larger than a season's gentler swing.
-export const EMERGENCY_PRICE_PREMIUM_PERCENT = 0.3;
+export let EMERGENCY_PRICE_PREMIUM_PERCENT = 0.3;
+export function setEmergencyPricePremiumPercent(value: number): void {
+  EMERGENCY_PRICE_PREMIUM_PERCENT = value;
+}

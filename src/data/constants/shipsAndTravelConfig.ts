@@ -36,7 +36,14 @@ import type { ScannerTierRadiusBonus } from "../types/scannerTierRadiusBonus.ts"
 // speed bonus -- all comfortably inside "a few hours to a couple of
 // days," never approaching the 1.0 guess's 117+-day worst case. Kept at
 // its original value.
-export const DISTANCE_TO_TRAVEL_HOURS_PER_UNIT = 0.01;
+// Alpha Section 4 debug/tuning panel: balance-tunable values in this file
+// are `let` (scalars) or a mutable array whose entries are re-written in
+// place (tables), each with a setter -- see tradingConfig.ts's own comment
+// for the full rationale. No formula/logic here changes.
+export let DISTANCE_TO_TRAVEL_HOURS_PER_UNIT = 0.01;
+export function setDistanceToTravelHoursPerUnit(value: number): void {
+  DISTANCE_TO_TRAVEL_HOURS_PER_UNIT = value;
+}
 
 // §2.4 -- ship tier's travel-time multiplier, applied on top of the base
 // distance-derived travel time. Monotonically decreasing by tier: Grey is
@@ -57,13 +64,23 @@ export const SHIP_TIER_SPEED_MODIFIER: readonly ShipTierSpeedModifier[] = [
   { tier: "Orange", travelTimeMultiplier: 0.6 },
   { tier: "Gold", travelTimeMultiplier: 0.45 },
 ];
+export function setShipTierSpeedModifierForTier(tier: ShipTierSpeedModifier["tier"], travelTimeMultiplier: number): void {
+  const entry = SHIP_TIER_SPEED_MODIFIER.find((e) => e.tier === tier);
+  if (entry) entry.travelTimeMultiplier = travelTimeMultiplier;
+}
 
 // §2.2 -- how many unpurchased ship candidates sit in one planet's
 // shipyard pool at once, and how often that pool re-rolls -- same pattern
 // as Phase 4's crew pool (crewConfig.ts's CREW_POOL_SIZE_PER_PLANET /
 // CREW_POOL_REFRESH_INTERVAL_HOURS).
-export const SHIPYARD_POOL_SIZE_PER_PLANET = 3;
-export const SHIPYARD_POOL_REFRESH_INTERVAL_HOURS = 24;
+export let SHIPYARD_POOL_SIZE_PER_PLANET = 3;
+export function setShipyardPoolSizePerPlanet(value: number): void {
+  SHIPYARD_POOL_SIZE_PER_PLANET = value;
+}
+export let SHIPYARD_POOL_REFRESH_INTERVAL_HOURS = 24;
+export function setShipyardPoolRefreshIntervalHours(value: number): void {
+  SHIPYARD_POOL_REFRESH_INTERVAL_HOURS = value;
+}
 
 // §2.2 -- necessary completion: Agent 20's contract requires
 // purchaseShip() to deduct "the appropriate cost (cost curve is a
@@ -81,6 +98,10 @@ export const SHIP_PURCHASE_COST_BY_TIER: readonly ShipPurchaseCostByTier[] = [
   { tier: "Orange", cost: 6000 },
   { tier: "Gold", cost: 9000 },
 ];
+export function setShipPurchaseCostForTier(tier: ShipPurchaseCostByTier["tier"], cost: number): void {
+  const entry = SHIP_PURCHASE_COST_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.cost = cost;
+}
 
 // Travel Encounters (Non-Combat) GDD §2/§3 -- like the rest of this file,
 // the design doc documents the *shape* of each value without example
@@ -93,13 +114,19 @@ export const SHIP_PURCHASE_COST_BY_TIER: readonly ShipPurchaseCostByTier[] = [
 // Ships/Travel and Trading are separate domains, and duplicating two
 // numbers with a documented rationale is a smaller cost than a cross-
 // domain constant dependency between otherwise-unrelated systems.
-export const ENCOUNTER_CHECK_WINDOW_HOURS = 24;
+export let ENCOUNTER_CHECK_WINDOW_HOURS = 24;
+export function setEncounterCheckWindowHours(value: number): void {
+  ENCOUNTER_CHECK_WINDOW_HOURS = value;
+}
 // Alpha starting value (docs/profitable-alpha-tuning-values.md, locked
 // 2026-07-29): 20%, "slightly higher than the emergency system's 15%,
 // since this covers a broader category" -- supersedes the original 0.15
 // originated default (which had directly reused the emergency system's
 // own rate rather than being deliberately set higher than it).
-export const ENCOUNTER_TRIGGER_CHANCE = 0.2;
+export let ENCOUNTER_TRIGGER_CHANCE = 0.2;
+export function setEncounterTriggerChance(value: number): void {
+  ENCOUNTER_TRIGGER_CHANCE = value;
+}
 
 // §2.2 -- weighted random split when a window's roll triggers an
 // encounter. Hazard (the only downside type) is deliberately the lowest
@@ -134,12 +161,20 @@ export const ENCOUNTER_TRIGGER_CHANCE = 0.2;
 // the prior 0.38/0.38/0.19/0.05. Still sums to 1.0; combat's 5% is
 // unchanged since the doc treats it as already-settled and builds the
 // other three around it.
-export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
+export const ENCOUNTER_TYPE_WEIGHTS: Record<EncounterType, number> = {
   tradeOpportunity: 0.4,
   discovery: 0.35,
   hazard: 0.2,
   combat: 0.05,
 };
+// Debug-panel setter only -- does not auto-rebalance the other 3 weights,
+// same "the panel is a tuning shortcut, not a rebalancing algorithm"
+// principle as every other setter in this file. The 4 weights are expected
+// to sum to 1; an operator adjusting one is expected to adjust the others
+// to compensate, same as editing the doc by hand would require.
+export function setEncounterTypeWeight(type: EncounterType, weight: number): void {
+  ENCOUNTER_TYPE_WEIGHTS[type] = weight;
+}
 
 // Combat GDD §2.2/§3 -- "arrival-triggered combat check chance... a
 // separate probability from the travel-window roll." A one-time check per
@@ -149,7 +184,10 @@ export const ENCOUNTER_TYPE_WEIGHTS: Readonly<Record<EncounterType, number>> = {
 // Confirmed against docs/profitable-alpha-tuning-values.md (2026-07-29,
 // alpha tuning pass): already matches the doc's 10% starting value
 // exactly -- no change made.
-export const ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
+export let ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
+export function setArrivalCombatCheckChance(value: number): void {
+  ARRIVAL_COMBAT_CHECK_CHANCE = value;
+}
 
 // Combat GDD §2.5/§3 -- "component durability damage percentage" on a
 // combat loss: the weapon's qualities.durability is reduced by this
@@ -161,7 +199,10 @@ export const ARRIVAL_COMBAT_CHECK_CHANCE = 0.1;
 // alpha tuning pass): already matches the doc's 15% starting value
 // exactly (the doc itself notes this was already implemented/verified) --
 // no change made.
-export const COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = 0.15;
+export let COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = 0.15;
+export function setCombatComponentDurabilityDamagePercent(value: number): void {
+  COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = value;
+}
 
 // Combat GDD §2.5/§3 -- "crew unavailableUntil duration" on a combat loss.
 // Mirrors the daily-scale timing every other Ships/Crew tunable already
@@ -170,7 +211,10 @@ export const COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT = 0.15;
 // Confirmed against docs/profitable-alpha-tuning-values.md (2026-07-29,
 // alpha tuning pass): already matches the doc's 24h starting value
 // exactly -- no change made.
-export const COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
+export let COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
+export function setCombatCrewUnavailableDurationHours(value: number): void {
+  COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = value;
+}
 
 // Combat GDD §2.4/§3: "reuses the existing tier-variance table shape (no
 // new curve to design)." Confirmed -- TIER_VARIANCE
@@ -189,13 +233,22 @@ export const COMBAT_CREW_UNAVAILABLE_DURATION_HOURS = 24;
 // Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
 // 2026-07-29): 50-200 Cr, superseding the original 20-150 Cr originated
 // default.
-export const ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = 50;
-export const ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = 200;
+export let ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = 50;
+export function setEncounterTradeOpportunityMinCredits(value: number): void {
+  ENCOUNTER_TRADE_OPPORTUNITY_MIN_CREDITS = value;
+}
+export let ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = 200;
+export function setEncounterTradeOpportunityMaxCredits(value: number): void {
+  ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS = value;
+}
 
 // §2.6 -- hazard: roll 1-100 against this fixed pass threshold, modified
 // additively by the voyage's ship's derived tier via HAZARD_SHIP_TIER_MODIFIER
 // below (need roll + rollBonus >= HAZARD_PASS_THRESHOLD to pass).
-export const HAZARD_PASS_THRESHOLD = 50;
+export let HAZARD_PASS_THRESHOLD = 50;
+export function setHazardPassThreshold(value: number): void {
+  HAZARD_PASS_THRESHOLD = value;
+}
 
 // §2.6 -- "modified by ship tier," same "tier shifts a roll" pattern as
 // PLANET_TIER_MODIFIER, but Grey = +0 (floor, not a penalty) -- see
@@ -210,6 +263,10 @@ export const HAZARD_SHIP_TIER_MODIFIER: readonly HazardTierModifier[] = [
   { tier: "Orange", rollBonus: 25 },
   { tier: "Gold", rollBonus: 30 },
 ];
+export function setHazardShipTierModifierForTier(tier: HazardTierModifier["tier"], rollBonus: number): void {
+  const entry = HAZARD_SHIP_TIER_MODIFIER.find((e) => e.tier === tier);
+  if (entry) entry.rollBonus = rollBonus;
+}
 
 // §2.6 -- "a scaled currency cost using the same escalating curve shape as
 // the crafting threshold penalty": HAZARD_BASE_FAILURE_COST times the
@@ -228,7 +285,10 @@ export const HAZARD_SHIP_TIER_MODIFIER: readonly HazardTierModifier[] = [
 // the alpha tuning pass report as the one value in this pass that's a
 // judgment call, not a direct doc transcription -- revisit during
 // Section 2's actual playtesting.
-export const HAZARD_BASE_FAILURE_COST = 50;
+export let HAZARD_BASE_FAILURE_COST = 50;
+export function setHazardBaseFailureCost(value: number): void {
+  HAZARD_BASE_FAILURE_COST = value;
+}
 export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
   { minPointsBelow: 1, maxPointsBelow: 10, costMultiplier: 1.0 },
   { minPointsBelow: 11, maxPointsBelow: 20, costMultiplier: 2.0 },
@@ -236,6 +296,14 @@ export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
   { minPointsBelow: 31, maxPointsBelow: 40, costMultiplier: 7.0 },
   { minPointsBelow: 41, maxPointsBelow: null, costMultiplier: 10.0 },
 ];
+// Indexed by band position (0-4, matching declaration order above) rather
+// than a min/max lookup -- min/maxPointsBelow are the band's identity, not
+// something a debug panel should be able to drift out of the escalating
+// order the curve depends on.
+export function setHazardFailureCostMultiplierAt(index: number, costMultiplier: number): void {
+  const band = HAZARD_FAILURE_COST_CURVE[index];
+  if (band) band.costMultiplier = costMultiplier;
+}
 
 // Scanner/Probe GDD §2/§3 -- like the rest of this file, the design doc
 // documents the *shape* of each value without example numbers, so these
@@ -252,8 +320,14 @@ export const HAZARD_FAILURE_COST_CURVE: readonly HazardFailureCostBand[] = [
 // role as a bigger investment" -- supersedes the original 3/24h
 // originated default, which had directly mirrored the ship pool instead
 // of being deliberately rarer.
-export const SCANNER_POOL_SIZE_PER_PLANET = 2;
-export const SCANNER_POOL_REFRESH_INTERVAL_HOURS = 48;
+export let SCANNER_POOL_SIZE_PER_PLANET = 2;
+export function setScannerPoolSizePerPlanet(value: number): void {
+  SCANNER_POOL_SIZE_PER_PLANET = value;
+}
+export let SCANNER_POOL_REFRESH_INTERVAL_HOURS = 48;
+export function setScannerPoolRefreshIntervalHours(value: number): void {
+  SCANNER_POOL_REFRESH_INTERVAL_HOURS = value;
+}
 
 // §3 -- "scanner acquisition cost curve by tier." Scaled below
 // SHIP_PURCHASE_COST_BY_TIER (a whole ship is the bigger investment) but
@@ -273,6 +347,10 @@ export const SCANNER_PURCHASE_COST_BY_TIER: readonly ScannerPurchaseCostByTier[]
   { tier: "Orange", cost: 6400 },
   { tier: "Gold", cost: 12800 },
 ];
+export function setScannerPurchaseCostForTier(tier: ScannerPurchaseCostByTier["tier"], cost: number): void {
+  const entry = SCANNER_PURCHASE_COST_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.cost = cost;
+}
 
 // §2.4 -- "base scan radius (with no scanner, or as the floor before tier
 // bonus)." Same {x,y} distance units as Planet.position (range +-1000 per
@@ -292,7 +370,10 @@ export const SCANNER_PURCHASE_COST_BY_TIER: readonly ScannerPurchaseCostByTier[]
 // original value; src/presentation/README.md's Scanner/Probe live-browser
 // playtest already exercised this exact 120-base/470-max-radius pairing
 // successfully (computed real planet distances by hand against it).
-export const SCANNER_BASE_SCAN_RADIUS = 120;
+export let SCANNER_BASE_SCAN_RADIUS = 120;
+export function setScannerBaseScanRadius(value: number): void {
+  SCANNER_BASE_SCAN_RADIUS = value;
+}
 
 // §2.4 -- "scanner tier radius-bonus table... reusing the shape of the
 // schematic-tier contribution table (Grey +0 up to Gold's top value)."
@@ -313,3 +394,7 @@ export const SCANNER_TIER_RADIUS_BONUS: readonly ScannerTierRadiusBonus[] = [
   { tier: "Orange", radiusBonus: 260 },
   { tier: "Gold", radiusBonus: 350 },
 ];
+export function setScannerTierRadiusBonusForTier(tier: ScannerTierRadiusBonus["tier"], radiusBonus: number): void {
+  const entry = SCANNER_TIER_RADIUS_BONUS.find((e) => e.tier === tier);
+  if (entry) entry.radiusBonus = radiusBonus;
+}

@@ -14,6 +14,7 @@ import { TradeMapScene } from "./scenes/TradeMapScene.ts";
 import { CrewScene } from "./scenes/CrewScene.ts";
 import { ShipyardScene } from "./scenes/ShipyardScene.ts";
 import { ShipAssemblyScene } from "./scenes/ShipAssemblyScene.ts";
+import { SettingsScene } from "./scenes/SettingsScene.ts";
 import { isDebugModeEnabled } from "./debugFlag.ts";
 
 const game = new Phaser.Game({
@@ -33,8 +34,23 @@ const game = new Phaser.Game({
     CrewScene,
     ShipyardScene,
     ShipAssemblyScene,
+    SettingsScene,
   ],
 });
+
+// Debug/tuning panel scene, registered asynchronously via game.scene.add()
+// rather than the static `scene: [...]` array above, and only behind
+// isDebugModeEnabled() (dev build + `?debug=1`) -- same dynamic-import
+// dead-code-elimination precedent as devSeed.ts's own debug hook just
+// below, so DebugPanelScene.ts's code is code-split into its own chunk,
+// never fetched at all in a production build or a plain `npm run dev`
+// session without the param. nav.ts's own matching gate on the nav entry
+// is the second, independent layer that would otherwise navigate to it.
+if (isDebugModeEnabled()) {
+  void import("./scenes/DebugPanelScene.ts").then(({ DebugPanelScene }) => {
+    game.scene.add("DebugPanel", DebugPanelScene);
+  });
+}
 
 // Dev-only debug hook -- lets the running game be inspected/driven from
 // the console (canvas rendering means there's no DOM to query otherwise).

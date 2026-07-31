@@ -23,6 +23,9 @@ import { resolveCombatChoice } from "../../ships/resolveCombatChoice.ts";
 import { getSeasonalEffect, getSeasonalPriceMultiplier } from "../../trading/season.ts";
 import { getActiveEmergency, getEmergencyPriceMultiplier } from "../../trading/emergency.ts";
 import { describeEncounter, describePendingCombat, describeCombatResolution } from "../display.ts";
+import { consumeForcedEncounterType } from "../debugState.ts";
+import { buildForcedEncounterRandom } from "../debugForcedRandom.ts";
+import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { Planet } from "../../data/types/planet.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { Voyage } from "../../data/types/voyage.ts";
@@ -164,6 +167,13 @@ export class TradeMapScene extends Phaser.Scene {
       fontSize: "14px",
       color: "#cccccc",
     });
+
+    renderOnboardingStep(
+      this,
+      "TradeMap",
+      "Explore -- most of the galaxy is still undiscovered. Scroll down to Travel and initiate a voyage to a nearby planet.",
+      () => this.redraw(),
+    );
   }
 
   private renderPlanet(planet: Planet, startY: number): number {
@@ -526,7 +536,18 @@ export class TradeMapScene extends Phaser.Scene {
     // pre-amendment call site (none left in this file now, but the
     // function signature itself) stays unaffected when they're omitted.
     const destinationPlanet = galaxy.planets.find((planet) => planet.id === voyage.destinationPlanetId);
-    const result = resolveArrival(voyage, ship, Date.now(), destinationPlanet, content.resources);
+
+    // Alpha Section 4 debug panel "force encounter" shortcut: a one-shot
+    // request (debugState.ts) consumed here, on the very next resolution,
+    // then cleared -- never affects a second arrival by accident. Passed
+    // into resolveArrival()'s existing, already-optional `random`
+    // parameter; when no request is pending this is `undefined`, which
+    // resolveArrival() itself defaults to real Math.random(), identical to
+    // every non-debug call.
+    const forcedType = consumeForcedEncounterType();
+    const random = forcedType ? buildForcedEncounterRandom(forcedType) : undefined;
+
+    const result = resolveArrival(voyage, ship, Date.now(), destinationPlanet, content.resources, random);
     if (!result.resolved) {
       this.setStatus(`Not yet arrived: ${result.reason}`);
       return;

@@ -1,6 +1,14 @@
 export interface AudioManager {
   play(soundId: string): void;
   stop(soundId: string): void;
+  // Alpha Section 4 settings screen: "audio on/off toggle, wired to the
+  // existing AudioManager." A mute switch belongs on the adapter itself
+  // (the one place allowed to know about the underlying audio stack), not
+  // reimplemented in presentation code by conditionally skipping play()
+  // calls -- that would leave every future play() call site responsible
+  // for remembering to check a flag, easy to miss one.
+  setEnabled(enabled: boolean): void;
+  isEnabled(): boolean;
 }
 
 // Minimal shape of a Web Audio AudioBufferSourceNode (its real `start`/
@@ -19,11 +27,16 @@ export interface AudioVoiceLike {
 // single reusable instance.
 export type SoundRegistry = Record<string, () => AudioVoiceLike>;
 
-export function createWebAudioManager(registry: SoundRegistry): AudioManager {
+export function createWebAudioManager(registry: SoundRegistry, initiallyEnabled = true): AudioManager {
   const activeVoices = new Map<string, AudioVoiceLike>();
+  let enabled = initiallyEnabled;
 
   return {
     play(soundId) {
+      // Muted: silently no-ops rather than throwing on an unregistered id
+      // check first -- disabled audio should behave as if play() was never
+      // called at all, not surface an error a caller has to guard against.
+      if (!enabled) return;
       const createVoice = registry[soundId];
       if (!createVoice) {
         throw new Error(`no sound registered for id "${soundId}"`);
@@ -38,6 +51,19 @@ export function createWebAudioManager(registry: SoundRegistry): AudioManager {
     stop(soundId) {
       activeVoices.get(soundId)?.stop();
       activeVoices.delete(soundId);
+    },
+    setEnabled(next) {
+      enabled = next;
+      // Muting mid-playback stops whatever's currently audible too, not
+      // just future play() calls -- otherwise a sound already in flight
+      // would keep playing until it ends on its own.
+      if (!enabled) {
+        for (const voice of activeVoices.values()) voice.stop();
+        activeVoices.clear();
+      }
+    },
+    isEnabled() {
+      return enabled;
     },
   };
 }

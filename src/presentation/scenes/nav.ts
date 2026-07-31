@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { isDebugModeEnabled } from "../debugFlag.ts";
 
 export const SCENE_KEYS = {
   map: "Map",
@@ -11,6 +12,8 @@ export const SCENE_KEYS = {
   crew: "Crew",
   shipyard: "Shipyard",
   shipAssembly: "ShipAssembly",
+  settings: "Settings",
+  debugPanel: "DebugPanel",
 } as const;
 
 const NAV_ITEMS: Array<{ key: string; label: string }> = [
@@ -24,7 +27,16 @@ const NAV_ITEMS: Array<{ key: string; label: string }> = [
   { key: SCENE_KEYS.crew, label: "Crew" },
   { key: SCENE_KEYS.shipyard, label: "Shipyard" },
   { key: SCENE_KEYS.shipAssembly, label: "Assembly" },
+  { key: SCENE_KEYS.settings, label: "Settings" },
 ];
+
+// Debug-only nav entry -- appended, never part of the base NAV_ITEMS array,
+// so a production build (or a plain `npm run dev` session without
+// `?debug=1`) never renders or wires a click handler for it at all. Same
+// two-layer gate as devSeed.ts's own debug hook (debugFlag.ts's own
+// comment: import.meta.env.DEV eliminates it from a production bundle
+// entirely; the URL param keeps it off by default even in dev).
+const DEBUG_NAV_ITEM = { key: SCENE_KEYS.debugPanel, label: "Debug" };
 
 const NAV_ROW_HEIGHT = 22;
 
@@ -42,9 +54,10 @@ const NAV_ROW_HEIGHT = 22;
 // to be touched to read back a dynamic nav-bar height.
 export function renderNav(scene: Phaser.Scene, activeKey: string): void {
   const maxWidth = scene.cameras.main.width;
+  const items = isDebugModeEnabled() ? [...NAV_ITEMS, DEBUG_NAV_ITEM] : NAV_ITEMS;
   let x = 16;
   let y = 16;
-  for (const item of NAV_ITEMS) {
+  for (const item of items) {
     const isActive = item.key === activeKey;
     const text = scene.add.text(x, y, item.label, {
       fontFamily: "monospace",

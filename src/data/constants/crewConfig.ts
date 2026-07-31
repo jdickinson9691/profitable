@@ -9,8 +9,16 @@ import type { CrewWageByTier } from "../types/crewWage.ts";
 // decision, not a locked design requirement"). All must still live here,
 // the single source every crew formula reads, per GDD §5.3.
 
+// Alpha Section 4 debug/tuning panel: balance-tunable values below are
+// `let` (scalars) or a mutable array whose entries are re-written in place
+// (tables), each with a setter -- see tradingConfig.ts's own comment for
+// the full rationale. No formula/logic here changes.
+
 // §2.4 -- a player starts with this many crew slots before any purchase.
-export const BASE_CREW_CAPACITY = 2;
+export let BASE_CREW_CAPACITY = 2;
+export function setBaseCrewCapacity(value: number): void {
+  BASE_CREW_CAPACITY = value;
+}
 
 // §2.4 -- capacity expansion cost curve: the Nth purchased slot costs
 // CREW_CAPACITY_EXPANSION_BASE_COST * CREW_CAPACITY_EXPANSION_COST_MULTIPLIER^(N-1),
@@ -20,8 +28,14 @@ export const BASE_CREW_CAPACITY = 2;
 // 2026-07-29): base 500, doubling per slot -- slot 3: 500, slot 4: 1,000,
 // slot 5: 2,000, slot 6: 4,000. Supersedes this constant's original
 // originated-default values (200 / 1.5x).
-export const CREW_CAPACITY_EXPANSION_BASE_COST = 500;
-export const CREW_CAPACITY_EXPANSION_COST_MULTIPLIER = 2.0;
+export let CREW_CAPACITY_EXPANSION_BASE_COST = 500;
+export function setCrewCapacityExpansionBaseCost(value: number): void {
+  CREW_CAPACITY_EXPANSION_BASE_COST = value;
+}
+export let CREW_CAPACITY_EXPANSION_COST_MULTIPLIER = 2.0;
+export function setCrewCapacityExpansionCostMultiplier(value: number): void {
+  CREW_CAPACITY_EXPANSION_COST_MULTIPLIER = value;
+}
 
 // §2.3 -- one-time hire cost by tier ("better = more valuable/harder to
 // get," same pattern as every other tier system).
@@ -34,6 +48,10 @@ export const CREW_HIRE_COST_BY_TIER: readonly CrewHireCostByTier[] = [
   { tier: "Orange", cost: 800 },
   { tier: "Gold", cost: 1200 },
 ];
+export function setCrewHireCostForTier(tier: CrewHireCostByTier["tier"], cost: number): void {
+  const entry = CREW_HIRE_COST_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.cost = cost;
+}
 
 // §2.6 -- recurring upkeep wage by tier, paid every WAGE_PAYMENT_INTERVAL_HOURS.
 // Alpha starting values (docs/profitable-alpha-tuning-values.md, locked
@@ -50,22 +68,41 @@ export const CREW_WAGE_BY_TIER: readonly CrewWageByTier[] = [
   { tier: "Orange", wage: 160 },
   { tier: "Gold", wage: 320 },
 ];
+export function setCrewWageForTier(tier: CrewWageByTier["tier"], wage: number): void {
+  const entry = CREW_WAGE_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.wage = wage;
+}
 
 // §2.6 -- how often wages are due.
-export const WAGE_PAYMENT_INTERVAL_HOURS = 24;
+export let WAGE_PAYMENT_INTERVAL_HOURS = 24;
+export function setWagePaymentIntervalHours(value: number): void {
+  WAGE_PAYMENT_INTERVAL_HOURS = value;
+}
 
 // §2.7 -- how long upkeep can go unpaid before a crew member departs.
-export const UPKEEP_GRACE_PERIOD_HOURS = 48;
+export let UPKEEP_GRACE_PERIOD_HOURS = 48;
+export function setUpkeepGracePeriodHours(value: number): void {
+  UPKEEP_GRACE_PERIOD_HOURS = value;
+}
 
 // §2.3 -- how many unhired candidates sit in one planet's crew pool at once.
-export const CREW_POOL_SIZE_PER_PLANET = 3;
+export let CREW_POOL_SIZE_PER_PLANET = 3;
+export function setCrewPoolSizePerPlanet(value: number): void {
+  CREW_POOL_SIZE_PER_PLANET = value;
+}
 
 // §2.3 -- how often a planet's crew pool re-rolls its candidates.
-export const CREW_POOL_REFRESH_INTERVAL_HOURS = 24;
+export let CREW_POOL_REFRESH_INTERVAL_HOURS = 24;
+export function setCrewPoolRefreshIntervalHours(value: number): void {
+  CREW_POOL_REFRESH_INTERVAL_HOURS = value;
+}
 
 // §2.1a -- documented example range is "24-48 hours max credited"; using
 // the upper bound.
-export const ELAPSED_TIME_CAP_HOURS = 48;
+export let ELAPSED_TIME_CAP_HOURS = 48;
+export function setElapsedTimeCapHours(value: number): void {
+  ELAPSED_TIME_CAP_HOURS = value;
+}
 
 // §2.1a / Agent 1's own Must-NOT-Do: the exact background/idle output
 // rate (relative to active output for the same crafter) is an explicitly
