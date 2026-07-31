@@ -87,6 +87,30 @@ test("craft() rejects when an input is 41+ points below its recipe threshold", (
   assert.equal(result.accepted, false);
 });
 
+// Regression: this exact combination -- the MVP's own Ion-Forged Hull
+// Plate recipe, a real Blue schematic (15% forgiveness), and an input 12
+// points below threshold -- used to throw an uncaught RangeError instead
+// of returning a result. 12 * (1 - 0.15) = 10.2, a fractional value
+// PENALTY_CURVE's integer-only bands didn't cover. See
+// src/simulation/penaltyCurve.ts's own comment and tests/simulation/
+// penaltyCurve.test.ts for the fix and its full regression coverage; this
+// test confirms it end-to-end through craft() itself, through real
+// content shape, not just the isolated penalty-lookup function.
+test("craft() does not throw on a real below-threshold input against a non-Grey schematic (regression: Blue schematic + 12-points-below Ion-Forged Hull Plate craft used to crash)", () => {
+  const input = makeInstance(radiantAlloyBar, 1, {
+    purity: 70,
+    density: 70,
+    potency: 70,
+    durability: 48, // 60 - 48 = 12 points below threshold
+    rarity: 70,
+  });
+  const gas = makeInstance(hydrogenGas, 1, { purity: 70, density: 70, potency: 70, rarity: 70 });
+
+  const result = craft([input, gas], ionForgedHullPlateRecipe, "Blue", "Grey");
+
+  assert.equal(result.accepted, true);
+});
+
 test("schematic forgiveness reduces effective points-below-threshold but never fully cancels the penalty", () => {
   // A Gold schematic's 35% forgiveness turns 25 raw points under into an
   // effective 16.25 -- crossing from the 21-30 band (0.70) into the 11-20
