@@ -6,6 +6,9 @@ build/
 npm-debug.log*
 yarn-error.log*
 
+# Electron packaging (Alpha Section 5)
+release/
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db

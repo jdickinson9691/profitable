@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Quality-driven resource gathering, refining, and crafting systems engine (see docs/profitable-mvp-gdd.md).",
+  "main": "electron/main.cjs",
   "engines": {
     "node": ">=23.6.0"
   },
@@ -12,15 +13,54 @@
     "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build": "vite build",
-    "playtest": "node scripts/playtestHarness.ts"
+    "playtest": "node scripts/playtestHarness.ts",
+    "electron:dev": "concurrently -k -s first \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "electron:build:win": "vite build && electron-builder --win",
+    "electron:build:mac": "vite build && electron-builder --mac"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@types/node": "^24.13.3",
+    "concurrently": "^10.0.4",
+    "cross-env": "^10.1.0",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^7.0.2",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "wait-on": "^9.1.0"
   },
   "dependencies": {
     "ajv": "^8.20.0",
     "phaser": "^4.2.1"
+  },
+  "build": {
+    "appId": "com.ludinn.profitable",
+    "productName": "Profitable",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.games",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist"
+    },
+    "afterSign": "electron/notarize.cjs"
   }
 }

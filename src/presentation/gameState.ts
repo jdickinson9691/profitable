@@ -1,5 +1,6 @@
 import { createLocalStorageSaveSystem } from "../adapters/saveSystem.ts";
 import type { SaveSystem } from "../adapters/saveSystem.ts";
+import { createElectronFileSaveSystem, isElectronSaveApiAvailable } from "../adapters/electronSaveSystem.ts";
 import { createWebAudioManager } from "../adapters/audioManager.ts";
 import type { AudioManager } from "../adapters/audioManager.ts";
 import { loadMvpContent } from "./loadMvpContent.ts";
@@ -13,7 +14,22 @@ const INVENTORY_SAVE_KEY = "profitable:inventory";
 const AUDIO_ENABLED_SAVE_KEY = "profitable:audioEnabled";
 
 export const content: LoadedContent = loadMvpContent();
-export const saveSystem: SaveSystem = createLocalStorageSaveSystem();
+
+// Electron packaging (Alpha Section 5): uses the file-system-backed
+// SaveSystem when running inside the packaged/dev Electron app
+// (window.electronSaveAPI present, wired by electron/preload.cjs),
+// falling back to createLocalStorageSaveSystem() otherwise (plain browser
+// tab, npm run dev) -- exactly the swap the adapter pattern was built for;
+// no other file in the game changes. FORCE_LOCAL_STORAGE_SAVE_SYSTEM is
+// the alpha-testing escape hatch profitable-alpha-electron-plan.md §2
+// itself recommends -- flip to true to force the browser-storage backend
+// even inside Electron, if the file-system path needs a quick fallback.
+// Remove once that path is confirmed solid.
+const FORCE_LOCAL_STORAGE_SAVE_SYSTEM = false;
+export const saveSystem: SaveSystem =
+  !FORCE_LOCAL_STORAGE_SAVE_SYSTEM && isElectronSaveApiAvailable()
+    ? createElectronFileSaveSystem()
+    : createLocalStorageSaveSystem();
 
 // No sound content/asset ids are defined anywhere in the GDD or content/
 // for this MVP, so the registry starts empty -- AudioManager is wired up
