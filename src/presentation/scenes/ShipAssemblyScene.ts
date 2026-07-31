@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { renderTierSelector } from "./tierSelector.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
 import { consume, addBatch, totalQuantity } from "../inventory.ts";
@@ -35,6 +36,7 @@ export class ShipAssemblyScene extends Phaser.Scene {
   private selectedSchematicTier: TierColor = "Grey";
   private statusText?: Phaser.GameObjects.Text;
   private pendingMessage = "";
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.shipAssembly);
@@ -94,10 +96,21 @@ export class ShipAssemblyScene extends Phaser.Scene {
       this.redraw();
     });
 
+    // Scrollable content (bug fix, same root cause as MarketScene.ts): even
+    // one owned ship already produces up to 16 rows (4 component categories
+    // x 4 recipes each), taller than the fixed canvas on its own, and this
+    // used to grow underneath a fixed-y status text. Title and tier
+    // selectors above stay outside the scroll region (fixed chrome, same
+    // role as the nav bar); only the per-ship roster below scrolls. See
+    // scrollableContent.ts.
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
+
     let y = 156;
     const roster = getShipRoster();
     if (roster.length === 0) {
-      this.add.text(16, y, "(no ships owned yet -- purchase one at the Shipyard)", {
+      this.scroll.addText(16, y, "(no ships owned yet -- purchase one at the Shipyard)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
@@ -109,16 +122,20 @@ export class ShipAssemblyScene extends Phaser.Scene {
       y += 12;
     }
 
-    this.statusText = this.add.text(16, 460, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
     });
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   private renderShip(ship: Ship, startY: number): number {
     let y = startY;
-    this.add.text(16, y, `${ship.name} — ${ship.tier} tier`, {
+    this.scroll!.addText(16, y, `${ship.name} — ${ship.tier} tier`, {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffd700",
@@ -128,13 +145,13 @@ export class ShipAssemblyScene extends Phaser.Scene {
     for (const category of COMPONENT_CATEGORIES) {
       const installed = ship.components[category];
       const label = installed ? `${category}: ${installed.tier} tier` : `${category}: (empty)`;
-      this.add.text(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+      this.scroll!.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
       y += 18;
 
       for (const recipe of this.findRecipesForCategory(category)) {
         const canCraft = this.hasEnoughInputs(recipe);
-        this.add.text(48, y, recipe.name, { fontFamily: "monospace", fontSize: "12px", color: "#aaaaaa" });
-        const craftBtn = this.add.text(420, y, "> Craft & Install", {
+        this.scroll!.addText(48, y, recipe.name, { fontFamily: "monospace", fontSize: "12px", color: "#aaaaaa" });
+        const craftBtn = this.scroll!.addText(420, y, "> Craft & Install", {
           fontFamily: "monospace",
           fontSize: "12px",
           color: canCraft ? "#4caf50" : "#555555",

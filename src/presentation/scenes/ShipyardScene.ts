@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { getCurrentPlanet } from "../currentPlanet.ts";
 import { getWallet, setWallet, PLAYER_ID } from "../tradingState.ts";
 import {
@@ -46,6 +47,7 @@ export class ShipyardScene extends Phaser.Scene {
   // MarketScene/GlobalMarketScene/CrewScene (see those files' own comment)
   // -- avoided here from the start rather than discovered later.
   private pendingMessage = "";
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.shipyard);
@@ -64,17 +66,25 @@ export class ShipyardScene extends Phaser.Scene {
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.shipyard);
 
+    // Scrollable content (bug fix, same root cause as MarketScene.ts): four
+    // stacked lists (ship pool, ship roster, scanner pool, scanner roster)
+    // all grow with player state and used to grow underneath a fixed-y
+    // status text. See scrollableContent.ts.
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
+
     // Planet-aware fix: reads wherever the player's ship currently is
     // (previously hardcoded to startingPlanet, so the shipyard/scanner
     // pools never reflected travel). Computed once per redraw().
     const planet = getCurrentPlanet();
 
-    this.add.text(16, 64, `Shipyard — ${planet.name}`, {
+    this.scroll.addText(16, 64, `Shipyard — ${planet.name}`, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffffff",
     });
-    this.add.text(16, 90, `Credits: ${getWallet().credits}`, {
+    this.scroll.addText(16, 90, `Credits: ${getWallet().credits}`, {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffd700",
@@ -89,7 +99,7 @@ export class ShipyardScene extends Phaser.Scene {
     y += 12;
     y = this.renderScannerRoster(y);
 
-    this.statusText = this.add.text(16, 470, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
@@ -101,25 +111,29 @@ export class ShipyardScene extends Phaser.Scene {
       "Buy your first ship here -- a Grey or White tier runner is a solid, affordable first pick.",
       () => this.redraw(),
     );
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   private renderPool(startY: number, planet: Planet): number {
     let y = startY;
-    this.add.text(16, y, "Ships for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Ships for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     const pool = getShipyardPool(planet.id);
     if (pool.availableShips.length === 0) {
-      this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
     for (const candidate of pool.availableShips) {
       const cost = SHIP_PURCHASE_COST_BY_TIER.find((entry) => entry.tier === candidate.tier)?.cost ?? 0;
       const label = `${candidate.name} — ${candidate.tier} tier — ${cost}cr`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
 
-      const buyBtn = this.add.text(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
+      const buyBtn = this.scroll!.addText(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       buyBtn.setInteractive({ useHandCursor: true });
       buyBtn.on("pointerdown", () => this.onPurchase(candidate, planet));
       y += 22;
@@ -129,19 +143,19 @@ export class ShipyardScene extends Phaser.Scene {
 
   private renderRoster(startY: number, planet: Planet): number {
     let y = startY;
-    this.add.text(16, y, "Your ships:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Your ships:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     const roster = getShipRoster();
     if (roster.length === 0) {
-      this.add.text(16, y, "(no ships owned yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(no ships owned yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
     for (const ship of roster) {
       const atHome = ship.currentPlanetId === planet.id;
       const label = `${ship.name} — ${ship.tier} tier — at ${atHome ? planet.name : ship.currentPlanetId}`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
     return y;
@@ -166,21 +180,21 @@ export class ShipyardScene extends Phaser.Scene {
   // requirement. Same format as renderPool() above.
   private renderScannerPool(startY: number, planet: Planet): number {
     let y = startY;
-    this.add.text(16, y, "Scanners for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Scanners for sale:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     const pool = getScannerPool(planet.id);
     if (pool.availableScanners.length === 0) {
-      this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
     for (const candidate of pool.availableScanners) {
       const cost = SCANNER_PURCHASE_COST_BY_TIER.find((entry) => entry.tier === candidate.tier)?.cost ?? 0;
       const label = `${candidate.tier} tier scanner — ${cost}cr`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
 
-      const buyBtn = this.add.text(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
+      const buyBtn = this.scroll!.addText(500, y, "> Purchase", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       buyBtn.setInteractive({ useHandCursor: true });
       buyBtn.on("pointerdown", () => this.onPurchaseScanner(candidate, planet));
       y += 22;
@@ -197,19 +211,19 @@ export class ShipyardScene extends Phaser.Scene {
   // the actual radius math stays exclusively inside performScan().
   private renderScannerRoster(startY: number): number {
     let y = startY;
-    this.add.text(16, y, "Your scanners:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Your scanners:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     const owned = getOwnedScanners();
     if (owned.length === 0) {
-      this.add.text(16, y, "(no scanners owned yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(no scanners owned yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
     const highestTier = highestOwnedScannerTier(owned);
     for (const scanner of owned) {
       const inUse = scanner.tier === highestTier ? " (in use for scanning)" : "";
-      this.add.text(16, y, `${scanner.tier} tier scanner${inUse}`, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, `${scanner.tier} tier scanner${inUse}`, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
     return y;

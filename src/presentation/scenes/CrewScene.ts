@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
 import { getCurrentPlanet } from "../currentPlanet.ts";
 import { consume, addBatch } from "../inventory.ts";
@@ -44,6 +45,7 @@ export class CrewScene extends Phaser.Scene {
   // Bug fix (found during this agent's own Phase 4 integration playtest,
   // in this same scene) -- see MarketScene.ts's identical fix comment.
   private pendingMessage = "";
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.crew);
@@ -109,6 +111,14 @@ export class CrewScene extends Phaser.Scene {
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.crew);
 
+    // Scrollable content (bug fix, same root cause as MarketScene.ts): the
+    // crew pool and roster both grow with player state -- roster with
+    // purchased capacity slots, pool as candidates appear -- and used to
+    // grow underneath a fixed-y status text. See scrollableContent.ts.
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
+
     // Departures are only ever surfaced after checkAttrition() actually
     // reports one -- never guessed or displayed preemptively.
     const departedNames: string[] = [];
@@ -128,12 +138,12 @@ export class CrewScene extends Phaser.Scene {
     // reflected travel). Computed once per redraw().
     const planet = getCurrentPlanet();
 
-    this.add.text(16, 64, `Crew — ${planet.name}`, {
+    this.scroll.addText(16, 64, `Crew — ${planet.name}`, {
       fontFamily: "monospace",
       fontSize: "22px",
       color: "#ffffff",
     });
-    this.add.text(16, 90, `Credits: ${getWallet().credits}`, {
+    this.scroll.addText(16, 90, `Credits: ${getWallet().credits}`, {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffd700",
@@ -143,12 +153,12 @@ export class CrewScene extends Phaser.Scene {
     const maxCrew = capacity.baseCapacity + capacity.purchasedSlots;
     const roster = getCrewRoster();
     let y = 114;
-    this.add.text(16, y, `Capacity: ${roster.length}/${maxCrew}`, {
+    this.scroll.addText(16, y, `Capacity: ${roster.length}/${maxCrew}`, {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#cccccc",
     });
-    const purchaseBtn = this.add.text(220, y, "> Purchase Slot", {
+    const purchaseBtn = this.scroll.addText(220, y, "> Purchase Slot", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#2196f3",
@@ -161,7 +171,7 @@ export class CrewScene extends Phaser.Scene {
     y += 12;
     y = this.renderRoster(y, roster);
 
-    this.statusText = this.add.text(16, 470, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: departedNames.length > 0 ? "#ff6666" : "#cccccc",
@@ -173,25 +183,29 @@ export class CrewScene extends Phaser.Scene {
       "Hire crew to work while you're away. Idle crew can be assigned to craft; active crew produce output over time.",
       () => this.redraw(),
     );
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   private renderPool(startY: number, planet: Planet): number {
     let y = startY;
-    this.add.text(16, y, "Crew pool at this planet:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Crew pool at this planet:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     const pool = getCrewPool(planet.id);
     if (pool.availableHires.length === 0) {
-      this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
     for (const candidate of pool.availableHires) {
       const cost = CREW_HIRE_COST_BY_TIER.find((e) => e.tier === candidate.tier)?.cost ?? 0;
       const label = `${candidate.tier}${candidate.profession ? ` (${candidate.profession})` : ""} — hire for ${cost}cr`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
 
-      const hireBtn = this.add.text(500, y, "> Hire", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
+      const hireBtn = this.scroll!.addText(500, y, "> Hire", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
       hireBtn.setInteractive({ useHandCursor: true });
       hireBtn.on("pointerdown", () => this.onHire(candidate, planet));
       y += 22;
@@ -201,11 +215,11 @@ export class CrewScene extends Phaser.Scene {
 
   private renderRoster(startY: number, roster: CrewMember[]): number {
     let y = startY;
-    this.add.text(16, y, "Your crew:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Your crew:", { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" });
     y += 24;
 
     if (roster.length === 0) {
-      this.add.text(16, y, "(no crew hired yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll!.addText(16, y, "(no crew hired yet)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       return y + 22;
     }
 
@@ -213,11 +227,11 @@ export class CrewScene extends Phaser.Scene {
       const profLabel = member.profession ? ` (${member.profession})` : "";
       const craftLabel = member.status === "active" ? `, working on ${member.assignedCraftId}` : "";
       const label = `${member.tier}${profLabel} — ${member.status}${craftLabel}, wage ${member.wageAmount}cr`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
 
       if (member.status === "idle") {
-        const assignBtn = this.add.text(32, y, "> Assign to Craft", {
+        const assignBtn = this.scroll!.addText(32, y, "> Assign to Craft", {
           fontFamily: "monospace",
           fontSize: "13px",
           color: "#4caf50",
@@ -225,7 +239,7 @@ export class CrewScene extends Phaser.Scene {
         assignBtn.setInteractive({ useHandCursor: true });
         assignBtn.on("pointerdown", () => this.onAssign(member));
 
-        const checkBtn = this.add.text(190, y, "> Check Background", {
+        const checkBtn = this.scroll!.addText(190, y, "> Check Background", {
           fontFamily: "monospace",
           fontSize: "13px",
           color: "#2196f3",
@@ -234,7 +248,7 @@ export class CrewScene extends Phaser.Scene {
         checkBtn.on("pointerdown", () => this.onCheckBackground(member));
       }
 
-      const payBtn = this.add.text(370, y, "> Pay Upkeep", {
+      const payBtn = this.scroll!.addText(370, y, "> Pay Upkeep", {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#ffd700",
@@ -242,7 +256,7 @@ export class CrewScene extends Phaser.Scene {
       payBtn.setInteractive({ useHandCursor: true });
       payBtn.on("pointerdown", () => this.onPayUpkeep(member));
 
-      const dismissBtn = this.add.text(500, y, "> Dismiss", {
+      const dismissBtn = this.scroll!.addText(500, y, "> Dismiss", {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#ff6666",

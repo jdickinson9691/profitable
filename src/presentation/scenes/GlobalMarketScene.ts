@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
 import { removeBatchAt } from "../inventory.ts";
 import {
@@ -32,6 +33,7 @@ export class GlobalMarketScene extends Phaser.Scene {
   // Bug fix (found during Agent 19's Phase 4 integration playtest,
   // Agent 13's own scope) -- see MarketScene.ts's identical fix comment.
   private pendingMessage = "";
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.globalMarket);
@@ -54,15 +56,25 @@ export class GlobalMarketScene extends Phaser.Scene {
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.globalMarket);
 
-    this.add.text(16, 64, "Global Market", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
-    this.add.text(16, 90, `Credits: ${getWallet().credits}`, {
+    // Scrollable content (bug fix, same root cause as MarketScene.ts):
+    // "Derived global prices" alone already lists every one of the alpha
+    // roster's 21 resources unconditionally -- taller than the fixed
+    // canvas on its own, even before any listings/inventory are added. A
+    // fixed-y status text used to sit on top of whatever grew tall enough
+    // to reach it; see scrollableContent.ts for the full story.
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
+
+    this.scroll.addText(16, 64, "Global Market", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
+    this.scroll.addText(16, 90, `Credits: ${getWallet().credits}`, {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffd700",
     });
 
     let y = 120;
-    this.add.text(16, y, "Derived global prices:", {
+    this.scroll.addText(16, y, "Derived global prices:", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
@@ -79,12 +91,12 @@ export class GlobalMarketScene extends Phaser.Scene {
       } catch {
         line = `${resource.name}: not currently traded anywhere`;
       }
-      this.add.text(16, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll.addText(16, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
 
     y += 12;
-    this.add.text(16, y, "Active global listings:", {
+    this.scroll.addText(16, y, "Active global listings:", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
@@ -93,16 +105,16 @@ export class GlobalMarketScene extends Phaser.Scene {
 
     const globalListings = getListings().filter((listing) => listing.location === "global" && listing.quantity > 0);
     if (globalListings.length === 0) {
-      this.add.text(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
+      this.scroll.addText(16, y, "(none)", { fontFamily: "monospace", fontSize: "14px", color: "#888888" });
       y += 24;
     }
 
     for (const listing of globalListings) {
       const resource = content.resources.find((r) => r.id === listing.itemId);
       const label = `${resource?.name ?? listing.itemId} x${listing.quantity} @ ${listing.pricePerUnit}cr (${listing.marketTier}) — seller: ${listing.createdByPlayerId}`;
-      this.add.text(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
 
-      const buyOne = this.add.text(560, y, "> Buy 1", {
+      const buyOne = this.scroll.addText(560, y, "> Buy 1", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#4caf50",
@@ -111,7 +123,7 @@ export class GlobalMarketScene extends Phaser.Scene {
       buyOne.on("pointerdown", () => this.buy(listing, 1));
 
       if (listing.quantity > 1) {
-        const buyAll = this.add.text(650, y, "> Buy All", {
+        const buyAll = this.scroll.addText(650, y, "> Buy All", {
           fontFamily: "monospace",
           fontSize: "14px",
           color: "#4caf50",
@@ -124,7 +136,7 @@ export class GlobalMarketScene extends Phaser.Scene {
     }
 
     y += 12;
-    this.add.text(16, y, "List globally from inventory:", {
+    this.scroll.addText(16, y, "List globally from inventory:", {
       fontFamily: "monospace",
       fontSize: "16px",
       color: "#ffffff",
@@ -139,7 +151,7 @@ export class GlobalMarketScene extends Phaser.Scene {
       anyListable = true;
 
       const label = `${resource.name} x${batch.quantity} — list globally @ 10cr/unit`;
-      const button = this.add.text(16, y, `> ${label}`, {
+      const button = this.scroll!.addText(16, y, `> ${label}`, {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#2196f3",
@@ -149,18 +161,23 @@ export class GlobalMarketScene extends Phaser.Scene {
       y += 22;
     });
     if (!anyListable) {
-      this.add.text(16, y, "(nothing eligible -- tier 6-7 items are planet-market only)", {
+      this.scroll.addText(16, y, "(nothing eligible -- tier 6-7 items are planet-market only)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
       });
+      y += 22;
     }
 
-    this.statusText = this.add.text(16, 440, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
     });
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   private buy(listing: Listing, quantity: number): void {
