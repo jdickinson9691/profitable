@@ -1,0 +1,268 @@
+[
+  {
+    "id": "ion-forged-hull-plate",
+    "name": "Ion-Forged Hull Plate",
+    "inputs": [
+      { "category": "refined-metal", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 60 },
+      { "category": "gas", "quantity": 1 }
+    ],
+    "outputResourceId": "ion-forged-hull-plate",
+    "outputQuantity": 1
+  },
+  {
+    "id": "iron-hull-plate",
+    "name": "Iron Hull Plate",
+    "inputs": [{ "category": "iron-ingot", "quantity": 2, "thresholdQuality": "durability", "thresholdValue": 40 }],
+    "outputResourceId": "iron-hull-plate",
+    "outputQuantity": 1
+  },
+  {
+    "id": "reinforced-panel",
+    "name": "Reinforced Panel",
+    "inputs": [
+      { "category": "glass-panel", "quantity": 2 },
+      { "category": "carbon-composite", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 50 }
+    ],
+    "outputResourceId": "reinforced-panel",
+    "outputQuantity": 1
+  },
+  {
+    "id": "basic-cargo-crate",
+    "name": "Basic Cargo Crate",
+    "inputs": [{ "category": "carbon-composite", "quantity": 3, "thresholdQuality": "durability", "thresholdValue": 30 }],
+    "outputResourceId": "basic-cargo-crate",
+    "outputQuantity": 1
+  },
+  {
+    "id": "standard-toolkit",
+    "name": "Standard Toolkit",
+    "inputs": [
+      { "category": "iron-ingot", "quantity": 2 },
+      { "category": "meteoric-steel-bar", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 45 }
+    ],
+    "outputResourceId": "standard-toolkit",
+    "outputQuantity": 1
+  },
+  {
+    "id": "simple-circuit-board",
+    "name": "Simple Circuit Board",
+    "inputs": [{ "category": "focusing-lens", "quantity": 2, "thresholdQuality": "potency", "thresholdValue": 50 }],
+    "outputResourceId": "simple-circuit-board",
+    "outputQuantity": 1
+  },
+  {
+    "id": "fuel-canister",
+    "name": "Fuel Canister",
+    "inputs": [{ "category": "fusion-gas-mix", "quantity": 2, "thresholdQuality": "potency", "thresholdValue": 40 }],
+    "outputResourceId": "fuel-canister",
+    "outputQuantity": 1
+  },
+  {
+    "id": "basic-power-cell",
+    "name": "Basic Power Cell",
+    "inputs": [{ "category": "enriched-fuel-rod", "quantity": 2, "thresholdQuality": "potency", "thresholdValue": 55 }],
+    "outputResourceId": "basic-power-cell",
+    "outputQuantity": 1
+  },
+  {
+    "id": "precision-alloy-frame",
+    "name": "Precision Alloy Frame",
+    "inputs": [
+      { "category": "hardened-alloy-bar", "quantity": 2 },
+      { "category": "meteoric-steel-bar", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 75 }
+    ],
+    "outputResourceId": "precision-alloy-frame",
+    "outputQuantity": 1
+  },
+  {
+    "id": "master-crystal-array",
+    "name": "Master Crystal Array",
+    "inputs": [
+      { "category": "polished-crystal-lattice", "quantity": 2 },
+      { "category": "focusing-lens", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 80 }
+    ],
+    "outputResourceId": "master-crystal-array",
+    "outputQuantity": 1
+  },
+  {
+    "id": "high-yield-fuel-core",
+    "name": "High-Yield Fuel Core",
+    "inputs": [{ "category": "enriched-fuel-rod", "quantity": 3, "thresholdQuality": "potency", "thresholdValue": 85 }],
+    "outputResourceId": "high-yield-fuel-core",
+    "outputQuantity": 1
+  },
+  {
+    "id": "exotic-composite-hull",
+    "name": "Exotic Composite Hull",
+    "inputs": [
+      { "category": "carbon-composite", "quantity": 2 },
+      { "category": "hardened-alloy-bar", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 80 }
+    ],
+    "outputResourceId": "exotic-composite-hull",
+    "outputQuantity": 1
+  },
+  {
+    "id": "superconductor-coil",
+    "name": "Superconductor Coil",
+    "inputs": [
+      { "category": "polished-crystal-lattice", "quantity": 2 },
+      { "category": "fusion-gas-mix", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 90 }
+    ],
+    "outputResourceId": "superconductor-coil",
+    "outputQuantity": 1
+  },
+  {
+    "id": "pulse-cannon",
+    "name": "Pulse Cannon",
+    "inputs": [
+      { "category": "iron-ingot", "quantity": 2 },
+      { "category": "focusing-lens", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 40 }
+    ],
+    "outputResourceId": "pulse-cannon",
+    "outputQuantity": 1
+  },
+  {
+    "id": "rail-driver",
+    "name": "Rail Driver",
+    "inputs": [
+      { "category": "hardened-alloy-bar", "quantity": 2 },
+      { "category": "meteoric-steel-bar", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 60 }
+    ],
+    "outputResourceId": "rail-driver",
+    "outputQuantity": 1
+  },
+  {
+    "id": "plasma-emitter",
+    "name": "Plasma Emitter",
+    "inputs": [
+      { "category": "fusion-gas-mix", "quantity": 2 },
+      { "category": "enriched-fuel-rod", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 70 }
+    ],
+    "outputResourceId": "plasma-emitter",
+    "outputQuantity": 1
+  },
+  {
+    "id": "ion-beam-array",
+    "name": "Ion Beam Array",
+    "inputs": [
+      { "category": "precision-alloy-frame", "quantity": 1 },
+      { "category": "master-crystal-array", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 85 }
+    ],
+    "outputResourceId": "ion-beam-array",
+    "outputQuantity": 1
+  },
+  {
+    "id": "chemical-thruster",
+    "name": "Chemical Thruster",
+    "inputs": [
+      { "category": "carbon-composite", "quantity": 2 },
+      { "category": "iron-ingot", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 35 }
+    ],
+    "outputResourceId": "chemical-thruster",
+    "outputQuantity": 1
+  },
+  {
+    "id": "ion-drive",
+    "name": "Ion Drive",
+    "inputs": [
+      { "category": "fusion-gas-mix", "quantity": 2 },
+      { "category": "focusing-lens", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 55 }
+    ],
+    "outputResourceId": "ion-drive",
+    "outputQuantity": 1
+  },
+  {
+    "id": "fusion-engine",
+    "name": "Fusion Engine",
+    "inputs": [{ "category": "high-yield-fuel-core", "quantity": 2, "thresholdQuality": "potency", "thresholdValue": 75 }],
+    "outputResourceId": "fusion-engine",
+    "outputQuantity": 1
+  },
+  {
+    "id": "quantum-thruster",
+    "name": "Quantum Thruster",
+    "inputs": [
+      { "category": "superconductor-coil", "quantity": 1 },
+      { "category": "exotic-composite-hull", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 90 }
+    ],
+    "outputResourceId": "quantum-thruster",
+    "outputQuantity": 1
+  },
+  {
+    "id": "basic-deflector",
+    "name": "Basic Deflector",
+    "inputs": [
+      { "category": "glass-panel", "quantity": 2 },
+      { "category": "iron-ingot", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 40 }
+    ],
+    "outputResourceId": "basic-deflector",
+    "outputQuantity": 1
+  },
+  {
+    "id": "reinforced-barrier",
+    "name": "Reinforced Barrier",
+    "inputs": [
+      { "category": "hardened-alloy-bar", "quantity": 2 },
+      { "category": "carbon-composite", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 60 }
+    ],
+    "outputResourceId": "reinforced-barrier",
+    "outputQuantity": 1
+  },
+  {
+    "id": "energy-shield-array",
+    "name": "Energy Shield Array",
+    "inputs": [
+      { "category": "focusing-lens", "quantity": 2 },
+      { "category": "polished-crystal-lattice", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 70 }
+    ],
+    "outputResourceId": "energy-shield-array",
+    "outputQuantity": 1
+  },
+  {
+    "id": "aegis-field-generator",
+    "name": "Aegis Field Generator",
+    "inputs": [
+      { "category": "master-crystal-array", "quantity": 1 },
+      { "category": "superconductor-coil", "quantity": 1, "thresholdQuality": "potency", "thresholdValue": 90 }
+    ],
+    "outputResourceId": "aegis-field-generator",
+    "outputQuantity": 1
+  },
+  {
+    "id": "standard-cargo-bay",
+    "name": "Standard Cargo Bay",
+    "inputs": [
+      { "category": "glass-panel", "quantity": 2 },
+      { "category": "iron-ingot", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 30 }
+    ],
+    "outputResourceId": "standard-cargo-bay",
+    "outputQuantity": 1
+  },
+  {
+    "id": "reinforced-hold",
+    "name": "Reinforced Hold",
+    "inputs": [
+      { "category": "reinforced-panel", "quantity": 2 },
+      { "category": "carbon-composite", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 55 }
+    ],
+    "outputResourceId": "reinforced-hold",
+    "outputQuantity": 1
+  },
+  {
+    "id": "expanded-freight-bay",
+    "name": "Expanded Freight Bay",
+    "inputs": [{ "category": "exotic-composite-hull", "quantity": 3, "thresholdQuality": "durability", "thresholdValue": 75 }],
+    "outputResourceId": "expanded-freight-bay",
+    "outputQuantity": 1
+  },
+  {
+    "id": "vault-class-container",
+    "name": "Vault-Class Container",
+    "inputs": [
+      { "category": "precision-alloy-frame", "quantity": 2 },
+      { "category": "meteoric-steel-bar", "quantity": 1, "thresholdQuality": "durability", "thresholdValue": 85 }
+    ],
+    "outputResourceId": "vault-class-container",
+    "outputQuantity": 1
+  }
+]

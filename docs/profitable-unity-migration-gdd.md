@@ -48,25 +48,27 @@ No new *design* — this section just names the translation targets:
 
 ## 5. AI Agent Development Plan — Migration Phase 1
 
-Same contract pattern as every prior phase. Continuing the sequential agent numbering (last used: Agent 29, Combat Confirmation).
+Same contract pattern as every prior phase. Continuing the sequential agent numbering.
+
+**Numbering note:** this roster was originally drafted as Agents 30-35, on the assumption that Agent 29 (Combat Confirmation) was the last agent number used. That assumption was stale by the time this roster was actually started: Agent 30 was already claimed by `agent-30-alpha-content-confirmation.md` (the Alpha Content Authoring milestone's confirmation agent, completed after Combat but not accounted for when this GDD was first drafted). Renumbered 31-36 below to resolve the collision — see `agent-31-unity-data-schema.md`'s own numbering note for the same history.
 
 ### 5.1 Roster & Creation Order
 
-**Agent 30: Unity Data Schema.** Ports Agent 1's base types to C#. Writes the `ContentLoader` that consumes the existing JSON content files as-is. Created first.
+**Agent 31: Unity Data Schema.** Ports Agent 1's base types to C#. Writes the `ContentLoader` that consumes the existing JSON content files as-is. Created first.
 
-**Agent 31: Unity Simulation Core.** Ports `rollQuality`, `getTierColor`, `refine`, `craft`, `loadContent` from Agent 2's TypeScript implementation to C#, exactly — including the already-fixed boundary logic from Section 3. Depends on Agent 30.
+**Agent 32: Unity Simulation Core.** Ports `rollQuality`, `getTierColor`, `refine`, `craft`, `loadContent` from Agent 2's TypeScript implementation to C#, exactly — including the already-fixed boundary logic from Section 3. Depends on Agent 31.
 
-**Agent 32: Unity Parity Validation.** The most important agent in this phase. Proves the C# port produces numerically identical output to the existing TypeScript implementation for the same inputs — not just "the C# code passes its own tests," but "the C# code agrees with the TypeScript code." Created alongside Agent 31, runs continuously.
+**Agent 33: Unity Parity Validation.** The most important agent in this phase. Proves the C# port produces numerically identical output to the existing TypeScript implementation for the same inputs — not just "the C# code passes its own tests," but "the C# code agrees with the TypeScript code." Created alongside Agent 32, runs continuously.
 
-**Agent 33: Unity Infrastructure Adapters.** Ports `SaveSystem`/`AudioManager` interfaces and their Unity-specific implementations (file I/O or `PlayerPrefs`, Unity audio). Independent of 31/32 — can run in parallel.
+**Agent 34: Unity Infrastructure Adapters.** Ports `SaveSystem`/`AudioManager` interfaces and their Unity-specific implementations (file I/O or `PlayerPrefs`, Unity audio). Independent of 32/33 — can run in parallel.
 
-**Agent 34: Unity MVP Presentation.** Builds minimal Unity scenes for gather/refine/craft, calling Agent 31's ported functions — no simulation logic in scene code, same rule as every Phaser presentation agent before it. Depends on Agent 31 and Agent 33.
+**Agent 35: Unity MVP Presentation.** Builds minimal Unity scenes for gather/refine/craft, calling Agent 32's ported functions — no simulation logic in scene code, same rule as every Phaser presentation agent before it. Depends on Agent 32 and Agent 34.
 
-**Agent 35: Unity Migration Phase 1 Integration.** Wires everything together, verifies the full gather→refine→craft loop works in Unity, and confirms Agent 32's parity proof holds end-to-end, not just per-function. Created last.
+**Agent 36: Unity Migration Phase 1 Integration.** Wires everything together, verifies the full gather→refine→craft loop works in Unity, and confirms Agent 33's parity proof holds end-to-end, not just per-function. Created last.
 
 ### 5.2 Agent Contracts
 
-Full individual contracts to be written as `docs/agents/agent-30-unity-data-schema.md` through `agent-35-unity-migration-phase1-integration.md`, following the same structure (Responsibility/Inputs/Outputs/Must-Not-Do/Testing/Definition-of-Done) as every prior agent contract.
+Full individual contracts to be written as `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`, following the same structure (Responsibility/Inputs/Outputs/Must-Not-Do/Testing/Definition-of-Done) as every prior agent contract.
 
 ## 6. Cross-Cutting Rules
 

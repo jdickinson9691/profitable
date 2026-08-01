@@ -9,6 +9,11 @@ yarn-error.log*
 # Electron packaging (Alpha Section 5)
 release/
 
+# .NET / Unity Migration (unity/)
+unity/**/bin/
+unity/**/obj/
+*.user
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db
