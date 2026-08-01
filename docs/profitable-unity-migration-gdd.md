@@ -56,7 +56,7 @@ Same contract pattern as every prior phase. Continuing the sequential agent numb
 
 **Agent 31: Unity Data Schema.** Ports Agent 1's base types to C#. Writes the `ContentLoader` that consumes the existing JSON content files as-is. Created first.
 
-**Agent 32: Unity Simulation Core.** Ports `rollQuality`, `getTierColor`, `refine`, `craft`, `loadContent` from Agent 2's TypeScript implementation to C#, exactly — including the already-fixed boundary logic from Section 3. Depends on Agent 31.
+**Agent 32: Unity Simulation Core.** Ports `rollQuality`, `getTierColor`, `refine`, `craft` from Agent 2's TypeScript implementation to C#, exactly — including the already-fixed boundary logic from Section 3. Depends on Agent 31. **Scope correction:** the original draft of this line also listed `loadContent`, copied from Agent 2's own TypeScript roster (which does include it — see `agent-02-simulation-core.md`). Agent 31 already delivered its C# equivalent (`ContentLoader`), so it is not repeated here — see `agent-32-unity-simulation-core.md`'s own scope note.
 
 **Agent 33: Unity Parity Validation.** The most important agent in this phase. Proves the C# port produces numerically identical output to the existing TypeScript implementation for the same inputs — not just "the C# code passes its own tests," but "the C# code agrees with the TypeScript code." Created alongside Agent 32, runs continuously.
 
