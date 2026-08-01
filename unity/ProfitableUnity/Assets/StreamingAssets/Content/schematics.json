@@ -1,0 +1,146 @@
+[
+  {
+    "id": "ion-forged-hull-plate-blue",
+    "name": "Ion-Forged Hull Plate Schematic",
+    "recipeId": "ion-forged-hull-plate",
+    "tier": "Blue"
+  },
+  {
+    "id": "reinforced-panel-white",
+    "name": "Reinforced Panel Schematic",
+    "recipeId": "reinforced-panel",
+    "tier": "White"
+  },
+  {
+    "id": "basic-cargo-crate-grey",
+    "name": "Basic Cargo Crate Schematic",
+    "recipeId": "basic-cargo-crate",
+    "tier": "Grey"
+  },
+  {
+    "id": "standard-toolkit-white",
+    "name": "Standard Toolkit Schematic",
+    "recipeId": "standard-toolkit",
+    "tier": "White"
+  },
+  {
+    "id": "simple-circuit-board-green",
+    "name": "Simple Circuit Board Schematic",
+    "recipeId": "simple-circuit-board",
+    "tier": "Green"
+  },
+  {
+    "id": "fuel-canister-grey",
+    "name": "Fuel Canister Schematic",
+    "recipeId": "fuel-canister",
+    "tier": "Grey"
+  },
+  {
+    "id": "basic-power-cell-green",
+    "name": "Basic Power Cell Schematic",
+    "recipeId": "basic-power-cell",
+    "tier": "Green"
+  },
+  {
+    "id": "precision-alloy-frame-blue",
+    "name": "Precision Alloy Frame Schematic",
+    "recipeId": "precision-alloy-frame",
+    "tier": "Blue"
+  },
+  {
+    "id": "master-crystal-array-purple",
+    "name": "Master Crystal Array Schematic",
+    "recipeId": "master-crystal-array",
+    "tier": "Purple"
+  },
+  {
+    "id": "high-yield-fuel-core-blue",
+    "name": "High-Yield Fuel Core Schematic",
+    "recipeId": "high-yield-fuel-core",
+    "tier": "Blue"
+  },
+  {
+    "id": "exotic-composite-hull-purple",
+    "name": "Exotic Composite Hull Schematic",
+    "recipeId": "exotic-composite-hull",
+    "tier": "Purple"
+  },
+  {
+    "id": "superconductor-coil-orange",
+    "name": "Superconductor Coil Schematic",
+    "recipeId": "superconductor-coil",
+    "tier": "Orange"
+  },
+  {
+    "id": "rail-driver-green",
+    "name": "Rail Driver Schematic",
+    "recipeId": "rail-driver",
+    "tier": "Green"
+  },
+  {
+    "id": "plasma-emitter-blue",
+    "name": "Plasma Emitter Schematic",
+    "recipeId": "plasma-emitter",
+    "tier": "Blue"
+  },
+  {
+    "id": "ion-beam-array-gold",
+    "name": "Ion Beam Array Schematic",
+    "recipeId": "ion-beam-array",
+    "tier": "Gold"
+  },
+  {
+    "id": "ion-drive-green",
+    "name": "Ion Drive Schematic",
+    "recipeId": "ion-drive",
+    "tier": "Green"
+  },
+  {
+    "id": "fusion-engine-blue",
+    "name": "Fusion Engine Schematic",
+    "recipeId": "fusion-engine",
+    "tier": "Blue"
+  },
+  {
+    "id": "quantum-thruster-purple",
+    "name": "Quantum Thruster Schematic",
+    "recipeId": "quantum-thruster",
+    "tier": "Purple"
+  },
+  {
+    "id": "reinforced-barrier-green",
+    "name": "Reinforced Barrier Schematic",
+    "recipeId": "reinforced-barrier",
+    "tier": "Green"
+  },
+  {
+    "id": "energy-shield-array-blue",
+    "name": "Energy Shield Array Schematic",
+    "recipeId": "energy-shield-array",
+    "tier": "Blue"
+  },
+  {
+    "id": "aegis-field-generator-gold",
+    "name": "Aegis Field Generator Schematic",
+    "recipeId": "aegis-field-generator",
+    "tier": "Gold"
+  },
+  {
+    "id": "reinforced-hold-green",
+    "name": "Reinforced Hold Schematic",
+    "recipeId": "reinforced-hold",
+    "tier": "Green"
+  },
+  {
+    "id": "expanded-freight-bay-blue",
+    "name": "Expanded Freight Bay Schematic",
+    "recipeId": "expanded-freight-bay",
+    "tier": "Blue"
+  },
+  {
+    "id": "vault-class-container-purple",
+    "name": "Vault-Class Container Schematic",
+    "recipeId": "vault-class-container",
+    "tier": "Purple"
+  }
+]
