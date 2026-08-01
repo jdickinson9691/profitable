@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, VIEWPORT_TOP, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { content } from "../gameState.ts";
 import { galaxy, startingPlanet, getDiscoveredPlanets, markPlanetDiscovered } from "../galaxyState.ts";
 import { getMarketStates, getStartingPlanetPreference } from "../tradingState.ts";
@@ -48,10 +49,16 @@ const MS_PER_HOUR = 60 * 60 * 1000;
 // already overflowed the 500px-tall canvas at the smallest real session
 // state (live-measured), with no way to reach what was cut off. Everything
 // between the fixed nav bar and the fixed status line now renders inside a
-// scrollable, mask-clipped container instead of directly on the scene, and
+// ScrollableContent viewport instead of directly on the scene, and
 // mouse-wheel input moves it within [0, maxScrollY].
-const VIEWPORT_TOP = 64;
-const VIEWPORT_BOTTOM = 455;
+//
+// Ported from this scene's original GameObject.setMask(GeometryMask)
+// implementation (see scrollableContent.ts's own header comment for the
+// full story): that mask silently no-ops under Phaser 4's WebGL renderer,
+// so this scene's clipping was never actually active under normal play --
+// only updateScrollInteractivity()'s separate, mask-independent input
+// gating was ever real. Now uses the same camera-viewport approach as
+// MarketScene/GlobalMarketScene/CrewScene/ShipyardScene/ShipAssemblyScene.
 
 function classify(currentPrice: number, basePrice: number): "sells cheap" | "buys at a premium" | "steady" {
   if (currentPrice < basePrice * (1 - STEADY_BAND)) return "sells cheap";
@@ -69,11 +76,7 @@ export class TradeMapScene extends Phaser.Scene {
   // Same pendingMessage/setStatus() bug-fix pattern already applied to
   // MarketScene/GlobalMarketScene/CrewScene.
   private pendingMessage = "";
-
-  private contentContainer?: Phaser.GameObjects.Container;
-  private maskShape?: Phaser.GameObjects.Graphics;
-  private scrollY = 0;
-  private maxScrollY = 0;
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.tradeMap);
@@ -81,15 +84,6 @@ export class TradeMapScene extends Phaser.Scene {
 
   create(): void {
     this.redraw();
-    // Registered once -- children.removeAll() in redraw() clears the
-    // display list, not scene-level input listeners, so this keeps working
-    // across every subsequent redraw() without re-registering.
-    this.input.on("wheel", (_pointer: unknown, _objects: unknown, _dx: number, dy: number) => {
-      if (this.maxScrollY <= 0) return;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, 0, this.maxScrollY);
-      this.contentContainer?.setY(-this.scrollY);
-      this.updateScrollInteractivity();
-    });
   }
 
   private setStatus(message: string): void {
@@ -97,47 +91,15 @@ export class TradeMapScene extends Phaser.Scene {
     this.statusText?.setText(message);
   }
 
-  // Routes through the scrollable container -- every content line in this
-  // scene (title, planets, travel section) uses this instead of
-  // `this.add.text` directly. Nav and the fixed status/scroll-hint lines
-  // are the only things added straight to the scene, since they must stay
-  // put regardless of scroll position.
-  private addText(x: number, y: number, text: string, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text {
-    const object = this.add.text(x, y, text, style);
-    this.contentContainer?.add(object);
-    return object;
-  }
-
-  // A GeometryMask only clips rendering, not input hit-testing -- an
-  // interactive button (e.g. "> Initiate Voyage") scrolled above
-  // VIEWPORT_TOP or below VIEWPORT_BOTTOM is invisible but, without this,
-  // would still be clickable at its now-wrong on-screen position (which
-  // could land it on top of the fixed nav bar). Toggles each interactive
-  // child's own `input.enabled` based on whether it's actually inside the
-  // visible viewport right now -- called after every scroll change, not
-  // just on redraw().
-  private updateScrollInteractivity(): void {
-    const containerY = this.contentContainer?.y ?? 0;
-    for (const child of this.contentContainer?.list ?? []) {
-      const object = child as Phaser.GameObjects.Text;
-      if (!object.input) continue;
-      const worldY = object.y + containerY;
-      object.input.enabled = worldY >= VIEWPORT_TOP && worldY + object.height <= VIEWPORT_BOTTOM;
-    }
-  }
-
   private redraw(): void {
-    this.contentContainer?.destroy();
-    this.maskShape?.destroy();
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.tradeMap);
 
-    this.contentContainer = this.add.container(0, -this.scrollY);
-    this.maskShape = this.make.graphics();
-    this.maskShape.fillRect(0, VIEWPORT_TOP, this.cameras.main.width, VIEWPORT_BOTTOM - VIEWPORT_TOP);
-    this.contentContainer.setMask(this.maskShape.createGeometryMask());
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
 
-    this.addText(16, VIEWPORT_TOP, "Trade Map", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
+    this.scroll.addText(16, VIEWPORT_TOP, "Trade Map", { fontFamily: "monospace", fontSize: "22px", color: "#ffffff" });
 
     const discoveredPlanets = getDiscoveredPlanets();
 
@@ -149,20 +111,7 @@ export class TradeMapScene extends Phaser.Scene {
 
     y = this.renderTravel(discoveredPlanets, y);
 
-    this.maxScrollY = Math.max(0, y - VIEWPORT_BOTTOM);
-    this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, this.maxScrollY);
-    this.contentContainer.setY(-this.scrollY);
-    this.updateScrollInteractivity();
-
-    if (this.maxScrollY > 0) {
-      this.add.text(16, VIEWPORT_BOTTOM + 3, "(scroll for more)", {
-        fontFamily: "monospace",
-        fontSize: "12px",
-        color: "#666666",
-      });
-    }
-
-    this.statusText = this.add.text(16, 470, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
@@ -174,11 +123,15 @@ export class TradeMapScene extends Phaser.Scene {
       "Explore -- most of the galaxy is still undiscovered. Scroll down to Travel and initiate a voyage to a nearby planet.",
       () => this.redraw(),
     );
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   private renderPlanet(planet: Planet, startY: number): number {
     let y = startY;
-    this.addText(16, y, `${planet.name} (${planet.planetType ?? "?"}, ${planet.tier ?? "?"} tier)`, {
+    this.scroll!.addText(16, y, `${planet.name} (${planet.planetType ?? "?"}, ${planet.tier ?? "?"} tier)`, {
       fontFamily: "monospace",
       fontSize: "18px",
       color: "#ffd700",
@@ -187,7 +140,7 @@ export class TradeMapScene extends Phaser.Scene {
 
     const states = getMarketStates().filter((state) => state.planetId === planet.id);
     if (states.length === 0) {
-      this.addText(16, y, "(no market activity tracked)", {
+      this.scroll!.addText(16, y, "(no market activity tracked)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
@@ -214,7 +167,7 @@ export class TradeMapScene extends Phaser.Scene {
     if (seasonalEffect) {
       const cheapResource = content.resources.find((r) => r.category === seasonalEffect.cheapCategory);
       const premiumResource = content.resources.find((r) => r.category === seasonalEffect.premiumCategory);
-      this.addText(
+      this.scroll!.addText(
         32,
         y,
         `Season: ${seasonalEffect.season} (${cheapResource?.name ?? seasonalEffect.cheapCategory} cheaper, ${premiumResource?.name ?? seasonalEffect.premiumCategory} pricier)`,
@@ -225,7 +178,7 @@ export class TradeMapScene extends Phaser.Scene {
     if (emergency) {
       const emergencyResource = content.resources.find((r) => r.category === emergency.category);
       const hoursLeft = ((emergency.endsAt - now) / (60 * 60 * 1000)).toFixed(1);
-      this.addText(
+      this.scroll!.addText(
         32,
         y,
         `⚠ Emergency: ${emergencyResource?.name ?? emergency.category} prices spiking (ends in ${hoursLeft}h)`,
@@ -241,7 +194,7 @@ export class TradeMapScene extends Phaser.Scene {
       const effectivePrice = state.currentPrice * seasonMultiplier * emergencyMultiplier;
       const status = classify(effectivePrice, state.basePrice);
       const line = `${resource?.name ?? state.itemId}: ${status} (now ${state.currentPrice.toFixed(2)}cr, base ${state.basePrice}cr)`;
-      this.addText(32, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+      this.scroll!.addText(32, y, line, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
     }
 
@@ -250,13 +203,13 @@ export class TradeMapScene extends Phaser.Scene {
       if (preference) {
         const sells = preference.sellsCheap.map((id) => content.resources.find((r) => r.id === id)?.name ?? id);
         const buys = preference.buysAtPremium.map((id) => content.resources.find((r) => r.id === id)?.name ?? id);
-        this.addText(32, y, `Typically sells cheap: ${sells.join(", ") || "(none)"}`, {
+        this.scroll!.addText(32, y, `Typically sells cheap: ${sells.join(", ") || "(none)"}`, {
           fontFamily: "monospace",
           fontSize: "12px",
           color: "#666666",
         });
         y += 18;
-        this.addText(32, y, `Typically buys at a premium: ${buys.join(", ") || "(none)"}`, {
+        this.scroll!.addText(32, y, `Typically buys at a premium: ${buys.join(", ") || "(none)"}`, {
           fontFamily: "monospace",
           fontSize: "12px",
           color: "#666666",
@@ -270,12 +223,12 @@ export class TradeMapScene extends Phaser.Scene {
 
   private renderTravel(discoveredPlanets: Planet[], startY: number): number {
     let y = startY;
-    this.addText(16, y, "Travel:", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
+    this.scroll!.addText(16, y, "Travel:", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
     y += 24;
 
     const ship = getShipRoster()[0];
     if (!ship) {
-      this.addText(16, y, "(no ship owned yet -- purchase one at the Shipyard)", {
+      this.scroll!.addText(16, y, "(no ship owned yet -- purchase one at the Shipyard)", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#888888",
@@ -294,7 +247,7 @@ export class TradeMapScene extends Phaser.Scene {
     const originPlanet =
       discoveredPlanets.find((planet) => planet.id === ship.currentPlanetId) ??
       galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
-    this.addText(16, y, `${ship.name} (${ship.tier} tier) — currently at ${originPlanet?.name ?? ship.currentPlanetId}`, {
+    this.scroll!.addText(16, y, `${ship.name} (${ship.tier} tier) — currently at ${originPlanet?.name ?? ship.currentPlanetId}`, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cccccc",
@@ -351,7 +304,7 @@ export class TradeMapScene extends Phaser.Scene {
     const owned = getOwnedScanners();
 
     if (owned.length === 0) {
-      this.addText(16, y, "(no scanner owned -- purchase one at the Shipyard to scan for nearby planets)", {
+      this.scroll!.addText(16, y, "(no scanner owned -- purchase one at the Shipyard to scan for nearby planets)", {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#888888",
@@ -363,9 +316,9 @@ export class TradeMapScene extends Phaser.Scene {
     // rule) is shown at the Shipyard's own scanner roster display -- not
     // recomputed here, so this line only lists ownership.
     const label = `Scanners owned: ${owned.map((scanner) => scanner.tier).join(", ")}`;
-    this.addText(16, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+    this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
 
-    const scanBtn = this.addText(500, y, "> Scan", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+    const scanBtn = this.scroll!.addText(500, y, "> Scan", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
     scanBtn.setInteractive({ useHandCursor: true });
     scanBtn.on("pointerdown", () => this.onScan(ship, dockedPlanet));
     y += 20;
@@ -413,18 +366,18 @@ export class TradeMapScene extends Phaser.Scene {
   // opponentThreatTier -- never a hint at win/lose odds).
   private renderPendingCombat(ship: Ship, pending: PendingCombat, startY: number): number {
     let y = startY;
-    this.addText(32, y, describePendingCombat(pending.encounter), {
+    this.scroll!.addText(32, y, describePendingCombat(pending.encounter), {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#ff5555",
     });
     y += 20;
 
-    const attackBtn = this.addText(360, y, "> Attack", { fontFamily: "monospace", fontSize: "13px", color: "#ff8844" });
+    const attackBtn = this.scroll!.addText(360, y, "> Attack", { fontFamily: "monospace", fontSize: "13px", color: "#ff8844" });
     attackBtn.setInteractive({ useHandCursor: true });
     attackBtn.on("pointerdown", () => this.onCombatChoice(ship, pending, "attack"));
 
-    const fleeBtn = this.addText(460, y, "> Flee", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+    const fleeBtn = this.scroll!.addText(460, y, "> Flee", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
     fleeBtn.setInteractive({ useHandCursor: true });
     fleeBtn.on("pointerdown", () => this.onCombatChoice(ship, pending, "flee"));
     y += 20;
@@ -483,14 +436,14 @@ export class TradeMapScene extends Phaser.Scene {
 
     if (remainingMs > 0) {
       const label = `En route to ${destination?.name ?? voyage.destinationPlanetId} — arrives in ${(remainingMs / MS_PER_HOUR).toFixed(2)}h`;
-      this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+      this.scroll!.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
       y += 20;
       return y;
     }
 
     const label = `Arrived at ${destination?.name ?? voyage.destinationPlanetId} — ready to resolve`;
-    this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
-    const resolveBtn = this.addText(500, y, "> Resolve Arrival", {
+    this.scroll!.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+    const resolveBtn = this.scroll!.addText(500, y, "> Resolve Arrival", {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#4caf50",
@@ -505,9 +458,9 @@ export class TradeMapScene extends Phaser.Scene {
     let y = startY;
     const travelTimeMs = calculateTravelTime(originPlanet, destination, ship);
     const label = `${destination.name}: ${(travelTimeMs / MS_PER_HOUR).toFixed(2)}h`;
-    this.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+    this.scroll!.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
 
-    const goBtn = this.addText(300, y, "> Initiate Voyage", {
+    const goBtn = this.scroll!.addText(300, y, "> Initiate Voyage", {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#2196f3",

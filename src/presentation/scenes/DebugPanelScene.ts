@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
+import { ScrollableContent, VIEWPORT_TOP, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { TUNING_SECTIONS, resetAllTuningToDefaults } from "../debugTuningRegistry.ts";
 import type { TuningRow } from "../debugTuningRegistry.ts";
 import { setForcedEncounterType } from "../debugState.ts";
@@ -14,8 +15,12 @@ import type { EncounterType } from "../../data/types/encounter.ts";
 // themselves reach into the same data/constants files every simulation
 // function already reads -- no formula/logic is duplicated or reimplemented
 // here.
-const VIEWPORT_TOP = 64;
-const VIEWPORT_BOTTOM = 455;
+//
+// Ported from this scene's original GameObject.setMask(GeometryMask)
+// implementation onto ScrollableContent (see that file's own header
+// comment): the mask silently no-ops under Phaser 4's WebGL renderer, so
+// this panel's clipping was never actually active under normal play. Same
+// camera-viewport approach as every other scrollable scene now.
 const ROW_HEIGHT = 18;
 
 const FORCE_ENCOUNTER_TYPES: ReadonlyArray<{ type: EncounterType; label: string }> = [
@@ -28,10 +33,7 @@ const FORCE_ENCOUNTER_TYPES: ReadonlyArray<{ type: EncounterType; label: string 
 export class DebugPanelScene extends Phaser.Scene {
   private statusText?: Phaser.GameObjects.Text;
   private pendingMessage = "";
-  private contentContainer?: Phaser.GameObjects.Container;
-  private maskShape?: Phaser.GameObjects.Graphics;
-  private scrollY = 0;
-  private maxScrollY = 0;
+  private scroll?: ScrollableContent;
 
   constructor() {
     super(SCENE_KEYS.debugPanel);
@@ -39,12 +41,6 @@ export class DebugPanelScene extends Phaser.Scene {
 
   create(): void {
     this.redraw();
-    this.input.on("wheel", (_pointer: unknown, _objects: unknown, _dx: number, dy: number) => {
-      if (this.maxScrollY <= 0) return;
-      this.scrollY = Phaser.Math.Clamp(this.scrollY + dy, 0, this.maxScrollY);
-      this.contentContainer?.setY(-this.scrollY);
-      this.updateScrollInteractivity();
-    });
   }
 
   private setStatus(message: string): void {
@@ -52,39 +48,15 @@ export class DebugPanelScene extends Phaser.Scene {
     this.statusText?.setText(message);
   }
 
-  // Same scrollable-container pattern TradeMapScene.ts already established
-  // (Galactic Map Agent 25/26 verification fix) -- this panel's ~100 rows
-  // overflow the fixed 800x500 canvas far more than that scene's content
-  // ever did, so it needs the same fix from the start rather than
-  // discovering the overflow later.
-  private addText(x: number, y: number, text: string, style: Phaser.Types.GameObjects.Text.TextStyle): Phaser.GameObjects.Text {
-    const object = this.add.text(x, y, text, style);
-    this.contentContainer?.add(object);
-    return object;
-  }
-
-  private updateScrollInteractivity(): void {
-    const containerY = this.contentContainer?.y ?? 0;
-    for (const child of this.contentContainer?.list ?? []) {
-      const object = child as Phaser.GameObjects.Text;
-      if (!object.input) continue;
-      const worldY = object.y + containerY;
-      object.input.enabled = worldY >= VIEWPORT_TOP && worldY + object.height <= VIEWPORT_BOTTOM;
-    }
-  }
-
   private redraw(): void {
-    this.contentContainer?.destroy();
-    this.maskShape?.destroy();
     this.children.removeAll();
     renderNav(this, SCENE_KEYS.debugPanel);
 
-    this.contentContainer = this.add.container(0, -this.scrollY);
-    this.maskShape = this.make.graphics();
-    this.maskShape.fillRect(0, VIEWPORT_TOP, this.cameras.main.width, VIEWPORT_BOTTOM - VIEWPORT_TOP);
-    this.contentContainer.setMask(this.maskShape.createGeometryMask());
+    this.scroll ??= new ScrollableContent(this);
+    this.scroll.attachWheelInput();
+    this.scroll.begin();
 
-    this.addText(16, VIEWPORT_TOP, "Debug / Tuning Panel (debug build only)", {
+    this.scroll.addText(16, VIEWPORT_TOP, "Debug / Tuning Panel (debug build only)", {
       fontFamily: "monospace",
       fontSize: "20px",
       color: "#ff5555",
@@ -94,7 +66,7 @@ export class DebugPanelScene extends Phaser.Scene {
     y = this.renderForceEncounterSection(y);
     y += 8;
 
-    const resetBtn = this.addText(16, y, "> Reset all tuning to alpha defaults", {
+    const resetBtn = this.scroll.addText(16, y, "> Reset all tuning to alpha defaults", {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#ff8844",
@@ -112,24 +84,15 @@ export class DebugPanelScene extends Phaser.Scene {
       y += 10;
     }
 
-    this.maxScrollY = Math.max(0, y - VIEWPORT_BOTTOM);
-    this.scrollY = Phaser.Math.Clamp(this.scrollY, 0, this.maxScrollY);
-    this.contentContainer.setY(-this.scrollY);
-    this.updateScrollInteractivity();
-
-    if (this.maxScrollY > 0) {
-      this.add.text(16, VIEWPORT_BOTTOM + 3, "(scroll for more)", {
-        fontFamily: "monospace",
-        fontSize: "12px",
-        color: "#666666",
-      });
-    }
-
-    this.statusText = this.add.text(16, 470, this.pendingMessage, {
+    this.statusText = this.add.text(16, STATUS_TEXT_Y, this.pendingMessage, {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#cccccc",
     });
+
+    // Must be the true last step -- see finish()'s own comment for why
+    // ordering matters here.
+    this.scroll.finish(y);
   }
 
   // "Let a debug session manually trigger a combat encounter (or any
@@ -140,7 +103,7 @@ export class DebugPanelScene extends Phaser.Scene {
   // natural roll.
   private renderForceEncounterSection(startY: number): number {
     let y = startY;
-    this.addText(16, y, "Force next voyage arrival to include an encounter:", {
+    this.scroll!.addText(16, y, "Force next voyage arrival to include an encounter:", {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#ffffff",
@@ -149,7 +112,7 @@ export class DebugPanelScene extends Phaser.Scene {
 
     let x = 16;
     for (const { type, label } of FORCE_ENCOUNTER_TYPES) {
-      const btn = this.addText(x, y, `[ ${label} ]`, {
+      const btn = this.scroll!.addText(x, y, `[ ${label} ]`, {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#4caf50",
@@ -174,25 +137,25 @@ export class DebugPanelScene extends Phaser.Scene {
 
   private renderSection(title: string, rows: TuningRow[], startY: number): number {
     let y = startY;
-    this.addText(16, y, title, { fontFamily: "monospace", fontSize: "16px", color: "#ffd700" });
+    this.scroll!.addText(16, y, title, { fontFamily: "monospace", fontSize: "16px", color: "#ffd700" });
     y += 22;
 
     for (const tuningRow of rows) {
-      this.addText(24, y, `${tuningRow.label}:`, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
-      const valueText = this.addText(400, y, this.formatValue(tuningRow), {
+      this.scroll!.addText(24, y, `${tuningRow.label}:`, { fontFamily: "monospace", fontSize: "13px", color: "#cccccc" });
+      const valueText = this.scroll!.addText(400, y, this.formatValue(tuningRow), {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#ffffff",
       });
 
-      const minusBtn = this.addText(470, y, "[-]", { fontFamily: "monospace", fontSize: "13px", color: "#ff6666" });
+      const minusBtn = this.scroll!.addText(470, y, "[-]", { fontFamily: "monospace", fontSize: "13px", color: "#ff6666" });
       minusBtn.setInteractive({ useHandCursor: true });
       minusBtn.on("pointerdown", () => {
         tuningRow.set(tuningRow.get() - tuningRow.step);
         valueText.setText(this.formatValue(tuningRow));
       });
 
-      const plusBtn = this.addText(500, y, "[+]", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+      const plusBtn = this.scroll!.addText(500, y, "[+]", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
       plusBtn.setInteractive({ useHandCursor: true });
       plusBtn.on("pointerdown", () => {
         tuningRow.set(tuningRow.get() + tuningRow.step);

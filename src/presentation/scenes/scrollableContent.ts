@@ -15,23 +15,23 @@ import Phaser from "phaser";
 //
 // IMPORTANT: this uses a dedicated Camera with a fixed screen viewport,
 // NOT GameObject.setMask(GeometryMask) -- TradeMapScene.ts/DebugPanelScene.ts's
-// original implementation uses setMask(), which silently no-ops under the
+// original implementation used setMask(), which silently no-ops under the
 // WebGL renderer this game actually runs under (Phaser 4:
 // GameObjects.Components.Mask#setMask is a Canvas-only API; WebGL logs a
 // console warning and returns without applying anything -- see
 // node_modules/phaser/src/gameobjects/components/Mask.js). That means
-// TradeMapScene/DebugPanelScene's own clipping has been silently
-// non-functional this whole time under normal (WebGL) play, not just in
-// the 5 scenes this file was built to fix -- worth a follow-up to port
-// those two scenes onto this same camera-based approach, since their
-// "working" status was never actually exercised under WebGL. A Camera's
-// viewport is a core, renderer-agnostic feature (unlike GameObject masks),
-// and critically is also input-aware by construction -- Phaser's own
-// GeometryMask docs note masks "have no impact on physics or input
-// detection," which is exactly why the old implementation needed a manual
-// updateScrollInteractivity() workaround; a camera's viewport naturally
-// makes scrolled-out content unclickable too, so no workaround is needed
-// here.
+// TradeMapScene/DebugPanelScene's own clipping was silently non-functional
+// this whole time under normal (WebGL) play, not just in the 5 scenes this
+// file was originally built to fix. Both scenes have since been ported
+// onto this same camera-based approach -- see their own headers -- so
+// every scrollable scene in the game now uses ScrollableContent, none use
+// setMask(GeometryMask) anymore. A Camera's viewport is a core,
+// renderer-agnostic feature (unlike GameObject masks), and critically is
+// also input-aware by construction -- Phaser's own GeometryMask docs note
+// masks "have no impact on physics or input detection," which is exactly
+// why the old implementation needed a manual updateScrollInteractivity()
+// workaround; a camera's viewport naturally makes scrolled-out content
+// unclickable too, so no workaround is needed here.
 export const VIEWPORT_TOP = 64;
 export const VIEWPORT_BOTTOM = 455;
 export const STATUS_TEXT_Y = 470;

@@ -278,29 +278,37 @@ different files.
   10th entry) now renders at `(16, 38)` — row 2 — instead of `x=832`
   (32px past the 800px-wide canvas).
 - `scenes/TradeMapScene.ts`: every content line (title, planets, travel
-  section — everything except the fixed nav bar and status line) now
-  renders inside a `Phaser.GameObjects.Container`, clipped to a
-  `GeometryMask` covering the visible viewport (`y` 64–455), with
-  mouse-wheel input scrolling the container within `[0, maxScrollY]` and
-  a "(scroll for more)" hint shown whenever `maxScrollY > 0`. **Necessary
-  completion beyond the obvious clip-and-scroll:** a `GeometryMask` only
-  clips *rendering*, not Phaser's input hit-testing — an "Initiate Voyage"
+  section — everything except the fixed nav bar and status line) rendered
+  inside a `Phaser.GameObjects.Container`, clipped to a `GeometryMask`
+  covering the visible viewport (`y` 64–455), with mouse-wheel input
+  scrolling the container within `[0, maxScrollY]` and a "(scroll for
+  more)" hint shown whenever `maxScrollY > 0`. **Necessary completion
+  beyond the obvious clip-and-scroll:** a `GeometryMask` only clips
+  *rendering*, not Phaser's input hit-testing — an "Initiate Voyage"
   button scrolled out of the visible range would otherwise still be
   clickable at its now-wrong on-screen position (potentially overlapping
-  the fixed nav bar). `updateScrollInteractivity()` toggles each
+  the fixed nav bar). `updateScrollInteractivity()` toggled each
   interactive child's own `input.enabled` based on whether its *current*
-  world-space position actually falls inside the visible viewport,
-  called after every scroll change, not just on redraw. Live-verified:
-  a fresh session's content (previously measured overflowing to y=615)
-  now renders with only the 64–455 range visible, `maxScrollY` correctly
-  reflects the real overflow amount, and scrolling to `maxScrollY` reveals
-  the second planet and the full Travel section that were previously
-  unreachable. The specific input-toggle behavior (a button becoming
-  unclickable while scrolled out of view) was verified by code review
-  rather than an interactive click test, since browser-tool connectivity
-  dropped mid-verification for this specific check — the mechanism itself
+  world-space position actually fell inside the visible viewport, called
+  after every scroll change, not just on redraw. Live-verified: a fresh
+  session's content (previously measured overflowing to y=615) rendered
+  with only the 64–455 range visible, `maxScrollY` correctly reflected the
+  real overflow amount, and scrolling to `maxScrollY` revealed the second
+  planet and the full Travel section that were previously unreachable. The
+  specific input-toggle behavior (a button becoming unclickable while
+  scrolled out of view) was verified by code review rather than an
+  interactive click test, since browser-tool connectivity dropped
+  mid-verification for this specific check — the mechanism itself
   (`object.input.enabled = worldY >= VIEWPORT_TOP && ...`) is a direct,
   narrow boolean condition with no other moving parts.
+  **Superseded:** this `GeometryMask` silently no-ops under Phaser 4's
+  WebGL renderer (Canvas-only API), so the clipping described above was
+  never actually active under normal play — only the separate
+  `updateScrollInteractivity()` input gating was ever real. `TradeMapScene`
+  and `DebugPanelScene` have since been ported onto `scenes/scrollableContent.ts`'s
+  camera-viewport `ScrollableContent`, the same fix already applied to
+  Market/GlobalMarket/Crew/Shipyard/ShipAssembly — see that file's header
+  comment for the full story.
 
 **Travel Encounters (Non-Combat) amendment (Agent 22):** no new screen —
 extends the existing arrival display inside `TradeMapScene.onResolveArrival()`.
