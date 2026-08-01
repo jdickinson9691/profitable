@@ -137,7 +137,7 @@ public static class ContentLoader
             applicableQualities = new Dictionary<Quality, bool>();
             foreach (var quality in Qualities.All)
             {
-                var key = ToCamelCase(quality.ToString());
+                var key = Qualities.ToJsonName(quality);
                 if (qualitiesObject[key] is not JsonValue value || !value.TryGetValue<bool>(out var boolValue))
                 {
                     problems.Add($"applicableQualities.{key} must be a boolean");
@@ -145,7 +145,7 @@ public static class ContentLoader
                 }
                 applicableQualities[quality] = boolValue;
             }
-            if (HasUnknownKeys(qualitiesObject, Qualities.All.Select(q => ToCamelCase(q.ToString()))))
+            if (HasUnknownKeys(qualitiesObject, Qualities.All.Select(Qualities.ToJsonName)))
             {
                 problems.Add("applicableQualities has unknown keys");
             }
@@ -214,7 +214,7 @@ public static class ContentLoader
                 if (hasThresholdQuality)
                 {
                     var raw = inputObject["thresholdQuality"]?.GetValue<string>();
-                    if (raw is null || !TryParseQuality(raw, out var parsedQuality))
+                    if (raw is null || !Qualities.TryParse(raw, out var parsedQuality))
                     {
                         problems.Add($"inputs[{i}].thresholdQuality is not a valid Quality");
                     }
@@ -443,22 +443,6 @@ public static class ContentLoader
         return o.Select(kvp => kvp.Key).Any(key => !allowedSet.Contains(key));
     }
 
-    private static string ToCamelCase(string pascalCase) =>
-        pascalCase.Length == 0 ? pascalCase : char.ToLowerInvariant(pascalCase[0]) + pascalCase[1..];
-
-    private static bool TryParseQuality(string raw, out Quality quality)
-    {
-        foreach (var q in Qualities.All)
-        {
-            if (ToCamelCase(q.ToString()) == raw)
-            {
-                quality = q;
-                return true;
-            }
-        }
-        quality = default;
-        return false;
-    }
 
     private static bool TryParseTierColor(string raw, out TierColor tier) =>
         Enum.TryParse(raw, ignoreCase: false, out tier) && Enum.IsDefined(typeof(TierColor), tier);

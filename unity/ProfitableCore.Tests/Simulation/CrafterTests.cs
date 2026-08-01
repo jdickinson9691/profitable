@@ -6,14 +6,7 @@ namespace ProfitableCore.Tests.Simulation;
 // Mirrors tests/simulation/craft.test.ts case-for-case.
 public class CrafterTests
 {
-    private static readonly Recipe NoThresholdRecipe = new()
-    {
-        Id = "test-no-threshold",
-        Name = "Test (no threshold)",
-        Inputs = new List<RecipeInput> { new() { Category = "any", Quantity = 1 } },
-        OutputResourceId = "test-output",
-        OutputQuantity = 1,
-    };
+    private static readonly Recipe NoThresholdRecipe = TestFixtures.NoThresholdRecipe;
 
     [Fact]
     public void CapsTheCombinedCeilingRaiseAt18PercentNotTheRaw21PercentSum()

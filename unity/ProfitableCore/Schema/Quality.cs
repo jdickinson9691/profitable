@@ -26,6 +26,31 @@ public static class Qualities
         Quality.Durability,
         Quality.Rarity,
     };
+
+    // Matches a TypeScript-side lowercase quality name ("purity", not
+    // "Purity") to its enum value. Shared by ContentLoader (parsing real
+    // content JSON) and anything else that needs to cross the C#/JSON
+    // boundary for a Quality -- extracted here rather than duplicated so
+    // there is exactly one place that knows the naming convention.
+    public static bool TryParse(string jsonName, out Quality quality)
+    {
+        foreach (var candidate in All)
+        {
+            if (ToJsonName(candidate) == jsonName)
+            {
+                quality = candidate;
+                return true;
+            }
+        }
+        quality = default;
+        return false;
+    }
+
+    public static string ToJsonName(Quality quality)
+    {
+        var name = quality.ToString();
+        return char.ToLowerInvariant(name[0]) + name[1..];
+    }
 }
 
 // A single quality's value: 1-100, or null when not applicable to the

@@ -69,6 +69,18 @@ public static class TestFixtures
         },
     };
 
+    // Matches scripts/parityHarness.ts's local fixture of the same id --
+    // kept out of a "real recipe" role deliberately (no threshold slot),
+    // shared by CrafterTests and ParityTests.
+    public static Recipe NoThresholdRecipe { get; } = new()
+    {
+        Id = "test-no-threshold",
+        Name = "Test (no threshold)",
+        Inputs = new List<RecipeInput> { new() { Category = "any", Quantity = 1 } },
+        OutputResourceId = "test-output",
+        OutputQuantity = 1,
+    };
+
     // 1x Radiant Alloy Bar (durability 60+ recommended) + 1x Hydrogen Gas
     // -> 1x Ion-Forged Hull Plate. Matched positionally: inputs[0] against
     // this slot 0, inputs[1] against slot 1.
