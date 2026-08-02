@@ -45,8 +45,18 @@ rather than silently made:**
   crystal", "refined-metal") per the MVP's `Resource` type — a gap flagged
   when the Agent 1 amendment was built. Resolved here via case-insensitive
   substring matching (`getEligibleResources`), which correctly includes
-  the 3 raw MVP resources and correctly excludes the 2 refined/crafted
-  outputs (neither of which is planetary produce regardless).
+  raw resources whose category names the broad category as a substring.
+  Bug fix (found auditing the alpha playtest seed): the substring match
+  alone is not sufficient to exclude refined/crafted outputs, once the
+  content roster grew past the original 2 refined/crafted items --
+  `content/README.md`'s own "category = own id" convention for those
+  outputs means a self-referential category string can accidentally
+  contain a broad category substring by name coincidence (e.g.
+  "master-crystal-array" contains "crystal"). `getEligibleResources()` now
+  also requires `itemTier === 1` (defaulting missing `itemTier` to 1, same
+  convention `createListing.ts`'s `tradeableResources` filter already
+  uses), closing this regardless of naming. See that function's own
+  comment in `generatePlanet.ts` for the 3 real resources this affected.
 - **Position generation** (Phase 2 GDD §2.7) has no specified range or
   distribution. Defaulted to uniform random within an arbitrary bounded
   square (±1000 on each axis, see `generateGalaxy.ts`'s `POSITION_RANGE`)

@@ -10,13 +10,16 @@
 // Covers profitable-alpha-playtest-plan.md's A1 (raw materials for the
 // real refining recipe -- refiner tier itself is a free UI selector,
 // RefineScene.ts's own selectedTier, so no crew/seeding dependency
-// exists there), A2 (3 threshold-banded craft inputs), A3 (a Grey- and a
-// Gold-tier planet of the SAME PlanetType, via seedDiscoveredPlanets()'s
-// index 8 -- see that function's comment for why the bootstrap pair
-// alone doesn't cover this), B1-B6, and B8 (via the Grey/Gold ship pair
-// this file also seeds). A4 (specialty planet payoff) is covered by this
-// file's companion, devGalaxySeed.ts -- see that file for why it can't
-// be done here as a normal on-demand setter call.
+// exists there; the starting planet itself now also produces these
+// materials directly, see devGalaxySeed.ts), A2 (3 threshold-banded craft
+// inputs, plus a real with-schematic/no-schematic comparison also
+// gatherable at the starting planet -- see SEED_INVENTORY's own comment),
+// A3 (a Grey- and a Gold-tier planet of the SAME PlanetType, via
+// seedDiscoveredPlanets()'s index 16 -- see that function's comment),
+// B1-B6, and B8 (via the Grey/Gold ship pair this file also seeds). A4
+// (specialty planet payoff) is covered by this file's companion,
+// devGalaxySeed.ts -- see that file for why it can't be done here as a
+// normal on-demand setter call.
 import { content, setInventory, getInventory } from "./gameState.ts";
 import { addBatch } from "./inventory.ts";
 import { galaxy, startingPlanet, markPlanetDiscovered } from "./galaxyState.ts";
@@ -171,6 +174,18 @@ const BASELINE_QUALITIES = { purity: 55, density: 55, potency: 55, durability: 5
 // comfortably above threshold, once 10-15 points below, once 35-40 points
 // below) is runnable immediately with no gather step, in either
 // direction, without exceeding the 41+ instant-rejection floor.
+//
+// Ferrite Ore below is a second, independent chain added for the "test the
+// available crafting schematics" request: ion-forged-hull-plate HAS a
+// schematic (Blue tier, content/schematics.json), but iron-hull-plate is
+// the one general recipe in the whole alpha roster that doesn't (resolves
+// to Grey/no-bonus, per schematicTier.ts's resolveSchematicTier()) -- a
+// real, already-existing "with vs. without a schematic" comparison, not
+// something requiring any ownership mechanic (there isn't one; a
+// schematic's tier bonus is a fixed content-table lookup by recipeId, not
+// player-owned state -- see CraftScene.ts's own doCraft()). iron-hull-plate
+// needs 2x Iron Ingot (durability >= 40 threshold), refined 3:1 from
+// Ferrite Ore.
 const SEED_INVENTORY: ReadonlyArray<{
   resourceId: string;
   quantity: number;
@@ -193,6 +208,10 @@ const SEED_INVENTORY: ReadonlyArray<{
   // A2: the recipe's other input (no threshold) -- one per craft attempt
   // across all 3 radiant-alloy-bar batches above (6 total).
   { resourceId: "hydrogen-gas", quantity: 6, qualities: BASELINE_QUALITIES },
+  // Schematic comparison: 30x Ferrite Ore -> up to 10 Iron Ingot refines
+  // -> up to 5 Iron Hull Plate crafts (2 Iron Ingot each) for the
+  // no-schematic side of the comparison described above.
+  { resourceId: "ferrite-ore", quantity: 30, qualities: BASELINE_QUALITIES },
 ];
 
 function seedInventory(): void {
@@ -231,48 +250,34 @@ function seedWallet(): void {
 
 // Discovers a handful of generated planets beyond the 2 structural
 // bootstrap planets (startingPlanet + secondaryDiscoveredPlanet, already
-// discovered by galaxyState.ts itself) -- 6 more, just past this file's
-// original "requested 4-6" range (see index 19's own comment below for
-// why B4 needed one more than that range allowed for). Deliberately NOT
-// "every remaining planet" now that Alpha Section 3 sets PLANET_COUNT = 50
-// (galaxyState.ts) -- that old "as many as the galaxy has" behavior only
-// ever produced the low end of the range because the galaxy itself was
-// too small (5 total) to produce more; blindly keeping it now would
-// discover 48 planets instead, defeating this seed's own "meaningful
-// playtest subset, not the whole galaxy" purpose (the same "not all 50"
-// premise Section 3's own Test 1 requires -- see
-// profitable-alpha-scale-performance-plan.md). Uses the real generated
-// positions (no fabricated coordinates) so B4's short-hop-vs-long-trip
-// comparison is testing real, measured distances (see index 19 below).
+// discovered by galaxyState.ts itself). Deliberately NOT "every remaining
+// planet" now that Alpha Section 3 sets PLANET_COUNT = 50 (galaxyState.ts)
+// -- that old "as many as the galaxy has" behavior only ever produced the
+// low end of the range because the galaxy itself was too small (5 total)
+// to produce more; blindly keeping it now would discover 48 planets
+// instead, defeating this seed's own "meaningful playtest subset, not the
+// whole galaxy" purpose (the same "not all 50" premise Section 3's own
+// Test 1 requires -- see profitable-alpha-scale-performance-plan.md).
+// Uses the real generated positions (no fabricated coordinates) so B4's
+// short-hop-vs-long-trip comparison is testing real, measured distances.
 //
-// Index 8 is deliberately included (not just 2-5): re-audited against
-// KNOWN_GOOD_GALAXY_SEED (devGalaxySeed.ts), planet 0 (Grey/Terrestrial)
-// and planet 1 (Gold/GasGiant) -- the two bootstrap planets this file's
-// header comment previously pointed A3 at -- share NO eligible resource
-// category (getEligibleResources() keys eligibility by PlanetType; see
-// generatePlanet.ts), so A3 ("gather the same resource on a Grey-tier
-// planet and a Gold-tier planet") was never actually reachable from the
-// bootstrap pair alone. Planet 8 rolls Grey/GasGiant -- the SAME
-// PlanetType as planet 1's Gold/GasGiant, so it shares planet 1's
-// eligible-resource pool and A3 is reachable using planets 1 and 8. Also
-// discovers 2,3,4,5 as before (3 keeps its own Orange/GasGiant specialty
-// for A4 variety; 4/5 are a same-type Grey/Purple SuperEarth pair, a
-// secondary, non-Gold A3 comparison).
-//
-// Index 19 is B4's long-trip pick, added after actually measuring travel
-// times rather than assuming the plan doc's illustrative "~24-28h" example
-// number holds at this galaxy/seed/starting-position combination -- it
-// doesn't: calculateTravelTime() from planet 0 (this seed's fixed starting
-// position, not centered in the 2000x2000 position square) tops out
-// around 14.7h at Grey tier, to planet 19 specifically (the single
-// farthest of all 50 planets from planet 0 in this seed -- checked all
-// 50, not assumed). Included so B4 has a real, reachable "long trip"
-// planet rather than the doc silently pointing at a number this seed
-// can't produce; profitable-alpha-playtest.md's B4 section notes the
-// corrected ~14-15h figure rather than repeating the plan doc's original
-// illustrative range as fact.
+// All 5 indices below were picked against KNOWN_GOOD_GALAXY_SEED
+// "alpha-playtest-191" (devGalaxySeed.ts) -- see that file's own comment
+// for the full re-search rationale (a real getEligibleResources() bug fix
+// changed every planet's resource rolls, invalidating the previous seed's
+// hand-picked indices):
+// - 16: SuperEarth, Grey tier, ~0.7h from the starting planet -- shares
+//   igneous-ore with planet 1 (SuperEarth, Gold, auto-discovered), so A3
+//   ("same resource, Grey-tier vs. Gold-tier planet") is reachable using
+//   planets 1 and 16.
+// - 46: Terrestrial, Gold tier, ~22h from the starting planet at Grey ship
+//   speed -- B4's long-trip pick, measured (not assumed) to land close to
+//   the plan doc's own "~24-28h" illustrative example.
+// - 3, 7, 9: general short/medium-hop variety (3.1h, 9.1h, 13.3h) with
+//   their own real specialties (7: ammonia-gas, 3: graphite-deposit) for
+//   extra A4 examples beyond planet 1's.
 function seedDiscoveredPlanets(): void {
-  const indices = [2, 3, 4, 5, 8, 19];
+  const indices = [3, 7, 9, 16, 46];
   for (const index of indices) {
     const planet = galaxy.planets[index];
     if (planet) markPlanetDiscovered(planet.id);

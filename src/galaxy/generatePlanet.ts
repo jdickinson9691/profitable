@@ -28,10 +28,29 @@ export function choosePlanetType(random: RandomFn): PlanetType {
 // against Resource.category, which stays a free-form string per the MVP's
 // Resource type (e.g. "radioactive crystal", "refined-metal"). Matched via
 // case-insensitive substring rather than exact equality -- this correctly
-// includes the 3 raw MVP resources (solid/gas/"radioactive crystal", each
-// containing its broad category as a substring) and correctly excludes the
-// 2 refined/crafted outputs (which aren't planetary produce regardless).
-// A deliberate resolution of a genuine vocabulary gap, not an assumption.
+// includes raw resources like "radioactive crystal" (containing its broad
+// category as a substring).
+//
+// Bug fix (found auditing the alpha playtest seed's starting planet, whose
+// producible list turned out to include Master Crystal Array -- a tier-3
+// CRAFTED item -- as if it were gatherable raw produce): the substring
+// match alone is not sufficient to exclude refined/crafted outputs.
+// content/README.md's own convention sets a refined/crafted resource's
+// `category` to its own id (so recipe-input category resolution never
+// collides with a second resource) -- and once Alpha's content roster grew
+// past the original 2 refined/crafted items, some of those self-referential
+// id-as-category strings started accidentally CONTAINING a broad category
+// substring (e.g. "master-crystal-array" contains "crystal";
+// "polished-crystal-lattice" contains "crystal"; "fusion-gas-mix" contains
+// "gas"). The original version of this comment claimed the substring match
+// "correctly excludes the 2 refined/crafted outputs" -- true only for the
+// 2 non-colliding names that existed at the time, not a real invariant;
+// the real content roster falsifies it (confirmed: 3 non-raw resources
+// leak through across the 4 planet types). Explicitly requiring itemTier
+// 1 (content/README.md's own "raw=1, refined=2, first-order-crafted=3"
+// pipeline-depth rule; missing itemTier defaults to 1, same convention
+// createListing.ts's tradeableResources filter already uses) closes this
+// regardless of what any future resource happens to be named.
 export function getEligibleResources(planetType: PlanetType, resources: Resource[]): Resource[] {
   const eligibility = PLANET_TYPE_ELIGIBILITY.find((entry) => entry.planetType === planetType);
   if (!eligibility) {
@@ -39,6 +58,7 @@ export function getEligibleResources(planetType: PlanetType, resources: Resource
   }
   const categories = eligibility.eligibleCategories.map((category) => category.toLowerCase());
   return resources.filter((resource) => {
+    if ((resource.itemTier ?? 1) !== 1) return false;
     const resourceCategory = resource.category.toLowerCase();
     return categories.some((category) => resourceCategory.includes(category));
   });

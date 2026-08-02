@@ -30,39 +30,63 @@ import { isDebugModeEnabled } from "./debugFlag.ts";
 
 const GALAXY_SEED_SAVE_KEY = "profitable:galaxySeed";
 
-// Verified via generateGalaxy(5, realResourceCatalog, seed): planet 0
-// (startingPlanet) rolls Grey, planet 1 (secondaryDiscoveredPlanet, also
-// auto-discovered) rolls Gold with a real specialty (fusion-gas-mix) --
-// so A4 (specialty planet payoff) is reachable immediately, with no
-// travel/discovery needed beyond the two bootstrap planets. Planet 3
-// additionally rolls Orange with its own specialty (helium-3), for extra
-// A4 variety. Full roll: Grey, Gold, Grey, Orange, Grey.
+// SUPERSEDED (found while making sure the starting planet itself supports
+// refining/crafting playtests, not just travel-reachable neighbors): the
+// previous seed here, "playtest-galaxy-12", was picked before a real bug
+// in getEligibleResources() (generatePlanet.ts) was found and fixed --
+// planet-type eligibility was matched by a category substring, and 3 real
+// content resources (polished-crystal-lattice, master-crystal-array,
+// fusion-gas-mix -- all refined/crafted, not raw) accidentally passed that
+// match because their self-referential category name happened to contain
+// "crystal" or "gas". That means every planet pick this file made before
+// the fix, including the previous seed's starting planet, was chosen
+// against resource rolls that don't exist anymore post-fix (the eligible
+// pool composition changed for every planet, which reshuffles
+// selectResourceSubset()'s draws even though tier/type/position are
+// unaffected -- separate random streams). Re-searched from scratch
+// against the fixed logic rather than patching the old seed's planet
+// picks piecemeal.
 //
-// CORRECTION (found auditing debug tooling against the full playtest
-// plan): planet 0 is Terrestrial and planet 1 is GasGiant -- different
-// PlanetTypes -- and getEligibleResources() (generatePlanet.ts) keys
-// eligibility by PlanetType, so they share NO eligible resource category.
-// This pair was never actually usable for A3 ("gather the same resource
-// on a Grey-tier planet and a Gold-tier planet"), despite an earlier
-// version of this comment claiming it was -- not re-tested against A3's
-// actual wording when this seed was first picked. The real A3 pairing
-// devSeed.ts's seedDiscoveredPlanets() now seeds is planet 1 (Gold/
-// GasGiant) vs. planet 8 (Grey/GasGiant) -- same PlanetType, real tier
-// contrast, both discovered by that function.
+// "alpha-playtest-191" verified via generateGalaxy(50, realResourceCatalog,
+// seed) against the current (60-resource, post-fix) content roster:
 //
-// Re-verified after Alpha Section 3 raised PLANET_COUNT to 50
-// (galaxyState.ts): each planet's own seed is `${gameSeed}:${index}`,
-// independent of the total planet count (see generateGalaxy.ts), so
-// planet rolls are unaffected by how many more get generated after them
-// -- confirmed by re-running generateGalaxy(50, ...) against the current
-// (60-resource) content roster rather than assumed, since the roster
-// itself has also grown since this seed was first verified. First 20
-// planets by PlanetType or tier, for reference (also re-verified this
-// pass): Terrestrial idx0/2/9(Grey), idx6/12(Green); GasGiant idx1(Gold),
-// idx3(Orange, specialty helium-3), idx8(Grey), idx16(White); SuperEarth
-// idx4/10/15(Grey), idx5(Purple), idx13/14(Blue), idx19(White); Neptunian
-// idx7/17/18(Grey), idx11(Green).
-const KNOWN_GOOD_GALAXY_SEED = "playtest-galaxy-12";
+// - Planet 0 (startingPlanet): SuperEarth, Purple tier, 17 producible
+//   resources -- including igneous-ore, autunite-crystal, AND ferrite-ore
+//   (raw inputs for 2 of the 10 real refining recipes) and hydrogen-gas
+//   (the gas-category input the one MVP craft recipe already exercised by
+//   the playtest doc needs). This is what this seed was searched for: the
+//   starting planet alone, no travel required, now supports the full
+//   gather -> refine -> craft chain for BOTH a schematic-backed recipe
+//   (ion-forged-hull-plate, Blue schematic) and the one general recipe
+//   with no schematic at all (iron-hull-plate, Grey-equivalent) -- a real,
+//   immediately-reachable "with vs. without a schematic" comparison. Also
+//   has its own real specialty (nickel-iron-fragment).
+// - Planet 1 (secondaryDiscoveredPlanet, auto-discovered): SuperEarth,
+//   Gold tier, real specialty hydrogen-gas -- A4 reachable with zero
+//   travel beyond the two bootstrap planets, same as before, but now
+//   backed by a genuinely raw specialty resource (the old seed's planet 1
+//   specialty, fusion-gas-mix, was itself one of the 3 resources the
+//   eligibility bug should never have allowed -- so A4 as previously
+//   documented was unknowingly exercising the bug, not a real specialty).
+// - Planet 16: SuperEarth, Grey tier, ~0.7h from the starting planet (an
+//   essentially free side-trip, not a real voyage commitment) -- shares
+//   igneous-ore (among others) with planet 1's Gold-tier SuperEarth, so
+//   A3 ("same resource, Grey-tier vs. Gold-tier planet") is reachable
+//   using planets 1 and 16, both close to the start.
+// - Planet 46: Terrestrial, Gold tier, ~22h from the starting planet at
+//   Grey ship speed -- much closer to the plan doc's original "~24-28h"
+//   B4 long-trip example than the previous seed's farthest reachable
+//   planet (~14.7h) managed.
+// - Planets 3, 7, 9 added for general short/medium-hop variety and extra
+//   A4 specialty examples (graphite-deposit, ammonia-gas respectively);
+//   see devSeed.ts's seedDiscoveredPlanets() for the full discovered set
+//   and its own per-planet reasoning.
+//
+// Each planet's own seed is `${gameSeed}:${index}`, independent of the
+// total planet count (see generateGalaxy.ts) -- confirmed again this pass,
+// not just carried over as an assumption from the previous seed's own
+// verification.
+const KNOWN_GOOD_GALAXY_SEED = "alpha-playtest-191";
 
 if (isDebugModeEnabled() && !saveSystem.load(GALAXY_SEED_SAVE_KEY)) {
   saveSystem.save(GALAXY_SEED_SAVE_KEY, KNOWN_GOOD_GALAXY_SEED);

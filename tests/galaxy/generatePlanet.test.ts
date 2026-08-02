@@ -8,7 +8,7 @@ import {
   selectResourceSubset,
   generatePlanet,
 } from "../../src/galaxy/generatePlanet.ts";
-import { igneousOre, hydrogenGas, autuniteCrystal, radiantAlloyBar } from "../fixtures/resources.ts";
+import { igneousOre, hydrogenGas, autuniteCrystal, radiantAlloyBar, crystalCraftedDecoy } from "../fixtures/resources.ts";
 import { queueRandom } from "../fixtures/random.ts";
 
 // --- rollPlanetTier: same boundary values as getTierColor's own tests,
@@ -56,6 +56,21 @@ test("getEligibleResources() never includes a refined/crafted resource for any P
   for (const planetType of ["Terrestrial", "SuperEarth", "Neptunian", "GasGiant"] as const) {
     const eligible = getEligibleResources(planetType, resources).map((r) => r.id);
     assert.ok(!eligible.includes("radiant-alloy-bar"));
+  }
+});
+
+// Regression test for a real bug: a refined/crafted resource whose
+// self-referential category (content/README.md's own "category = own id"
+// convention) happens to CONTAIN a broad category substring (here,
+// "master-crystal-array" contains "crystal") must still be excluded --
+// the category substring match alone let this leak through until
+// getEligibleResources() started also requiring itemTier === 1. See that
+// function's own comment for the real content roster items this affected.
+test("getEligibleResources() excludes a crafted resource even when its self-referential category substring-matches", () => {
+  const resources = [igneousOre, autuniteCrystal, crystalCraftedDecoy];
+  for (const planetType of ["Terrestrial", "SuperEarth", "Neptunian"] as const) {
+    const eligible = getEligibleResources(planetType, resources).map((r) => r.id);
+    assert.ok(!eligible.includes("master-crystal-array"));
   }
 });
 

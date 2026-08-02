@@ -50,6 +50,30 @@ export const radiantAlloyBar: Resource = {
   id: "radiant-alloy-bar",
   name: "Radiant Alloy Bar",
   category: "refined-metal",
+  itemTier: 2,
+  applicableQualities: {
+    purity: true,
+    density: true,
+    potency: true,
+    durability: true,
+    rarity: true,
+  },
+};
+
+// Mirrors a real content/resources.json collision (see generatePlanet.ts's
+// getEligibleResources() fix comment): content/README.md's own convention
+// sets a refined/crafted resource's `category` to its own id, and this
+// crafted item's id happens to contain "crystal" -- a broad Planet Type
+// eligibility category substring -- purely by name coincidence, the same
+// way the real roster's "master-crystal-array" (itemTier 3) does. Exists
+// so a test can assert this is excluded by itemTier, not just by category
+// mismatch (radiantAlloyBar's "refined-metal" category never collided in
+// the first place, so it couldn't catch this class of bug).
+export const crystalCraftedDecoy: Resource = {
+  id: "master-crystal-array",
+  name: "Master Crystal Array (test decoy)",
+  category: "master-crystal-array",
+  itemTier: 3,
   applicableQualities: {
     purity: true,
     density: true,
