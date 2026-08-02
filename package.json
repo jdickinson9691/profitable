@@ -14,6 +14,7 @@
     "dev": "vite",
     "build": "vite build",
     "playtest": "node scripts/playtestHarness.ts",
+    "scale-test": "node scripts/scaleTestHarness.ts",
     "parity": "node scripts/parityHarness.ts",
     "electron:dev": "concurrently -k -s first \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "electron:build": "vite build && electron-builder",

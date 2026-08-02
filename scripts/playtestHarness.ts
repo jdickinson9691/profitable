@@ -557,6 +557,16 @@ function main() {
       .map(([tier, count]) => `${tier}=${count}`)
       .join(", ")}`,
   );
+  // Alpha Section 3's own "worth confirming this empirically... not just
+  // asserting it should work" -- Planet Type is the other axis the plan
+  // doc names alongside tier.
+  const typeCounts: Record<string, number> = {};
+  for (const p of scaleGalaxy.planets) typeCounts[p.planetType ?? "?"] = (typeCounts[p.planetType ?? "?"] ?? 0) + 1;
+  console.log(
+    `Scale galaxy (50 planets, seed "alpha-scale-galaxy-50"), Planet Type distribution: ${Object.entries(typeCounts)
+      .map(([type, count]) => `${type}=${count}`)
+      .join(", ")}`,
+  );
 
   runA1();
   runA2();

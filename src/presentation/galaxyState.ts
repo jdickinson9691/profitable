@@ -10,13 +10,15 @@ import { content, saveSystem } from "./gameState.ts";
 // the whole planet array.
 const GALAXY_SEED_KEY = "profitable:galaxySeed";
 
-// A small fixed galaxy -- enough to prove real generation (varied tiers/
-// types/specialties across a seed) without redesigning the single-planet
-// MVP presentation into a multi-planet UI. Agent 10 must not modify Agent
-// 5's scenes beyond what's needed to source planet data from Agent 8
-// instead of Agent 6's hardcoded content -- this is an integration point,
-// not a presentation redesign.
-const PLANET_COUNT = 5;
+// Alpha Section 3 (docs/profitable-alpha-scale-performance-plan.md):
+// locked at 50, the real alpha galaxy size -- large enough that the map
+// genuinely can't be taken in at a glance, round enough to reason about
+// when tuning discovery pacing/travel distances/market pool distribution
+// against it. Was a small fixed 5 through Phase 2-5 and the deferred
+// gaps, deliberately kept minimal until scale/performance became this
+// section's own explicit job to verify -- see that plan doc for the full
+// rationale and the four verification tests this change is gated behind.
+const PLANET_COUNT = 50;
 
 function loadOrCreateGalaxy(): Galaxy {
   const storedSeed = saveSystem.load(GALAXY_SEED_KEY) as string | null;

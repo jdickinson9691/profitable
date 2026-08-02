@@ -189,17 +189,22 @@ function seedWallet(): void {
   setWallet({ ...wallet, credits: targetCredits });
 }
 
-// Discovers every remaining generated planet beyond the 2 structural
+// Discovers a handful of generated planets beyond the 2 structural
 // bootstrap planets (startingPlanet + secondaryDiscoveredPlanet, already
-// discovered by galaxyState.ts itself) -- as many as the galaxy actually
-// has. At the current PLANET_COUNT = 5 (galaxyState.ts; Section 3's
-// 50-planet target isn't implemented yet), that's exactly 3 more, for 4
-// total discovered beyond the single starting planet -- the low end of
-// the requested 4-6, and the maximum this build can currently produce.
-// Uses the real generated positions (no fabricated coordinates) so B4's
-// short-hop-vs-long-trip comparison is testing real distances.
+// discovered by galaxyState.ts itself) -- 4 more, for 5 total discovered
+// beyond the single starting planet, the middle of this file's original
+// "requested 4-6" range. Deliberately NOT "every remaining planet" now
+// that Alpha Section 3 sets PLANET_COUNT = 50 (galaxyState.ts) -- that
+// old "as many as the galaxy has" behavior only ever produced the low
+// end of the range because the galaxy itself was too small (5 total) to
+// produce more; blindly keeping it now would discover 48 planets instead,
+// defeating this seed's own "meaningful playtest subset, not the whole
+// galaxy" purpose (the same "not all 50" premise Section 3's own Test 1
+// requires -- see profitable-alpha-scale-performance-plan.md). Uses the
+// real generated positions (no fabricated coordinates) so B4's short-hop
+// -vs-long-trip comparison is testing real distances.
 function seedDiscoveredPlanets(): void {
-  for (const planet of galaxy.planets.slice(2)) {
+  for (const planet of galaxy.planets.slice(2, 6)) {
     markPlanetDiscovered(planet.id);
   }
 }

@@ -2,6 +2,10 @@
 
 Concrete plan for Section 3 of `product-alpha-plan.md`.
 
+**Status: complete.** See `product-alpha.md` Section 3 for the full results. Two corrections to this plan found during execution, not treated as new design scope:
+- The "21-item roster" reference below is stale — the real content roster grew to 60 resources during Section 1. Distribution was checked against the actual current roster instead.
+- Test 2's "price-history log" and Test 4's "accumulated `Voyage.encounters` records" both describe structures that were never actually built this way once Trading (Phase 3 GDD §2.7, "always query live, never cache") and Travel Encounters' `removeVoyage()`-on-resolution behavior were locked in — there is no price-history log and no voyage/encounter history log anywhere in the codebase (grep-confirmed). Not a gap; this plan predated those later design decisions.
+
 ---
 
 ## Galaxy Size: 50 planets, fixed

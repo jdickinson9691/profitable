@@ -39,6 +39,15 @@ const GALAXY_SEED_SAVE_KEY = "profitable:galaxySeed";
 // planets. Planet 3 additionally rolls Orange with its own specialty
 // (helium-3), for extra A4 variety. Full roll: Grey, Gold, Grey, Orange,
 // Grey.
+//
+// Re-verified after Alpha Section 3 raised PLANET_COUNT to 50
+// (galaxyState.ts): each planet's own seed is `${gameSeed}:${index}`,
+// independent of the total planet count (see generateGalaxy.ts), so
+// planets 0-4's rolls are unaffected by how many more get generated
+// after them -- confirmed by re-running generateGalaxy(50, ...) against
+// the current (60-resource) content roster rather than assumed, since
+// the roster itself has also grown since this seed was first verified.
+// Same exact tier/type/specialty sequence for planets 0-4 either way.
 const KNOWN_GOOD_GALAXY_SEED = "playtest-galaxy-12";
 
 if (isDebugModeEnabled() && !saveSystem.load(GALAXY_SEED_SAVE_KEY)) {
