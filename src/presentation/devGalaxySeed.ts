@@ -33,21 +33,35 @@ const GALAXY_SEED_SAVE_KEY = "profitable:galaxySeed";
 // Verified via generateGalaxy(5, realResourceCatalog, seed): planet 0
 // (startingPlanet) rolls Grey, planet 1 (secondaryDiscoveredPlanet, also
 // auto-discovered) rolls Gold with a real specialty (fusion-gas-mix) --
-// so profitable-alpha-playtest-plan.md's A3 (Grey-tier vs. Gold-tier
-// gathering) and A4 (specialty planet payoff) are both reachable
-// immediately, with no travel/discovery needed beyond the two bootstrap
-// planets. Planet 3 additionally rolls Orange with its own specialty
-// (helium-3), for extra A4 variety. Full roll: Grey, Gold, Grey, Orange,
-// Grey.
+// so A4 (specialty planet payoff) is reachable immediately, with no
+// travel/discovery needed beyond the two bootstrap planets. Planet 3
+// additionally rolls Orange with its own specialty (helium-3), for extra
+// A4 variety. Full roll: Grey, Gold, Grey, Orange, Grey.
+//
+// CORRECTION (found auditing debug tooling against the full playtest
+// plan): planet 0 is Terrestrial and planet 1 is GasGiant -- different
+// PlanetTypes -- and getEligibleResources() (generatePlanet.ts) keys
+// eligibility by PlanetType, so they share NO eligible resource category.
+// This pair was never actually usable for A3 ("gather the same resource
+// on a Grey-tier planet and a Gold-tier planet"), despite an earlier
+// version of this comment claiming it was -- not re-tested against A3's
+// actual wording when this seed was first picked. The real A3 pairing
+// devSeed.ts's seedDiscoveredPlanets() now seeds is planet 1 (Gold/
+// GasGiant) vs. planet 8 (Grey/GasGiant) -- same PlanetType, real tier
+// contrast, both discovered by that function.
 //
 // Re-verified after Alpha Section 3 raised PLANET_COUNT to 50
 // (galaxyState.ts): each planet's own seed is `${gameSeed}:${index}`,
 // independent of the total planet count (see generateGalaxy.ts), so
-// planets 0-4's rolls are unaffected by how many more get generated
-// after them -- confirmed by re-running generateGalaxy(50, ...) against
-// the current (60-resource) content roster rather than assumed, since
-// the roster itself has also grown since this seed was first verified.
-// Same exact tier/type/specialty sequence for planets 0-4 either way.
+// planet rolls are unaffected by how many more get generated after them
+// -- confirmed by re-running generateGalaxy(50, ...) against the current
+// (60-resource) content roster rather than assumed, since the roster
+// itself has also grown since this seed was first verified. First 20
+// planets by PlanetType or tier, for reference (also re-verified this
+// pass): Terrestrial idx0/2/9(Grey), idx6/12(Green); GasGiant idx1(Gold),
+// idx3(Orange, specialty helium-3), idx8(Grey), idx16(White); SuperEarth
+// idx4/10/15(Grey), idx5(Purple), idx13/14(Blue), idx19(White); Neptunian
+// idx7/17/18(Grey), idx11(Green).
 const KNOWN_GOOD_GALAXY_SEED = "playtest-galaxy-12";
 
 if (isDebugModeEnabled() && !saveSystem.load(GALAXY_SEED_SAVE_KEY)) {

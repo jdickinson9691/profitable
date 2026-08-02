@@ -10,10 +10,13 @@
 // Covers profitable-alpha-playtest-plan.md's A1 (raw materials for the
 // real refining recipe -- refiner tier itself is a free UI selector,
 // RefineScene.ts's own selectedTier, so no crew/seeding dependency
-// exists there), A2 (3 threshold-banded craft inputs), B1-B6, and B8. A3/
-// A4 (a Grey-tier and a Gold-tier planet, both with real specialties)
-// are covered by this file's companion, devGalaxySeed.ts -- see that
-// file for why it can't be done here as a normal on-demand setter call.
+// exists there), A2 (3 threshold-banded craft inputs), A3 (a Grey- and a
+// Gold-tier planet of the SAME PlanetType, via seedDiscoveredPlanets()'s
+// index 8 -- see that function's comment for why the bootstrap pair
+// alone doesn't cover this), B1-B6, and B8 (via the Grey/Gold ship pair
+// this file also seeds). A4 (specialty planet payoff) is covered by this
+// file's companion, devGalaxySeed.ts -- see that file for why it can't
+// be done here as a normal on-demand setter call.
 import { content, setInventory, getInventory } from "./gameState.ts";
 import { addBatch } from "./inventory.ts";
 import { galaxy, startingPlanet, markPlanetDiscovered } from "./galaxyState.ts";
@@ -41,34 +44,35 @@ import type { TierColor } from "../data/types/tierColor.ts";
 // real entity-creation functions.
 const SCANNER_POOL_SEED = "playtest-seed";
 
-// A quality value comfortably inside Blue's 76-85 band (per
-// TIER_COLOR_BREAKPOINTS) on every one of the 5 qualities -- same
-// "identical value on every quality" pattern refreshShipyardPool()'s own
-// generateMatchingQualities() already uses, so the component's own tier
-// and the ship's derived aggregate tier land on Blue with no ambiguity.
+// A quality value comfortably inside each band (per TIER_COLOR_BREAKPOINTS)
+// on every one of the 5 qualities -- same "identical value on every
+// quality" pattern refreshShipyardPool()'s own generateMatchingQualities()
+// already uses, so the component's own tier and the ship's derived
+// aggregate tier land on the intended tier with no ambiguity.
 const BLUE_COMPONENT_QUALITY_VALUE = 80;
+const GOLD_COMPONENT_QUALITY_VALUE = 98;
 const BLUE_TIER: TierColor = "Blue";
+const GOLD_TIER: TierColor = "Gold";
 
-function buildBlueComponent(category: ComponentCategory): ShipComponent {
+function buildComponent(category: ComponentCategory, tier: TierColor, qualityValue: number): ShipComponent {
   return {
-    id: `playtest-seed-${category}`,
+    id: `playtest-seed-${tier.toLowerCase()}-${category}`,
     category,
     qualities: {
-      purity: BLUE_COMPONENT_QUALITY_VALUE,
-      density: BLUE_COMPONENT_QUALITY_VALUE,
-      potency: BLUE_COMPONENT_QUALITY_VALUE,
-      durability: BLUE_COMPONENT_QUALITY_VALUE,
-      rarity: BLUE_COMPONENT_QUALITY_VALUE,
+      purity: qualityValue,
+      density: qualityValue,
+      potency: qualityValue,
+      durability: qualityValue,
+      rarity: qualityValue,
     },
-    tier: BLUE_TIER,
+    tier,
   };
 }
 
-// Builds a fully-assembled Blue-tier ship -- enough to test B5 (speed,
-// via SHIP_TIER_SPEED_MODIFIER) and B8 (combat, via a real non-Grey
-// derived tier feeding resolveCombatChoice()) without a grind. Goes
-// through assembleShip() for every slot (never hand-sets ship.tier), the
-// same recompute-on-every-install path a real crafted-and-installed
+// Builds a fully-assembled Blue-tier ship -- the general-purpose seeded
+// ship every non-tier-comparison scenario (A1-A4, B1-B4, B6, B9, C1) uses.
+// Goes through assembleShip() for every slot (never hand-sets ship.tier),
+// the same recompute-on-every-install path a real crafted-and-installed
 // component would take.
 function buildSeededShip(): Ship {
   let ship: Ship = {
@@ -80,7 +84,40 @@ function buildSeededShip(): Ship {
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   for (const category of ["weapon", "engine", "shield", "cargoHold"] as const) {
-    ship = assembleShip(ship, buildBlueComponent(category), category);
+    ship = assembleShip(ship, buildComponent(category, BLUE_TIER, BLUE_COMPONENT_QUALITY_VALUE), category);
+  }
+  return ship;
+}
+
+// B5 (ship tier speed payoff) and B8 (combat outcomes by ship tier) both
+// explicitly need a Grey-tier AND a Gold-tier ship side by side on the
+// SAME route -- the single Blue-tier ship above can't answer either
+// scenario alone. A zero-components ship is already Grey by
+// deriveShipTier()'s own documented null-slot rule (no components -> no
+// average -> Grey), so the Grey runner needs no components installed at
+// all; the Gold runner is assembled the same way buildSeededShip() is.
+function buildSeededGreyShip(): Ship {
+  return {
+    id: "playtest-seed-ship-grey",
+    name: "Playtest Runner (Grey)",
+    ownerId: PLAYER_ID,
+    tier: "Grey",
+    currentPlanetId: startingPlanet.id,
+    components: { weapon: null, engine: null, shield: null, cargoHold: null },
+  };
+}
+
+function buildSeededGoldShip(): Ship {
+  let ship: Ship = {
+    id: "playtest-seed-ship-gold",
+    name: "Playtest Runner (Gold)",
+    ownerId: PLAYER_ID,
+    tier: "Grey",
+    currentPlanetId: startingPlanet.id,
+    components: { weapon: null, engine: null, shield: null, cargoHold: null },
+  };
+  for (const category of ["weapon", "engine", "shield", "cargoHold"] as const) {
+    ship = assembleShip(ship, buildComponent(category, GOLD_TIER, GOLD_COMPONENT_QUALITY_VALUE), category);
   }
   return ship;
 }
@@ -140,9 +177,12 @@ const SEED_INVENTORY: ReadonlyArray<{
   qualities: typeof BASELINE_QUALITIES;
 }> = [
   // A1: raw materials for the real MVP refining recipe (2x Igneous Ore +
-  // 1x Autunite Crystal -> Radiant Alloy Bar), enough for ~7 refines.
-  { resourceId: "igneous-ore", quantity: 15, qualities: BASELINE_QUALITIES },
-  { resourceId: "autunite-crystal", quantity: 10, qualities: BASELINE_QUALITIES },
+  // 1x Autunite Crystal -> Radiant Alloy Bar). A1 asks for 5-10 refines at
+  // a Grey-tier refiner AND 5-10 more at a Gold-tier refiner back to back
+  // (up to 20 total) -- enough for 20 refines (40/2, 20/1), not the
+  // previous ~7.
+  { resourceId: "igneous-ore", quantity: 40, qualities: BASELINE_QUALITIES },
+  { resourceId: "autunite-crystal", quantity: 20, qualities: BASELINE_QUALITIES },
   // A2 / B1: comfortably above the 60 threshold (75, +15).
   { resourceId: "radiant-alloy-bar", quantity: 2, qualities: { ...BASELINE_QUALITIES, durability: 75 } },
   // A2: 12 points below threshold (60 - 48), inside the documented 10-15 band.
@@ -191,21 +231,51 @@ function seedWallet(): void {
 
 // Discovers a handful of generated planets beyond the 2 structural
 // bootstrap planets (startingPlanet + secondaryDiscoveredPlanet, already
-// discovered by galaxyState.ts itself) -- 4 more, for 5 total discovered
-// beyond the single starting planet, the middle of this file's original
-// "requested 4-6" range. Deliberately NOT "every remaining planet" now
-// that Alpha Section 3 sets PLANET_COUNT = 50 (galaxyState.ts) -- that
-// old "as many as the galaxy has" behavior only ever produced the low
-// end of the range because the galaxy itself was too small (5 total) to
-// produce more; blindly keeping it now would discover 48 planets instead,
-// defeating this seed's own "meaningful playtest subset, not the whole
-// galaxy" purpose (the same "not all 50" premise Section 3's own Test 1
-// requires -- see profitable-alpha-scale-performance-plan.md). Uses the
-// real generated positions (no fabricated coordinates) so B4's short-hop
-// -vs-long-trip comparison is testing real distances.
+// discovered by galaxyState.ts itself) -- 6 more, just past this file's
+// original "requested 4-6" range (see index 19's own comment below for
+// why B4 needed one more than that range allowed for). Deliberately NOT
+// "every remaining planet" now that Alpha Section 3 sets PLANET_COUNT = 50
+// (galaxyState.ts) -- that old "as many as the galaxy has" behavior only
+// ever produced the low end of the range because the galaxy itself was
+// too small (5 total) to produce more; blindly keeping it now would
+// discover 48 planets instead, defeating this seed's own "meaningful
+// playtest subset, not the whole galaxy" purpose (the same "not all 50"
+// premise Section 3's own Test 1 requires -- see
+// profitable-alpha-scale-performance-plan.md). Uses the real generated
+// positions (no fabricated coordinates) so B4's short-hop-vs-long-trip
+// comparison is testing real, measured distances (see index 19 below).
+//
+// Index 8 is deliberately included (not just 2-5): re-audited against
+// KNOWN_GOOD_GALAXY_SEED (devGalaxySeed.ts), planet 0 (Grey/Terrestrial)
+// and planet 1 (Gold/GasGiant) -- the two bootstrap planets this file's
+// header comment previously pointed A3 at -- share NO eligible resource
+// category (getEligibleResources() keys eligibility by PlanetType; see
+// generatePlanet.ts), so A3 ("gather the same resource on a Grey-tier
+// planet and a Gold-tier planet") was never actually reachable from the
+// bootstrap pair alone. Planet 8 rolls Grey/GasGiant -- the SAME
+// PlanetType as planet 1's Gold/GasGiant, so it shares planet 1's
+// eligible-resource pool and A3 is reachable using planets 1 and 8. Also
+// discovers 2,3,4,5 as before (3 keeps its own Orange/GasGiant specialty
+// for A4 variety; 4/5 are a same-type Grey/Purple SuperEarth pair, a
+// secondary, non-Gold A3 comparison).
+//
+// Index 19 is B4's long-trip pick, added after actually measuring travel
+// times rather than assuming the plan doc's illustrative "~24-28h" example
+// number holds at this galaxy/seed/starting-position combination -- it
+// doesn't: calculateTravelTime() from planet 0 (this seed's fixed starting
+// position, not centered in the 2000x2000 position square) tops out
+// around 14.7h at Grey tier, to planet 19 specifically (the single
+// farthest of all 50 planets from planet 0 in this seed -- checked all
+// 50, not assumed). Included so B4 has a real, reachable "long trip"
+// planet rather than the doc silently pointing at a number this seed
+// can't produce; profitable-alpha-playtest.md's B4 section notes the
+// corrected ~14-15h figure rather than repeating the plan doc's original
+// illustrative range as fact.
 function seedDiscoveredPlanets(): void {
-  for (const planet of galaxy.planets.slice(2, 6)) {
-    markPlanetDiscovered(planet.id);
+  const indices = [2, 3, 4, 5, 8, 19];
+  for (const index of indices) {
+    const planet = galaxy.planets[index];
+    if (planet) markPlanetDiscovered(planet.id);
   }
 }
 
@@ -222,9 +292,10 @@ function seedScannerPool(now: number): void {
 export function seedPlaytestSave(now: number = Date.now()): void {
   seedWallet();
 
-  if (!getShipRoster().some((ship) => ship.id === "playtest-seed-ship")) {
-    addShip(buildSeededShip());
-  }
+  const shipIds = new Set(getShipRoster().map((ship) => ship.id));
+  if (!shipIds.has("playtest-seed-ship")) addShip(buildSeededShip());
+  if (!shipIds.has("playtest-seed-ship-grey")) addShip(buildSeededGreyShip());
+  if (!shipIds.has("playtest-seed-ship-gold")) addShip(buildSeededGoldShip());
 
   const existingCrewIds = new Set(getCrewRoster().map((member) => member.id));
   for (const member of buildSeededCrew(now)) {

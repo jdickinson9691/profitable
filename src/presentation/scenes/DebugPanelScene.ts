@@ -5,6 +5,9 @@ import { TUNING_SECTIONS, resetAllTuningToDefaults } from "../debugTuningRegistr
 import type { TuningRow } from "../debugTuningRegistry.ts";
 import { setForcedEncounterType } from "../debugState.ts";
 import type { EncounterType } from "../../data/types/encounter.ts";
+import { seedPlaytestSave } from "../devSeed.ts";
+import { getWallet, setWallet } from "../tradingState.ts";
+import { getShipRoster, setShipRoster } from "../shipsState.ts";
 
 // Alpha Section 4 (docs/profitable-alpha-uiux-onboarding-plan.md §2):
 // "A simple, ugly-is-fine panel exposing the tunable values... for live
@@ -63,6 +66,10 @@ export class DebugPanelScene extends Phaser.Scene {
     });
 
     let y = VIEWPORT_TOP + 30;
+    y = this.renderPlaytestSetupSection(y);
+    y += 8;
+    y = this.renderActiveShipSection(y);
+    y += 8;
     y = this.renderForceEncounterSection(y);
     y += 8;
 
@@ -93,6 +100,111 @@ export class DebugPanelScene extends Phaser.Scene {
     // Must be the true last step -- see finish()'s own comment for why
     // ordering matters here.
     this.scroll.finish(y);
+  }
+
+  // docs/profitable-alpha-playtest.md's step 1 request: "very simple to
+  // get what is needed to complete the playtest" -- previously
+  // seedPlaytestSave() was only reachable via a devtools console command
+  // (`__seedPlaytestSave()`, main.ts), which meant leaving the game to
+  // open devtools every time a fresh playtest state was needed. A button
+  // here calls the exact same function; no new seeding logic. The credit
+  // top-up is a separate, additive action (never claws back credits, same
+  // as seedWallet()'s own idempotent floor) -- covers scenarios like B3
+  // (crew capacity's full 4-tier cost curve, 7500cr total) that the base
+  // seeded wallet deliberately doesn't front, so ordinary trading
+  // scenarios (B1) aren't made trivial by default.
+  private renderPlaytestSetupSection(startY: number): number {
+    let y = startY;
+    this.scroll!.addText(16, y, "Playtest setup:", {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+    y += 20;
+
+    const seedBtn = this.scroll!.addText(16, y, "[ Re-seed playtest save ]", {
+      fontFamily: "monospace",
+      fontSize: "13px",
+      color: "#4caf50",
+    });
+    seedBtn.setInteractive({ useHandCursor: true });
+    seedBtn.on("pointerdown", () => {
+      seedPlaytestSave();
+      this.setStatus("Playtest save (state) seeded/topped up: ship, crew, inventory, discovered planets, scanners.");
+      this.redraw();
+    });
+
+    const creditsBtn = this.scroll!.addText(280, y, "[ Add 5000 credits ]", {
+      fontFamily: "monospace",
+      fontSize: "13px",
+      color: "#4caf50",
+    });
+    creditsBtn.setInteractive({ useHandCursor: true });
+    creditsBtn.on("pointerdown", () => {
+      const wallet = getWallet();
+      setWallet({ ...wallet, credits: wallet.credits + 5000 });
+      this.setStatus(`Added 5000 credits (new balance: ${wallet.credits + 5000}cr).`);
+      this.redraw();
+    });
+    y += 22;
+    return y;
+  }
+
+  // TradeMapScene.ts's Travel section only ever acts on
+  // getShipRoster()[0] -- there is no ship picker anywhere in the game's
+  // UI (Shipyard's "Your ships:" list is read-only; nothing else touches
+  // ship order). B5 (ship tier speed payoff) and B8 (combat by ship tier)
+  // both require testing the SAME route with two different owned ships,
+  // which is otherwise unreachable through play alone once more than one
+  // ship is owned -- found auditing debug tooling against those two
+  // scenarios specifically. Reordering the roster (setShipRoster()) is
+  // the same real setter every other action in this file already uses;
+  // no new ship-selection concept is introduced into the simulation
+  // layer, only which array slot TradeMapScene happens to read.
+  private renderActiveShipSection(startY: number): number {
+    let y = startY;
+    const roster = getShipRoster();
+    this.scroll!.addText(16, y, "Active TradeMap ship (roster[0] -- TradeMapScene always uses this one):", {
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#ffffff",
+    });
+    y += 20;
+
+    if (roster.length === 0) {
+      this.scroll!.addText(16, y, "(no ships owned yet)", { fontFamily: "monospace", fontSize: "13px", color: "#888888" });
+      y += 22;
+      return y;
+    }
+
+    for (const ship of roster) {
+      const isActive = roster[0]!.id === ship.id;
+      const label = isActive ? `[ACTIVE] ${ship.name} (${ship.tier})` : `${ship.name} (${ship.tier})`;
+      this.scroll!.addText(16, y, label, {
+        fontFamily: "monospace",
+        fontSize: "13px",
+        color: isActive ? "#ffd700" : "#cccccc",
+      });
+
+      if (!isActive) {
+        const btn = this.scroll!.addText(320, y, "[ Make Active ]", {
+          fontFamily: "monospace",
+          fontSize: "13px",
+          color: "#4caf50",
+        });
+        btn.setInteractive({ useHandCursor: true });
+        btn.on("pointerdown", () => {
+          const current = getShipRoster();
+          const reordered = [ship, ...current.filter((candidate) => candidate.id !== ship.id)];
+          setShipRoster(reordered);
+          this.setStatus(`${ship.name} is now the active TradeMap ship.`);
+          this.redraw();
+        });
+      }
+      y += ROW_HEIGHT;
+    }
+    y += 4;
+    return y;
   }
 
   // "Let a debug session manually trigger a combat encounter (or any
