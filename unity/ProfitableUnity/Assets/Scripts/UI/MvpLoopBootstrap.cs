@@ -17,6 +17,13 @@ namespace Profitable.Unity.UI
         private CraftPanel _craftPanel = null!;
         private Text _logText = null!;
 
+        // Read-only accessor for the log's current text -- exists for
+        // Agent 36's real click-through PlayMode test, which needs to
+        // confirm a definitive outcome was logged without duplicating
+        // Text-lookup-by-name logic (see agent-36-unity-migration
+        // -phase1-integration.md's Outputs Section 2).
+        public string LogText => _logText.text;
+
         private void Awake()
         {
             _inventory = new Inventory();

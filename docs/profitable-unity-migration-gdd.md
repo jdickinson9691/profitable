@@ -1,6 +1,6 @@
 # Profitable — Unity Migration Game Design Document
 
-Status: scope locked, Migration Phase 1 roster ready to build. This is the moment the original tech-stack decision's trigger condition ("once the core loop is fun and the systems are locked") was built around — see `profitable-design-questions.md`'s Engine/Systems Architecture section for the original reasoning. This document does not reopen any game-design decision; it governs *how* the already-locked design moves to a new engine, not *what* the design is.
+Status: **Migration Phase 1 complete** (Agents 31-36 — see each agent's own contract in `docs/agents/`, and Agent 36's Integration report for the closing confirmation). This is the moment the original tech-stack decision's trigger condition ("once the core loop is fun and the systems are locked") was built around — see `profitable-design-questions.md`'s Engine/Systems Architecture section for the original reasoning. This document does not reopen any game-design decision; it governs *how* the already-locked design moves to a new engine, not *what* the design is. Migration Phase 2+ (Section 2 below) is not yet started.
 
 ---
 
@@ -68,7 +68,7 @@ Same contract pattern as every prior phase. Continuing the sequential agent numb
 
 ### 5.2 Agent Contracts
 
-Full individual contracts to be written as `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`, following the same structure (Responsibility/Inputs/Outputs/Must-Not-Do/Testing/Definition-of-Done) as every prior agent contract.
+**All six complete.** Individual contracts: `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`, following the same structure (Responsibility/Inputs/Outputs/Must-Not-Do/Testing/Definition-of-Done) as every prior agent contract. Agent 36's own Integration report is the closing confirmation that all five prior agents' outputs integrate correctly with no gaps found.
 
 ## 6. Cross-Cutting Rules
 

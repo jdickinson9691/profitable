@@ -41,4 +41,4 @@ Unity.exe -batchmode -nographics -projectPath unity/ProfitableUnity -runTests -t
 
 ## Agent roster
 
-Full roster and sequencing: `docs/profitable-unity-migration-gdd.md` Section 5.1. Contracts live in `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md` (written as each agent starts, same "contract before code" discipline as every other milestone in this project).
+**Migration Phase 1 is complete** — all six agents (31-36) done. Full roster and sequencing: `docs/profitable-unity-migration-gdd.md` Section 5.1. Contracts live in `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`; Agent 36's own Integration report is the closing confirmation. Migration Phase 2+ (Galaxy/Planets → Trading → Crew → Ships/Travel → the four deferred gaps) is not yet started.
