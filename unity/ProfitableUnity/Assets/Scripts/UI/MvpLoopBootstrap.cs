@@ -17,6 +17,7 @@ namespace Profitable.Unity.UI
         private CraftPanel _craftPanel = null!;
         private MarketPanel _marketPanel = null!;
         private CrewPanel _crewPanel = null!;
+        private ShipsPanel _shipsPanel = null!;
         private Text _logText = null!;
 
         // Read-only accessor for the log's current text -- exists for
@@ -62,6 +63,7 @@ namespace Profitable.Unity.UI
             _craftPanel = new CraftPanel(content, _inventory, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
             _crewPanel = new CrewPanel(content, _inventory, Log);
+            _shipsPanel = new ShipsPanel(content, Log);
 
             UiFactory.CreateButton(nav, "Map", () => ShowOnly(_mapPanel.Root));
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));
@@ -69,6 +71,7 @@ namespace Profitable.Unity.UI
             UiFactory.CreateButton(nav, "Craft", () => ShowOnly(_craftPanel.Root));
             UiFactory.CreateButton(nav, "Market", () => ShowOnly(_marketPanel.Root));
             UiFactory.CreateButton(nav, "Crew", () => ShowOnly(_crewPanel.Root));
+            UiFactory.CreateButton(nav, "Ships", () => ShowOnly(_shipsPanel.Root));
 
             _logText = UiFactory.CreateText(root, "", 12);
 
@@ -83,12 +86,13 @@ namespace Profitable.Unity.UI
             _craftPanel.Root.SetActive(_craftPanel.Root == visible);
             _marketPanel.Root.SetActive(_marketPanel.Root == visible);
             _crewPanel.Root.SetActive(_crewPanel.Root == visible);
+            _shipsPanel.Root.SetActive(_shipsPanel.Root == visible);
         }
 
         // Shared log sink passed to every panel -- also refreshes Refine
-        // /Craft/Market/Crew's availability display, since almost any
-        // logged action (a gather, a refine, a craft, a sell, a crew
-        // action) changes Inventory's/CrewState's contents.
+        // /Craft/Market/Crew/Ships's availability display, since almost
+        // any logged action changes Inventory's/CrewState's/ShipsState's
+        // contents.
         private void Log(string message)
         {
             _logText.text = $"{_logText.text}\n{message}".TrimStart('\n');
@@ -96,6 +100,7 @@ namespace Profitable.Unity.UI
             _craftPanel.Refresh();
             _marketPanel.Refresh();
             _crewPanel.Refresh();
+            _shipsPanel.Refresh();
         }
     }
 }

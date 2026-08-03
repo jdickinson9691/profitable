@@ -52,12 +52,25 @@ namespace Profitable.Unity.Content
         //   before Sub-Phase E's real ownership system exists.
         public static Planet StartingPlanet => Galaxy.Planets[0];
 
+        // Migration Phase 2 Sub-Phase D (Ships & Travel) addition --
+        // agent-56-unity-ships-travel-presentation.md. Mirrors the real
+        // src/presentation/galaxyState.ts's own secondaryDiscoveredPlanet
+        // exactly: "travel needs at least one real reachable destination
+        // to demonstrate against... one planet further into the generated
+        // list," forced Discovered=true the same way the starting planet
+        // already is. Unlike the starting planet, no colonist floor is
+        // applied here -- this planet exists only as a travel
+        // destination, not a second gatherable location (that would be
+        // Sub-Phase E's own colonization scope to extend).
+        public static Planet SecondaryDestinationPlanet => Galaxy.Planets[1];
+
         private static Galaxy Generate()
         {
             var galaxy = GalaxyGenerator.Generate(PlanetCount, GameContent.Loaded.Resources, Seed);
             var startingPlanet = galaxy.Planets[0];
             startingPlanet.Discovered = true;
             startingPlanet.ColonistCount = PlanetOwnershipConstants.MinimumColonistsToProduce;
+            galaxy.Planets[1].Discovered = true;
             return galaxy;
         }
 

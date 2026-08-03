@@ -142,6 +142,14 @@ Full scope/readiness computation: `docs/functional-agents/build.md`; the followa
 51. [`agent-51-unity-crew-presentation.md`](agent-51-unity-crew-presentation.md) — adds a Crew panel (sixth panel in the MVP loop); introduces `UiFactory.ClearChildren`, this migration's first dynamic-rebuild UI. Depends on Agent 49/50.
 52. [`agent-52-unity-crew-integration.md`](agent-52-unity-crew-integration.md) — confirms assign-to-craft genuinely drives `Crafter.Craft` from the crew member's own tier, and Sub-Phases A/B's own tests still pass unmodified. Created last in Sub-Phase C.
 
+## Unity Migration Phase 2 — Sub-Phase D (Ships & Travel, incl. Scanner) complete
+
+53. [`agent-53-unity-ships-travel-schema.md`](agent-53-unity-ships-travel-schema.md) — ports `Ship`/`ShipComponentSlots`/`Voyage`/`Scanner`/`ShipyardPool`/`ScannerPool` and every result union, `ShipsAndTravelConfig` (~30 tunables), and Encounter/Combat schema ported early (needed by this sub-phase's own `resolveEncounters`/`resolveCombatChoice`/`initiateCombat`). Depends on Agent 38/48. Created first in Sub-Phase D.
+54. [`agent-54-unity-ships-travel-simulation-core.md`](agent-54-unity-ships-travel-simulation-core.md) — ports all 21 `src/ships/*.ts` functions; found and fixed a real `Voyage.ArrivesAt` precision-truncation bug via a failing parity test. Depends on Agent 53.
+55. [`agent-55-unity-ships-travel-parity-validation.md`](agent-55-unity-ships-travel-parity-validation.md) — proves the C# port agrees with the real TypeScript output across all 21 functions using a real generated galaxy's actual planet positions; found and fixed two real serialization gaps via failing tests. Created alongside Agent 54, runs continuously.
+56. [`agent-56-unity-ships-travel-presentation.md`](agent-56-unity-ships-travel-presentation.md) — adds a Ships panel (seventh panel in the MVP loop) scoped to purchase→refuel→check-repair→travel→resolve-arrival only. Depends on Agent 54/55.
+57. [`agent-57-unity-ships-travel-integration.md`](agent-57-unity-ships-travel-integration.md) — confirms a real voyage can be initiated/resolved/repaired in the Unity build, and Sub-Phases A/B/C's own tests still pass unmodified. Created last in Sub-Phase D.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:

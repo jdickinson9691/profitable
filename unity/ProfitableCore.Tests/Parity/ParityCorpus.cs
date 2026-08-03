@@ -87,6 +87,72 @@ public class ParityCorpus
 
     [JsonPropertyName("resolveBackgroundCraftingCases")]
     public List<ResolveBackgroundCraftingCase> ResolveBackgroundCraftingCases { get; set; } = new();
+
+    [JsonPropertyName("calculateDistanceCases")]
+    public List<CalculateDistanceCase> CalculateDistanceCases { get; set; } = new();
+
+    [JsonPropertyName("calculateTravelTimeCases")]
+    public List<CalculateTravelTimeCase> CalculateTravelTimeCases { get; set; } = new();
+
+    [JsonPropertyName("calculateFuelCostCases")]
+    public List<CalculateFuelCostCase> CalculateFuelCostCases { get; set; } = new();
+
+    [JsonPropertyName("deriveFuelCapacityCases")]
+    public List<DeriveFuelCapacityCase> DeriveFuelCapacityCases { get; set; } = new();
+
+    [JsonPropertyName("deriveShipTierCases")]
+    public List<DeriveShipTierCase> DeriveShipTierCases { get; set; } = new();
+
+    [JsonPropertyName("tierMidpointCases")]
+    public List<TierMidpointCase> TierMidpointCases { get; set; } = new();
+
+    [JsonPropertyName("assembleShipCases")]
+    public List<AssembleShipCase> AssembleShipCases { get; set; } = new();
+
+    [JsonPropertyName("initiateVoyageCases")]
+    public List<InitiateVoyageCase> InitiateVoyageCases { get; set; } = new();
+
+    [JsonPropertyName("resolveArrivalCases")]
+    public List<ResolveArrivalCase> ResolveArrivalCases { get; set; } = new();
+
+    [JsonPropertyName("purchaseShipCases")]
+    public List<PurchaseShipCase> PurchaseShipCases { get; set; } = new();
+
+    [JsonPropertyName("purchaseScannerCases")]
+    public List<PurchaseScannerCase> PurchaseScannerCases { get; set; } = new();
+
+    [JsonPropertyName("refreshShipyardPoolCases")]
+    public List<RefreshShipyardPoolCase> RefreshShipyardPoolCases { get; set; } = new();
+
+    [JsonPropertyName("refreshScannerPoolCases")]
+    public List<RefreshScannerPoolCase> RefreshScannerPoolCases { get; set; } = new();
+
+    [JsonPropertyName("refuelShipCases")]
+    public List<RefuelShipCase> RefuelShipCases { get; set; } = new();
+
+    [JsonPropertyName("getCrewSlotsForShipCases")]
+    public List<GetCrewSlotsForShipCase> GetCrewSlotsForShipCases { get; set; } = new();
+
+    [JsonPropertyName("assignToShipRoleCases")]
+    public List<AssignToShipRoleCase> AssignToShipRoleCases { get; set; } = new();
+
+    [JsonPropertyName("unassignFromShipRoleCases")]
+    public List<UnassignFromShipRoleCase> UnassignFromShipRoleCases { get; set; } = new();
+
+    [JsonPropertyName("resolveComponentRepairCases")]
+    public List<ResolveComponentRepairCase> ResolveComponentRepairCases { get; set; } = new();
+
+    [JsonPropertyName("performScanCases")]
+    public List<PerformScanCase> PerformScanCases { get; set; } = new();
+
+    [JsonPropertyName("initiateCombatCases")]
+    public List<InitiateCombatCase> InitiateCombatCases { get; set; } = new();
+
+    [JsonPropertyName("resolveEncountersCases")]
+    public List<ResolveEncountersCase> ResolveEncountersCases { get; set; } = new();
+
+    [JsonPropertyName("resolveCombatChoiceCases")]
+    public List<ResolveCombatChoiceCase> ResolveCombatChoiceCases { get; set; } = new();
 }
 
 public class TierColorCase
@@ -225,6 +291,17 @@ public class SerializedPlanet
 
     [JsonPropertyName("colonistCount")]
     public int? ColonistCount { get; set; }
+
+    // Added for Sub-Phase D's RefuelShip/ResolveComponentRepair cases,
+    // which serialize a minimal dockedPlanet object with these two
+    // Citadel-related fields alongside id/name -- not populated by any
+    // Sub-Phase A galaxy/planet case, but harmless there (JSON-missing
+    // fields just deserialize to null).
+    [JsonPropertyName("ownedByPlayerId")]
+    public string? OwnedByPlayerId { get; set; }
+
+    [JsonPropertyName("citadelLevel")]
+    public int? CitadelLevel { get; set; }
 }
 
 public class ExpectedGalaxy
@@ -1001,4 +1078,815 @@ public class SerializedBackgroundResult
 
     [JsonPropertyName("updatedCrewMember")]
     public SerializedCrewMember UpdatedCrewMember { get; set; } = new();
+}
+
+// ---- Sub-Phase D (Ships & Travel, incl. Scanner/Combat/Encounters)
+// parity DTOs (agent-55-unity-ships-travel-parity-validation.md). ----
+
+public class SerializedShipComponent
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("category")]
+    public string Category { get; set; } = string.Empty;
+
+    [JsonPropertyName("qualities")]
+    public Dictionary<string, int?> Qualities { get; set; } = new();
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+}
+
+public class SerializedShipComponentSlots
+{
+    [JsonPropertyName("weapon")]
+    public SerializedShipComponent? Weapon { get; set; }
+
+    [JsonPropertyName("engine")]
+    public SerializedShipComponent? Engine { get; set; }
+
+    [JsonPropertyName("shield")]
+    public SerializedShipComponent? Shield { get; set; }
+
+    [JsonPropertyName("cargoHold")]
+    public SerializedShipComponent? CargoHold { get; set; }
+}
+
+public class SerializedShip
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("ownerId")]
+    public string OwnerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("currentPlanetId")]
+    public string CurrentPlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("fuelCapacity")]
+    public double FuelCapacity { get; set; }
+
+    [JsonPropertyName("currentFuel")]
+    public double CurrentFuel { get; set; }
+
+    [JsonPropertyName("components")]
+    public SerializedShipComponentSlots Components { get; set; } = new();
+
+    [JsonPropertyName("lastRepairedAt")]
+    public long? LastRepairedAt { get; set; }
+}
+
+public class SerializedShipCandidate
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("components")]
+    public SerializedShipComponentSlots Components { get; set; } = new();
+}
+
+public class SerializedShipyardPool
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("availableShips")]
+    public List<SerializedShipCandidate> AvailableShips { get; set; } = new();
+
+    [JsonPropertyName("lastRefreshedAt")]
+    public long LastRefreshedAt { get; set; }
+}
+
+public class SerializedScanner
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("ownerId")]
+    public string OwnerId { get; set; } = string.Empty;
+}
+
+public class SerializedScannerCandidate
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+}
+
+public class SerializedScannerPool
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("availableScanners")]
+    public List<SerializedScannerCandidate> AvailableScanners { get; set; } = new();
+
+    [JsonPropertyName("lastRefreshedAt")]
+    public long LastRefreshedAt { get; set; }
+}
+
+public class SerializedVoyageCargoItem
+{
+    [JsonPropertyName("itemId")]
+    public string ItemId { get; set; } = string.Empty;
+
+    [JsonPropertyName("quantity")]
+    public int Quantity { get; set; }
+}
+
+public class SerializedVoyage
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("shipId")]
+    public string ShipId { get; set; } = string.Empty;
+
+    [JsonPropertyName("originPlanetId")]
+    public string OriginPlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("destinationPlanetId")]
+    public string DestinationPlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("departedAt")]
+    public long DepartedAt { get; set; }
+
+    [JsonPropertyName("arrivesAt")]
+    public double ArrivesAt { get; set; }
+
+    [JsonPropertyName("cargo")]
+    public List<SerializedVoyageCargoItem> Cargo { get; set; } = new();
+
+    [JsonPropertyName("isRetreat")]
+    public bool? IsRetreat { get; set; }
+}
+
+public class SerializedCombatEncounter
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("voyageId")]
+    public string VoyageId { get; set; } = string.Empty;
+
+    [JsonPropertyName("triggerContext")]
+    public string TriggerContext { get; set; } = string.Empty;
+
+    [JsonPropertyName("opponentThreatTier")]
+    public string OpponentThreatTier { get; set; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("outcome")]
+    public string? Outcome { get; set; }
+
+    [JsonPropertyName("windowIndex")]
+    public int? WindowIndex { get; set; }
+}
+
+public class SerializedEncounterResult
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("windowIndex")]
+    public int WindowIndex { get; set; }
+
+    [JsonPropertyName("outcome")]
+    public SerializedEncounterOutcome Outcome { get; set; } = new();
+}
+
+public class SerializedEncounterOutcome
+{
+    [JsonPropertyName("creditsGranted")]
+    public double? CreditsGranted { get; set; }
+
+    [JsonPropertyName("resourceId")]
+    public string? ResourceId { get; set; }
+
+    [JsonPropertyName("qualities")]
+    public Dictionary<string, int?>? Qualities { get; set; }
+
+    [JsonPropertyName("passed")]
+    public bool? Passed { get; set; }
+
+    [JsonPropertyName("creditsLost")]
+    public double? CreditsLost { get; set; }
+}
+
+public class SerializedEncounterResolution
+{
+    [JsonPropertyName("encounters")]
+    public List<SerializedEncounterResult> Encounters { get; set; } = new();
+
+    [JsonPropertyName("pendingCombats")]
+    public List<SerializedCombatEncounter> PendingCombats { get; set; } = new();
+}
+
+public class SerializedArrivalResult
+{
+    [JsonPropertyName("resolved")]
+    public bool Resolved { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedShip")]
+    public SerializedShip? UpdatedShip { get; set; }
+
+    [JsonPropertyName("destinationPlanetId")]
+    public string? DestinationPlanetId { get; set; }
+
+    [JsonPropertyName("cargo")]
+    public List<SerializedVoyageCargoItem>? Cargo { get; set; }
+
+    [JsonPropertyName("encounters")]
+    public List<SerializedEncounterResult>? Encounters { get; set; }
+
+    [JsonPropertyName("pendingCombats")]
+    public List<SerializedCombatEncounter>? PendingCombats { get; set; }
+}
+
+public class SerializedInitiateVoyageResult
+{
+    [JsonPropertyName("voyage")]
+    public SerializedVoyage Voyage { get; set; } = new();
+
+    [JsonPropertyName("updatedShip")]
+    public SerializedShip UpdatedShip { get; set; } = new();
+}
+
+public class SerializedPurchaseShipResult
+{
+    [JsonPropertyName("purchased")]
+    public bool Purchased { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("ship")]
+    public SerializedShip? Ship { get; set; }
+
+    [JsonPropertyName("updatedPool")]
+    public SerializedShipyardPool? UpdatedPool { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class SerializedPurchaseScannerResult
+{
+    [JsonPropertyName("purchased")]
+    public bool Purchased { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("scanner")]
+    public SerializedScanner? Scanner { get; set; }
+
+    [JsonPropertyName("updatedPool")]
+    public SerializedScannerPool? UpdatedPool { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class SerializedRefuelShipResult
+{
+    [JsonPropertyName("refueled")]
+    public bool Refueled { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedShip")]
+    public SerializedShip? UpdatedShip { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class SerializedCrewSlotsByTierEntry
+{
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("pilot")]
+    public int Pilot { get; set; }
+
+    [JsonPropertyName("combatEngineerOrScienceOfficer")]
+    public int CombatEngineerOrScienceOfficer { get; set; }
+
+    [JsonPropertyName("systemsEngineer")]
+    public int SystemsEngineer { get; set; }
+
+    [JsonPropertyName("crafter")]
+    public int Crafter { get; set; }
+}
+
+public class SerializedAssignShipRoleResult
+{
+    [JsonPropertyName("assigned")]
+    public bool Assigned { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember? UpdatedCrewMember { get; set; }
+}
+
+public class SerializedUnassignShipRoleResult
+{
+    [JsonPropertyName("unassigned")]
+    public bool Unassigned { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember? UpdatedCrewMember { get; set; }
+}
+
+public class SerializedCombatResolution
+{
+    [JsonPropertyName("combatEncounter")]
+    public SerializedCombatEncounter CombatEncounter { get; set; } = new();
+
+    [JsonPropertyName("updatedShip")]
+    public SerializedShip UpdatedShip { get; set; } = new();
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember? UpdatedCrewMember { get; set; }
+
+    [JsonPropertyName("retreatVoyage")]
+    public SerializedVoyage? RetreatVoyage { get; set; }
+}
+
+public class SerializedPerformScanResult
+{
+    [JsonPropertyName("scanned")]
+    public bool Scanned { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("newlyDiscovered")]
+    public List<SerializedPlanet>? NewlyDiscovered { get; set; }
+}
+
+// A minimal planet reference (id + position only) -- several Sub-Phase D
+// cases only need these two fields to reconstruct a real Planet input,
+// unlike the fuller SerializedPlanet (galaxy/planet cases) which carries
+// every field. Kept separate rather than reusing SerializedPlanet with
+// its other fields left at JSON-missing defaults, since a reader
+// shouldn't have to guess which fields on SerializedPlanet a given case
+// actually populated.
+public class SerializedPlanetRef
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("position")]
+    public SerializedPosition? Position { get; set; }
+
+    // Only populated (and only meaningful) for PerformScanCase's
+    // AllPlanets list -- left null for every other use of this DTO
+    // (travel-time/fuel-cost cases, which don't need it).
+    [JsonPropertyName("discovered")]
+    public bool? Discovered { get; set; }
+}
+
+public class CalculateDistanceCase
+{
+    [JsonPropertyName("a")]
+    public SerializedPosition A { get; set; } = new();
+
+    [JsonPropertyName("b")]
+    public SerializedPosition B { get; set; } = new();
+
+    [JsonPropertyName("expectedDistance")]
+    public double ExpectedDistance { get; set; }
+}
+
+public class CalculateTravelTimeCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("origin")]
+    public SerializedPlanetRef Origin { get; set; } = new();
+
+    [JsonPropertyName("destination")]
+    public SerializedPlanetRef Destination { get; set; } = new();
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("pilot")]
+    public SerializedCrewMember? Pilot { get; set; }
+
+    [JsonPropertyName("expectedTravelTimeMs")]
+    public double ExpectedTravelTimeMs { get; set; }
+}
+
+public class CalculateFuelCostCase
+{
+    [JsonPropertyName("origin")]
+    public SerializedPlanetRef Origin { get; set; } = new();
+
+    [JsonPropertyName("destination")]
+    public SerializedPlanetRef Destination { get; set; } = new();
+
+    [JsonPropertyName("expectedFuelCost")]
+    public double ExpectedFuelCost { get; set; }
+}
+
+public class DeriveFuelCapacityCase
+{
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("expectedCapacity")]
+    public double ExpectedCapacity { get; set; }
+}
+
+public class DeriveShipTierCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("expectedTier")]
+    public string ExpectedTier { get; set; } = string.Empty;
+}
+
+public class TierMidpointCase
+{
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("expectedMidpoint")]
+    public double ExpectedMidpoint { get; set; }
+}
+
+public class AssembleShipCase
+{
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("component")]
+    public SerializedShipComponent Component { get; set; } = new();
+
+    [JsonPropertyName("slot")]
+    public string Slot { get; set; } = string.Empty;
+
+    [JsonPropertyName("expectedShip")]
+    public SerializedShip ExpectedShip { get; set; } = new();
+}
+
+public class InitiateVoyageCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("origin")]
+    public SerializedPlanetRef Origin { get; set; } = new();
+
+    [JsonPropertyName("destination")]
+    public SerializedPlanetRef Destination { get; set; } = new();
+
+    [JsonPropertyName("cargo")]
+    public List<SerializedVoyageCargoItem> Cargo { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("isRetreat")]
+    public bool IsRetreat { get; set; }
+
+    [JsonPropertyName("pilot")]
+    public SerializedCrewMember? Pilot { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedInitiateVoyageResult ExpectedResult { get; set; } = new();
+}
+
+public class ResolveArrivalCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("voyage")]
+    public SerializedVoyage Voyage { get; set; } = new();
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("destinationPlanet")]
+    public SerializedPlanetRefWithResources? DestinationPlanet { get; set; }
+
+    [JsonPropertyName("hasResources")]
+    public bool HasResources { get; set; }
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedArrivalResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedPlanetRefWithResources
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("producibleResourceIds")]
+    public List<string> ProducibleResourceIds { get; set; } = new();
+}
+
+public class PurchaseShipCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("candidate")]
+    public SerializedShipCandidate Candidate { get; set; } = new();
+
+    [JsonPropertyName("pool")]
+    public SerializedShipyardPool Pool { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPurchaseShipResult ExpectedResult { get; set; } = new();
+}
+
+public class PurchaseScannerCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("candidate")]
+    public SerializedScannerCandidate Candidate { get; set; } = new();
+
+    [JsonPropertyName("pool")]
+    public SerializedScannerPool Pool { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPurchaseScannerResult ExpectedResult { get; set; } = new();
+}
+
+public class RefreshShipyardPoolCase
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedShipyardPool ExpectedResult { get; set; } = new();
+}
+
+public class RefreshScannerPoolCase
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedScannerPool ExpectedResult { get; set; } = new();
+}
+
+public class RefuelShipCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("amount")]
+    public double Amount { get; set; }
+
+    [JsonPropertyName("dockedPlanet")]
+    public SerializedPlanet? DockedPlanet { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedRefuelShipResult ExpectedResult { get; set; } = new();
+}
+
+public class GetCrewSlotsForShipCase
+{
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedCrewSlotsByTierEntry ExpectedResult { get; set; } = new();
+}
+
+public class AssignToShipRoleCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = string.Empty;
+
+    [JsonPropertyName("currentRoster")]
+    public List<SerializedCrewMember> CurrentRoster { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedAssignShipRoleResult ExpectedResult { get; set; } = new();
+}
+
+public class UnassignFromShipRoleCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedUnassignShipRoleResult ExpectedResult { get; set; } = new();
+}
+
+public class ResolveComponentRepairCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("ownedCrew")]
+    public List<SerializedCrewMember> OwnedCrew { get; set; } = new();
+
+    [JsonPropertyName("activeVoyage")]
+    public SerializedVoyage? ActiveVoyage { get; set; }
+
+    [JsonPropertyName("dockedPlanet")]
+    public SerializedPlanet? DockedPlanet { get; set; }
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedShip ExpectedResult { get; set; } = new();
+}
+
+public class PerformScanCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("dockedPlanet")]
+    public SerializedPlanet DockedPlanet { get; set; } = new();
+
+    [JsonPropertyName("ownedScanners")]
+    public List<SerializedScanner> OwnedScanners { get; set; } = new();
+
+    [JsonPropertyName("allPlanets")]
+    public List<SerializedPlanetRef> AllPlanets { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPerformScanResult ExpectedResult { get; set; } = new();
+}
+
+public class InitiateCombatCase
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("voyageId")]
+    public string VoyageId { get; set; } = string.Empty;
+
+    [JsonPropertyName("triggerContext")]
+    public string TriggerContext { get; set; } = string.Empty;
+
+    [JsonPropertyName("windowIndex")]
+    public int? WindowIndex { get; set; }
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedCombatEncounter ExpectedResult { get; set; } = new();
+}
+
+public class ResolveEncountersCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("voyage")]
+    public SerializedVoyage Voyage { get; set; } = new();
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("destinationPlanet")]
+    public SerializedPlanetRefWithResources DestinationPlanet { get; set; } = new();
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedEncounterResolution ExpectedResult { get; set; } = new();
+}
+
+public class ResolveCombatChoiceCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("encounter")]
+    public SerializedCombatEncounter Encounter { get; set; } = new();
+
+    [JsonPropertyName("choice")]
+    public string Choice { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("ownedCrew")]
+    public List<SerializedCrewMember> OwnedCrew { get; set; } = new();
+
+    [JsonPropertyName("originPlanet")]
+    public SerializedPlanetRef OriginPlanet { get; set; } = new();
+
+    [JsonPropertyName("currentPlanet")]
+    public SerializedPlanetRef CurrentPlanet { get; set; } = new();
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("retreatVoyageId")]
+    public string RetreatVoyageId { get; set; } = string.Empty;
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedCombatResolution ExpectedResult { get; set; } = new();
 }

@@ -46,6 +46,27 @@ import { purchaseCapacity } from "../src/crew/purchaseCapacity.ts";
 import { refreshCrewPool } from "../src/crew/refreshCrewPool.ts";
 import { assignToCraft } from "../src/crew/assignToCraft.ts";
 import { resolveBackgroundCrafting } from "../src/crew/resolveBackgroundCrafting.ts";
+import { calculateDistance } from "../src/ships/calculateDistance.ts";
+import { calculateTravelTime } from "../src/ships/calculateTravelTime.ts";
+import { calculateFuelCost } from "../src/ships/calculateFuelCost.ts";
+import { deriveFuelCapacity } from "../src/ships/deriveFuelCapacity.ts";
+import { deriveShipTier, tierMidpoint } from "../src/ships/deriveShipTier.ts";
+import { assembleShip } from "../src/ships/assembleShip.ts";
+import { initiateVoyage } from "../src/ships/initiateVoyage.ts";
+import { resolveArrival } from "../src/ships/resolveArrival.ts";
+import { purchaseShip } from "../src/ships/purchaseShip.ts";
+import { purchaseScanner } from "../src/ships/purchaseScanner.ts";
+import { refreshShipyardPool } from "../src/ships/refreshShipyardPool.ts";
+import { refreshScannerPool } from "../src/ships/refreshScannerPool.ts";
+import { refuelShip } from "../src/ships/refuelShip.ts";
+import { getCrewSlotsForShip } from "../src/ships/getCrewSlotsForShip.ts";
+import { assignToShipRole } from "../src/ships/assignToShipRole.ts";
+import { unassignFromShipRole } from "../src/ships/unassignFromShipRole.ts";
+import { resolveComponentRepair } from "../src/ships/resolveComponentRepair.ts";
+import { performScan } from "../src/ships/performScan.ts";
+import { initiateCombat } from "../src/ships/initiateCombat.ts";
+import { resolveEncounters } from "../src/ships/resolveEncounters.ts";
+import { resolveCombatChoice } from "../src/ships/resolveCombatChoice.ts";
 
 import type { Resource } from "../src/data/types/resource.ts";
 import type { ResourceInstance } from "../src/data/types/resourceInstance.ts";
@@ -63,6 +84,17 @@ import type { CrewCapacity } from "../src/data/types/crewCapacity.ts";
 import type { CrewMember } from "../src/data/types/crewMember.ts";
 import type { PlanetCrewPool } from "../src/data/types/planetCrewPool.ts";
 import type { CraftAction } from "../src/data/types/craftAction.ts";
+import type { Ship } from "../src/data/types/ship.ts";
+import type { ShipComponent } from "../src/data/types/shipComponent.ts";
+import type { ShipCandidate } from "../src/data/types/shipCandidate.ts";
+import type { ShipyardPool } from "../src/data/types/shipyardPool.ts";
+import type { Scanner } from "../src/data/types/scanner.ts";
+import type { ScannerCandidate } from "../src/data/types/scannerCandidate.ts";
+import type { ScannerPool } from "../src/data/types/scannerPool.ts";
+import type { Voyage, VoyageCargoItem } from "../src/data/types/voyage.ts";
+import type { CombatEncounter } from "../src/data/types/combatEncounter.ts";
+import type { ComponentCategory } from "../src/data/types/componentCategory.ts";
+import type { ShipCrewRole } from "../src/data/types/shipCrewRole.ts";
 
 const TIERS: TierColor[] = ["Grey", "White", "Green", "Blue", "Purple", "Orange", "Gold"];
 
@@ -945,6 +977,379 @@ const resolveBackgroundCraftingCases = resolveBackgroundCraftingSubjects.map((s)
   };
 });
 
+// ---- Sub-Phase D (Ships & Travel, incl. Scanner/Combat/Encounters)
+// cases. Real generated galaxy planets (real positions, so real
+// distances/travel-times/fuel-costs are exercised, not synthetic
+// coordinates), real content resources (discovery-encounter rolls);
+// hand-built ship/crew/pool fixtures elsewhere, since none of that data
+// comes from the content catalog. ----
+const shipsParityGalaxy = generateGalaxy(5, realResources, "ships-parity-galaxy-seed");
+const shipsPlanetA: Planet = { ...shipsParityGalaxy.planets[0]!, discovered: true };
+const shipsPlanetB: Planet = { ...shipsParityGalaxy.planets[1]!, discovered: true };
+
+function shipComponent(id: string, category: ComponentCategory, tier: TierColor, value: number): ShipComponent {
+  return { id, category, qualities: { purity: value, density: value, potency: value, durability: value, rarity: value }, tier };
+}
+
+function shipFixture(overrides: Partial<Ship> = {}): Ship {
+  return {
+    id: "ship-1", name: "Test Ship", ownerId: "player-1", tier: "White", currentPlanetId: shipsPlanetA.id,
+    fuelCapacity: 65, currentFuel: 65,
+    components: {
+      weapon: shipComponent("w1", "weapon", "White", 50),
+      engine: shipComponent("e1", "engine", "White", 50),
+      shield: shipComponent("s1", "shield", "White", 50),
+      cargoHold: shipComponent("c1", "cargoHold", "White", 50),
+    },
+    ...overrides,
+  };
+}
+
+function shipCrewMemberFixture(overrides: Partial<CrewMember> = {}): CrewMember {
+  return {
+    id: "crew-x", hiredByPlayerId: "player-1", tier: "White", profession: null, status: "idle",
+    assignedCraftId: null, hiredAt: 0, lastCheckedAt: 0, wageAmount: 10, lastPaidAt: 0,
+    ...overrides,
+  };
+}
+
+const calculateDistanceCases = [
+  { a: { x: 0, y: 0 }, b: { x: 3, y: 4 } },
+  { a: shipsPlanetA.position!, b: shipsPlanetB.position! },
+  { a: { x: -1000, y: -1000 }, b: { x: 1000, y: 1000 } },
+].map((c) => ({ ...c, expectedDistance: calculateDistance(c.a, c.b) }));
+
+const calculateTravelTimeSubjects = [
+  { label: "no-pilot", ship: shipFixture(), pilot: null },
+  { label: "gold-tier-ship", ship: shipFixture({ tier: "Gold" }), pilot: null },
+  { label: "with-gold-pilot", ship: shipFixture(), pilot: shipCrewMemberFixture({ tier: "Gold" }) },
+];
+const calculateTravelTimeCases = calculateTravelTimeSubjects.map((s) => ({
+  label: s.label,
+  origin: { id: shipsPlanetA.id, position: shipsPlanetA.position },
+  destination: { id: shipsPlanetB.id, position: shipsPlanetB.position },
+  ship: s.ship,
+  pilot: s.pilot,
+  expectedTravelTimeMs: calculateTravelTime(shipsPlanetA, shipsPlanetB, s.ship, s.pilot),
+}));
+
+const calculateFuelCostCases = [{ origin: shipsPlanetA, destination: shipsPlanetB }].map((c) => ({
+  origin: { id: c.origin.id, position: c.origin.position },
+  destination: { id: c.destination.id, position: c.destination.position },
+  expectedFuelCost: calculateFuelCost(c.origin, c.destination),
+}));
+
+const deriveFuelCapacityCases = TIERS.map((tier) => ({ tier, expectedCapacity: deriveFuelCapacity(tier) }));
+
+const deriveShipTierSubjects = [
+  { label: "zero-components", ship: shipFixture({ components: { weapon: null, engine: null, shield: null, cargoHold: null } }) },
+  {
+    label: "all-gold",
+    ship: shipFixture({
+      components: {
+        weapon: shipComponent("w", "weapon", "Gold", 99), engine: shipComponent("e", "engine", "Gold", 99),
+        shield: shipComponent("s", "shield", "Gold", 99), cargoHold: shipComponent("c", "cargoHold", "Gold", 99),
+      },
+    }),
+  },
+  {
+    label: "mixed-tiers-one-null",
+    ship: shipFixture({
+      components: {
+        weapon: shipComponent("w", "weapon", "Grey", 10), engine: shipComponent("e", "engine", "Gold", 99),
+        shield: null, cargoHold: shipComponent("c", "cargoHold", "Blue", 80),
+      },
+    }),
+  },
+];
+const deriveShipTierCases = deriveShipTierSubjects.map((s) => ({ label: s.label, ship: s.ship, expectedTier: deriveShipTier(s.ship) }));
+const tierMidpointCases = TIERS.map((tier) => ({ tier, expectedMidpoint: tierMidpoint(tier) }));
+
+const assembleShipCases = [
+  { ship: shipFixture(), component: shipComponent("new-weapon", "weapon", "Gold", 99), slot: "weapon" as ComponentCategory },
+].map((c) => ({ ship: c.ship, component: c.component, slot: c.slot, expectedShip: assembleShip(c.ship, c.component, c.slot) }));
+
+const initiateVoyageSubjects = [
+  {
+    label: "normal-voyage",
+    ship: shipFixture({ fuelCapacity: 1000, currentFuel: 1000 }),
+    cargo: [] as VoyageCargoItem[],
+    now: 1_000_000, id: "voyage-1", isRetreat: false, pilot: null as CrewMember | null,
+  },
+  {
+    label: "retreat-voyage-skips-fuel-and-cargo-checks",
+    ship: shipFixture({ fuelCapacity: 1000, currentFuel: 0 }),
+    cargo: [{ itemId: "igneous-ore", quantity: 9999 }] as VoyageCargoItem[],
+    now: 1_000_000, id: "voyage-2", isRetreat: true, pilot: null as CrewMember | null,
+  },
+];
+const initiateVoyageCases = initiateVoyageSubjects.map((s) => {
+  const originPlanet: Planet = { id: shipsPlanetA.id, position: shipsPlanetA.position } as Planet;
+  const destinationPlanet: Planet = { id: shipsPlanetB.id, position: shipsPlanetB.position } as Planet;
+  const result = initiateVoyage(s.ship, originPlanet, destinationPlanet, s.cargo, s.now, s.id, s.isRetreat, s.pilot);
+  return {
+    label: s.label, ship: s.ship, origin: originPlanet, destination: destinationPlanet,
+    cargo: s.cargo, nowMs: s.now, id: s.id, isRetreat: s.isRetreat, pilot: s.pilot,
+    expectedResult: result,
+  };
+});
+
+const resolveArrivalSubjects = [
+  {
+    label: "not-yet-due",
+    voyage: { id: "v1", shipId: "s1", originPlanetId: shipsPlanetA.id, destinationPlanetId: shipsPlanetB.id, departedAt: 0, arrivesAt: 1_000_000, cargo: [] } as Voyage,
+    ship: shipFixture(),
+    now: 500_000,
+    destinationPlanet: undefined as Planet | undefined,
+    resources: undefined as Resource[] | undefined,
+  },
+  {
+    label: "resolved-with-encounter-resolution",
+    voyage: { id: "v2", shipId: "s1", originPlanetId: shipsPlanetA.id, destinationPlanetId: shipsPlanetB.id, departedAt: 0, arrivesAt: 1_000, cargo: [] } as Voyage,
+    ship: shipFixture(),
+    now: 100_000,
+    destinationPlanet: shipsPlanetB,
+    resources: realResources,
+  },
+];
+const resolveArrivalCases = resolveArrivalSubjects.map((s) => {
+  const sequence = randomSequence(200);
+  const result = resolveArrival(s.voyage, s.ship, s.now, s.destinationPlanet, s.resources, queueRandom([...sequence]));
+  return {
+    label: s.label, voyage: s.voyage, ship: s.ship, nowMs: s.now,
+    destinationPlanet: s.destinationPlanet ? { id: s.destinationPlanet.id, producibleResourceIds: s.destinationPlanet.producibleResourceIds } : null,
+    hasResources: s.resources !== undefined,
+    randomSequence: sequence,
+    expectedResult: result,
+  };
+});
+
+const purchaseShipSubjects = [
+  {
+    label: "successful-purchase",
+    candidate: { id: "sc1", name: "Ship-sc1", tier: "Blue", components: { weapon: null, engine: null, shield: null, cargoHold: null } } as ShipCandidate,
+    pool: { planetId: "planet-alpha", availableShips: [] as ShipCandidate[], lastRefreshedAt: 0 } as ShipyardPool,
+    wallet: { playerId: "player-1", credits: 100000 } as Wallet,
+  },
+  {
+    label: "rejected-insufficient-funds",
+    candidate: { id: "sc2", name: "Ship-sc2", tier: "Gold", components: { weapon: null, engine: null, shield: null, cargoHold: null } } as ShipCandidate,
+    pool: { planetId: "planet-alpha", availableShips: [] as ShipCandidate[], lastRefreshedAt: 0 } as ShipyardPool,
+    wallet: { playerId: "player-1", credits: 1 } as Wallet,
+  },
+  {
+    label: "rejected-not-in-pool",
+    candidate: { id: "sc-missing", name: "Ship-missing", tier: "White", components: { weapon: null, engine: null, shield: null, cargoHold: null } } as ShipCandidate,
+    pool: { planetId: "planet-alpha", availableShips: [] as ShipCandidate[], lastRefreshedAt: 0 } as ShipyardPool,
+    wallet: { playerId: "player-1", credits: 100000 } as Wallet,
+  },
+];
+const purchaseShipCases = purchaseShipSubjects.map((s) => {
+  const pool: ShipyardPool = s.label === "rejected-not-in-pool" ? s.pool : { ...s.pool, availableShips: [s.candidate] };
+  return {
+    label: s.label, candidate: s.candidate, pool, wallet: s.wallet,
+    expectedResult: purchaseShip(s.candidate, pool, s.wallet, "player-1"),
+  };
+});
+
+const purchaseScannerSubjects = [
+  { label: "successful-purchase", candidate: { id: "scn1", tier: "Blue" } as ScannerCandidate, wallet: { playerId: "player-1", credits: 100000 } as Wallet },
+  { label: "rejected-insufficient-funds", candidate: { id: "scn2", tier: "Gold" } as ScannerCandidate, wallet: { playerId: "player-1", credits: 1 } as Wallet },
+];
+const purchaseScannerCases = purchaseScannerSubjects.map((s) => {
+  const pool: ScannerPool = { planetId: "planet-alpha", availableScanners: [s.candidate], lastRefreshedAt: 0 };
+  return { label: s.label, candidate: s.candidate, pool, wallet: s.wallet, expectedResult: purchaseScanner(s.candidate, pool, s.wallet, "player-1") };
+});
+
+const refreshShipyardPoolCases = ["shipyard-seed-1", "shipyard-seed-2"].map((seed) => ({
+  planetId: "planet-alpha", seed, nowMs: 1_000_000,
+  expectedResult: refreshShipyardPool("planet-alpha", seed, 1_000_000),
+}));
+
+const refreshScannerPoolCases = ["scanner-pool-seed-1", "scanner-pool-seed-2"].map((seed) => ({
+  planetId: "planet-alpha", seed, nowMs: 1_000_000,
+  expectedResult: refreshScannerPool("planet-alpha", seed, 1_000_000),
+}));
+
+const refuelShipSubjects = [
+  { label: "successful-no-discount", ship: shipFixture({ fuelCapacity: 100, currentFuel: 0 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 20, dockedPlanet: null as Planet | null },
+  {
+    label: "successful-with-citadel-level-2-discount",
+    ship: shipFixture({ fuelCapacity: 100, currentFuel: 0, ownerId: "player-1" }),
+    wallet: { playerId: "player-1", credits: 1000 } as Wallet,
+    amount: 20,
+    dockedPlanet: { id: shipsPlanetA.id, name: shipsPlanetA.name, producibleResourceIds: [], ownedByPlayerId: "player-1", citadelLevel: 2 } as Planet,
+  },
+  { label: "rejected-non-positive-amount", ship: shipFixture(), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 0, dockedPlanet: null as Planet | null },
+  { label: "rejected-exceeds-capacity", ship: shipFixture({ fuelCapacity: 65, currentFuel: 60 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 10, dockedPlanet: null as Planet | null },
+];
+const refuelShipCases = refuelShipSubjects.map((s) => ({
+  label: s.label, ship: s.ship, wallet: s.wallet, amount: s.amount, dockedPlanet: s.dockedPlanet,
+  expectedResult: refuelShip(s.ship, s.wallet, s.amount, s.dockedPlanet),
+}));
+
+const getCrewSlotsForShipCases = TIERS.map((tier) => {
+  const ship = shipFixture({
+    components: {
+      weapon: shipComponent("w", "weapon", tier, 50), engine: shipComponent("e", "engine", tier, 50),
+      shield: shipComponent("s", "shield", tier, 50), cargoHold: shipComponent("c", "cargoHold", tier, 50),
+    },
+  });
+  return { tier, ship, expectedResult: getCrewSlotsForShip(ship) };
+});
+
+const assignToShipRoleSubjects = [
+  { label: "successful-pilot-assignment", crewMember: shipCrewMemberFixture({ id: "pilot-1" }), ship: shipFixture({ tier: "Gold" }), role: "Pilot" as ShipCrewRole, currentRoster: [] as CrewMember[] },
+  { label: "rejected-crafter-without-profession", crewMember: shipCrewMemberFixture({ id: "crafter-1", profession: null }), ship: shipFixture({ tier: "Gold" }), role: "Crafter" as ShipCrewRole, currentRoster: [] as CrewMember[] },
+  {
+    label: "rejected-slot-full",
+    crewMember: shipCrewMemberFixture({ id: "pilot-2" }),
+    ship: shipFixture({ tier: "Grey", id: "grey-ship" }),
+    role: "Pilot" as ShipCrewRole,
+    currentRoster: [shipCrewMemberFixture({ id: "existing-pilot", shipRole: "Pilot", assignedShipId: "grey-ship" })] as CrewMember[],
+  },
+];
+const assignToShipRoleCases = assignToShipRoleSubjects.map((s) => ({
+  label: s.label, crewMember: s.crewMember, ship: s.ship, role: s.role, currentRoster: s.currentRoster,
+  expectedResult: assignToShipRole(s.crewMember, s.ship, s.role, s.currentRoster),
+}));
+
+const unassignFromShipRoleSubjects = [
+  { label: "successful-unassign", crewMember: shipCrewMemberFixture({ shipRole: "Pilot", assignedShipId: "ship-1" }) },
+  { label: "rejected-nothing-to-unassign", crewMember: shipCrewMemberFixture() },
+];
+const unassignFromShipRoleCases = unassignFromShipRoleSubjects.map((s) => ({
+  label: s.label, crewMember: s.crewMember, expectedResult: unassignFromShipRole(s.crewMember),
+}));
+
+const resolveComponentRepairSubjects = [
+  {
+    label: "systems-engineer-repairs-while-docked",
+    ship: shipFixture({ tier: "White", lastRepairedAt: 0, components: { weapon: shipComponent("w", "weapon", "White", 50), engine: null, shield: null, cargoHold: null } }),
+    ownedCrew: [shipCrewMemberFixture({ id: "se1", tier: "Gold", shipRole: "Systems Engineer", assignedShipId: "ship-1" })],
+    activeVoyage: null as Voyage | null,
+    dockedPlanet: null as Planet | null,
+    now: 10 * 60 * 60 * 1000,
+  },
+  {
+    label: "crafter-repairs-only-while-traveling",
+    ship: shipFixture({
+      tier: "White", lastRepairedAt: 0,
+      components: { weapon: shipComponent("w", "weapon", "White", 50), engine: null, shield: null, cargoHold: null },
+    }),
+    ownedCrew: [shipCrewMemberFixture({ id: "cr1", tier: "Gold", profession: "Weaponsmith", shipRole: "Crafter", assignedShipId: "ship-1" })],
+    activeVoyage: { id: "v1", shipId: "ship-1", originPlanetId: "a", destinationPlanetId: "b", departedAt: 0, arrivesAt: 100000, cargo: [] } as Voyage,
+    dockedPlanet: null as Planet | null,
+    now: 10 * 60 * 60 * 1000,
+  },
+];
+const resolveComponentRepairCases = resolveComponentRepairSubjects.map((s) => ({
+  label: s.label, ship: s.ship, ownedCrew: s.ownedCrew, activeVoyage: s.activeVoyage, dockedPlanet: s.dockedPlanet, nowMs: s.now,
+  expectedResult: resolveComponentRepair(s.ship, s.ownedCrew, s.activeVoyage, s.dockedPlanet, s.now),
+}));
+
+const performScanSubjects = [
+  {
+    label: "discovers-nearby-planets",
+    ship: shipFixture({ currentPlanetId: shipsPlanetA.id }),
+    dockedPlanet: shipsPlanetA,
+    ownedScanners: [{ id: "scn1", tier: "Grey", ownerId: "player-1" } as Scanner],
+    allPlanets: shipsParityGalaxy.planets.map((p) => (p.id === shipsPlanetA.id ? { ...p, discovered: true } : { ...p, discovered: false })),
+  },
+  {
+    label: "rejected-no-scanner-owned",
+    ship: shipFixture({ currentPlanetId: shipsPlanetA.id }),
+    dockedPlanet: shipsPlanetA,
+    ownedScanners: [] as Scanner[],
+    allPlanets: shipsParityGalaxy.planets,
+  },
+];
+const performScanCases = performScanSubjects.map((s) => ({
+  label: s.label, ship: s.ship, dockedPlanet: s.dockedPlanet, ownedScanners: s.ownedScanners,
+  // Full planet objects (id/position/discovered are all PerformScan
+  // reads), not just ids -- the C# side must reconstruct the exact same
+  // input list to call the real function itself, not merely compare
+  // against a recorded output with nothing to feed it.
+  allPlanets: s.allPlanets.map((p) => ({ id: p.id, position: p.position, discovered: p.discovered })),
+  expectedResult: performScan(s.ship, s.dockedPlanet, s.ownedScanners, s.allPlanets),
+}));
+
+const initiateCombatCases = [
+  { id: "combat-1", voyageId: "v1", triggerContext: "travel" as const, windowIndex: 0 as number | null },
+  { id: "combat-2", voyageId: "v2", triggerContext: "arrival" as const, windowIndex: null as number | null },
+].map((c) => {
+  const sequence = randomSequence(5);
+  return { ...c, randomSequence: sequence, expectedResult: initiateCombat(c.id, c.voyageId, c.triggerContext, c.windowIndex, queueRandom([...sequence])) };
+});
+
+const resolveEncountersSubjects = [
+  {
+    label: "normal-voyage-encounters",
+    voyage: { id: "v1", shipId: "ship-1", originPlanetId: shipsPlanetA.id, destinationPlanetId: shipsPlanetB.id, departedAt: 0, arrivesAt: 48 * 60 * 60 * 1000, cargo: [] } as Voyage,
+    ship: shipFixture(),
+    destinationPlanet: shipsPlanetB,
+  },
+  {
+    label: "retreat-voyage-never-rolls",
+    voyage: { id: "v2", shipId: "ship-1", originPlanetId: shipsPlanetA.id, destinationPlanetId: shipsPlanetB.id, departedAt: 0, arrivesAt: 48 * 60 * 60 * 1000, cargo: [], isRetreat: true } as Voyage,
+    ship: shipFixture(),
+    destinationPlanet: shipsPlanetB,
+  },
+];
+const resolveEncountersCases = resolveEncountersSubjects.map((s) => {
+  const sequence = randomSequence(300);
+  return {
+    label: s.label, voyage: s.voyage, ship: s.ship,
+    // id + producibleResourceIds is everything ResolveEncounters reads
+    // off destinationPlanet -- the C# side reconstructs a real Planet
+    // from just these two fields to call the real function itself.
+    destinationPlanet: { id: s.destinationPlanet.id, producibleResourceIds: s.destinationPlanet.producibleResourceIds },
+    randomSequence: sequence,
+    expectedResult: resolveEncounters(s.voyage, s.ship, s.destinationPlanet, realResources, queueRandom([...sequence])),
+  };
+});
+
+const resolveCombatChoiceSubjects = [
+  {
+    label: "flee",
+    encounter: { id: "ce1", voyageId: "v1", triggerContext: "travel" as const, opponentThreatTier: "Gold" as TierColor, status: "pending" as const, outcome: null, windowIndex: 0 } as CombatEncounter,
+    choice: "flee" as const,
+    ship: shipFixture(),
+    ownedCrew: [] as CrewMember[],
+  },
+  {
+    label: "attack-and-win",
+    encounter: { id: "ce2", voyageId: "v2", triggerContext: "travel" as const, opponentThreatTier: "Grey" as TierColor, status: "pending" as const, outcome: null, windowIndex: 0 } as CombatEncounter,
+    choice: "attack" as const,
+    ship: shipFixture({ tier: "Gold", components: { weapon: shipComponent("w", "weapon", "Gold", 99), engine: null, shield: null, cargoHold: null } }),
+    ownedCrew: [] as CrewMember[],
+  },
+  {
+    label: "attack-and-lose-with-combat-engineer-mitigation",
+    encounter: { id: "ce3", voyageId: "v3", triggerContext: "travel" as const, opponentThreatTier: "Gold" as TierColor, status: "pending" as const, outcome: null, windowIndex: 0 } as CombatEncounter,
+    choice: "attack" as const,
+    ship: shipFixture({ tier: "Grey", components: { weapon: shipComponent("w", "weapon", "Grey", 10), engine: null, shield: null, cargoHold: null } }),
+    ownedCrew: [shipCrewMemberFixture({ id: "ce-1", tier: "Gold", shipRole: "Combat Engineer", assignedShipId: "ship-1" })] as CrewMember[],
+  },
+];
+const resolveCombatChoiceCases = resolveCombatChoiceSubjects.map((s) => {
+  const sequence = randomSequence(10);
+  const originPlanet: Planet = { id: shipsPlanetA.id, position: shipsPlanetA.position } as Planet;
+  const currentPlanet: Planet = { id: shipsPlanetB.id, position: shipsPlanetB.position } as Planet;
+  const result = resolveCombatChoice(s.encounter, s.choice, { id: s.encounter.voyageId, shipId: "ship-1", originPlanetId: originPlanet.id, destinationPlanetId: currentPlanet.id, departedAt: 0, arrivesAt: 1000, cargo: [] }, s.ship, originPlanet, currentPlanet, s.ownedCrew, 500_000, `${s.encounter.id}-retreat`, queueRandom([...sequence]));
+  return {
+    label: s.label, encounter: s.encounter, choice: s.choice, ship: s.ship, ownedCrew: s.ownedCrew,
+    // Real planets (with real positions), not just ids -- the C# side
+    // needs these to reconstruct the same InitiateVoyage() call the
+    // flee/lose retreat-voyage branches make internally, which requires
+    // both planets to have a generated position.
+    originPlanet: { id: originPlanet.id, position: originPlanet.position },
+    currentPlanet: { id: currentPlanet.id, position: currentPlanet.position },
+    randomSequence: sequence, retreatVoyageId: `${s.encounter.id}-retreat`, nowMs: 500_000,
+    expectedResult: result,
+  };
+});
+
 const output = {
   generatedAt: new Date().toISOString(),
   tierColorCases,
@@ -972,6 +1377,28 @@ const output = {
   refreshCrewPoolCases,
   assignToCraftCases,
   resolveBackgroundCraftingCases,
+  calculateDistanceCases,
+  calculateTravelTimeCases,
+  calculateFuelCostCases,
+  deriveFuelCapacityCases,
+  deriveShipTierCases,
+  tierMidpointCases,
+  assembleShipCases,
+  initiateVoyageCases,
+  resolveArrivalCases,
+  purchaseShipCases,
+  purchaseScannerCases,
+  refreshShipyardPoolCases,
+  refreshScannerPoolCases,
+  refuelShipCases,
+  getCrewSlotsForShipCases,
+  assignToShipRoleCases,
+  unassignFromShipRoleCases,
+  resolveComponentRepairCases,
+  performScanCases,
+  initiateCombatCases,
+  resolveEncountersCases,
+  resolveCombatChoiceCases,
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -991,5 +1418,16 @@ console.log(
     `hireCrew: ${hireCrewCases.length}, dismissCrew: ${dismissCrewCases.length}, ` +
     `payUpkeep: ${payUpkeepCases.length}, checkAttrition: ${checkAttritionCases.length}, ` +
     `purchaseCapacity: ${purchaseCapacityCases.length}, refreshCrewPool: ${refreshCrewPoolCases.length}, ` +
-    `assignToCraft: ${assignToCraftCases.length}, resolveBackgroundCrafting: ${resolveBackgroundCraftingCases.length}`,
+    `assignToCraft: ${assignToCraftCases.length}, resolveBackgroundCrafting: ${resolveBackgroundCraftingCases.length}, ` +
+    `calculateDistance: ${calculateDistanceCases.length}, calculateTravelTime: ${calculateTravelTimeCases.length}, ` +
+    `calculateFuelCost: ${calculateFuelCostCases.length}, deriveFuelCapacity: ${deriveFuelCapacityCases.length}, ` +
+    `deriveShipTier: ${deriveShipTierCases.length}, tierMidpoint: ${tierMidpointCases.length}, ` +
+    `assembleShip: ${assembleShipCases.length}, initiateVoyage: ${initiateVoyageCases.length}, ` +
+    `resolveArrival: ${resolveArrivalCases.length}, purchaseShip: ${purchaseShipCases.length}, ` +
+    `purchaseScanner: ${purchaseScannerCases.length}, refreshShipyardPool: ${refreshShipyardPoolCases.length}, ` +
+    `refreshScannerPool: ${refreshScannerPoolCases.length}, refuelShip: ${refuelShipCases.length}, ` +
+    `getCrewSlotsForShip: ${getCrewSlotsForShipCases.length}, assignToShipRole: ${assignToShipRoleCases.length}, ` +
+    `unassignFromShipRole: ${unassignFromShipRoleCases.length}, resolveComponentRepair: ${resolveComponentRepairCases.length}, ` +
+    `performScan: ${performScanCases.length}, initiateCombat: ${initiateCombatCases.length}, ` +
+    `resolveEncounters: ${resolveEncountersCases.length}, resolveCombatChoice: ${resolveCombatChoiceCases.length}`,
 );
