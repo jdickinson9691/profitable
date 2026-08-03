@@ -1,5 +1,7 @@
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using Profitable.Core.Adapters;
 using Profitable.Core.Schema;
 using Profitable.Unity.Content;
 using Profitable.Unity.UI;
@@ -13,10 +15,17 @@ namespace Profitable.Unity.Tests.EditMode
     // check-repair/travel/resolve-arrival -> ShipsState/MarketState wiring
     // is correct. Not testing formula correctness (that's Agent 55's
     // parity suite's job).
+    //
+    // Migration Phase 2 Sub-Phase E addition (agent-62-unity-planet
+    // -ownership-integration.md): PlanetOwnershipState is injected with a
+    // temp-directory-backed FileSaveSystem in SetUp, same reasoning
+    // GatherPanelTests already documents -- RefuelShip/CheckRepair now
+    // read it (the Citadel refuel-discount/repair-rate integration fix).
     public class ShipsPanelTests
     {
         private GameObject _parent = null!;
         private ShipsPanel _panel = null!;
+        private string _tempSaveDir = null!;
 
         [SetUp]
         public void SetUp()
@@ -25,6 +34,10 @@ namespace Profitable.Unity.Tests.EditMode
             GalaxyState.ResetForTests();
             MarketState.ResetForTests();
             ShipsState.ResetForTests();
+            CrewState.ResetForTests();
+            PlanetOwnershipState.ResetForTests();
+            _tempSaveDir = Path.Combine(Path.GetTempPath(), $"profitable-unity-tests-{System.Guid.NewGuid():N}");
+            PlanetOwnershipState.SetSaveSystem(new FileSaveSystem(_tempSaveDir));
             // A large starting balance -- the shipyard pool's rolled tier
             // (and therefore purchase cost) is genuinely random per test
             // run with no fixed seed, same reasoning CrewPanelTests
@@ -36,7 +49,11 @@ namespace Profitable.Unity.Tests.EditMode
         }
 
         [TearDown]
-        public void TearDown() => Object.DestroyImmediate(_parent);
+        public void TearDown()
+        {
+            UnityEngine.Object.DestroyImmediate(_parent);
+            if (Directory.Exists(_tempSaveDir)) Directory.Delete(_tempSaveDir, recursive: true);
+        }
 
         private static string FirstShipyardCandidateId() =>
             ShipsState.GetOrRefreshShipyardPool(System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).AvailableShips[0].Id;
@@ -159,6 +176,35 @@ namespace Profitable.Unity.Tests.EditMode
             var result = _panel.ResolveArrival(ship.Id);
 
             Assert.IsNull(result);
+        }
+
+        [Test]
+        public void RefuelShip_AppliesCitadelDiscountWhenStartingPlanetIsOwnedAndHasALevel2Citadel()
+        {
+            var candidateId = FirstShipyardCandidateId();
+            _panel.PurchaseShip(candidateId);
+            var ship = ShipsState.OwnedShips[0]; // docked at GalaxyState.StartingPlanet by default
+            ShipsState.ReplaceShip(new Ship
+            {
+                Id = ship.Id, Name = ship.Name, OwnerId = ship.OwnerId, Tier = ship.Tier, CurrentPlanetId = ship.CurrentPlanetId,
+                FuelCapacity = 1000, CurrentFuel = 0, Components = ship.Components,
+            });
+            // Fast-forwards ownership directly (BuildCitadel's own
+            // material/sequencing logic is already covered by
+            // GatherPanelTests/PlanetOwnershipParityTests) -- this test's
+            // own job is proving ShipsPanel actually reads the resulting
+            // Citadel level, not re-proving BuildCitadel itself.
+            PlanetOwnershipState.SetEntry(GalaxyState.StartingPlanet.Id, new PlanetOwnershipEntry { ColonistCount = 10, CitadelLevel = 2, OwnedByPlayerId = "player-1" });
+            var creditsBeforeFirst = MarketState.Wallet.Credits;
+            _panel.RefuelShip(ship.Id, 10);
+            var costWithDiscount = creditsBeforeFirst - MarketState.Wallet.Credits;
+
+            PlanetOwnershipState.SetEntry(GalaxyState.StartingPlanet.Id, PlanetOwnershipEntry.Default());
+            var creditsBeforeSecond = MarketState.Wallet.Credits;
+            _panel.RefuelShip(ship.Id, 10);
+            var costWithoutDiscount = creditsBeforeSecond - MarketState.Wallet.Credits;
+
+            Assert.Less(costWithDiscount, costWithoutDiscount);
         }
     }
 }

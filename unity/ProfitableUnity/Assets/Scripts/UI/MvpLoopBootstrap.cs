@@ -89,13 +89,14 @@ namespace Profitable.Unity.UI
             _shipsPanel.Root.SetActive(_shipsPanel.Root == visible);
         }
 
-        // Shared log sink passed to every panel -- also refreshes Refine
-        // /Craft/Market/Crew/Ships's availability display, since almost
-        // any logged action changes Inventory's/CrewState's/ShipsState's
-        // contents.
+        // Shared log sink passed to every panel -- also refreshes Gather
+        // /Refine/Craft/Market/Crew/Ships's availability display, since
+        // almost any logged action changes Inventory's/CrewState's/
+        // ShipsState's/PlanetOwnershipState's contents.
         private void Log(string message)
         {
             _logText.text = $"{_logText.text}\n{message}".TrimStart('\n');
+            _gatherPanel.RefreshOwnership();
             _refinePanel.Refresh();
             _craftPanel.Refresh();
             _marketPanel.Refresh();

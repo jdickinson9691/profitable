@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using NUnit.Framework;
+using Profitable.Core.Adapters;
 using Profitable.Core.Schema;
 using Profitable.Unity.Content;
 using Profitable.Unity.UI;
@@ -13,24 +16,54 @@ namespace Profitable.Unity.Tests.EditMode
     // correctness (that's Agent 40's parity suite's job); this proves
     // wiring plus the one behavior this rewrite actually changes: quality
     // is now fixed per current cycle, not rolled fresh every click.
+    //
+    // Migration Phase 2 Sub-Phase E addition (agent-61-unity-planet
+    // -ownership-presentation.md): TransportColonists/ClaimPlanet/
+    // BuildCitadel test cases. PlanetOwnershipState is injected with a
+    // temp-directory-backed FileSaveSystem in SetUp -- these are real
+    // persistence-backed tests (not a fake/in-memory double), but must
+    // never touch Application.persistentDataPath, the same real file a
+    // player's own save data would live in.
     public class GatherPanelTests
     {
         private GameObject _parent = null!;
         private Inventory _inventory = null!;
         private GatherPanel _panel = null!;
+        private string _tempSaveDir = null!;
 
         [SetUp]
         public void SetUp()
         {
             GameContent.ResetForTests();
             GalaxyState.ResetForTests();
+            MarketState.ResetForTests();
+            ShipsState.ResetForTests();
+            PlanetOwnershipState.ResetForTests();
+            _tempSaveDir = Path.Combine(Path.GetTempPath(), $"profitable-unity-tests-{Guid.NewGuid():N}");
+            PlanetOwnershipState.SetSaveSystem(new FileSaveSystem(_tempSaveDir));
+            MarketState.SetWallet(new Wallet { PlayerId = "player-1", Credits = 1_000_000 });
+
             _parent = new GameObject("TestParent", typeof(RectTransform));
             _inventory = new Inventory();
             _panel = new GatherPanel(_parent.transform, _inventory, _ => { });
         }
 
         [TearDown]
-        public void TearDown() => Object.DestroyImmediate(_parent);
+        public void TearDown()
+        {
+            UnityEngine.Object.DestroyImmediate(_parent);
+            if (Directory.Exists(_tempSaveDir)) Directory.Delete(_tempSaveDir, recursive: true);
+        }
+
+        private static void AddDockedShip()
+        {
+            ShipsState.OwnedShips.Add(new Ship
+            {
+                Id = "test-ship", Name = "Test Ship", OwnerId = "player-1", Tier = TierColor.White,
+                CurrentPlanetId = GalaxyState.StartingPlanet.Id, FuelCapacity = 65, CurrentFuel = 65,
+                Components = new ShipComponentSlots(),
+            });
+        }
 
         [Test]
         public void GatherAddsOneBatchToInventory()
@@ -81,6 +114,90 @@ namespace Profitable.Unity.Tests.EditMode
             {
                 Assert.AreEqual(first.Qualities[quality], second.Qualities[quality]);
             }
+        }
+
+        [Test]
+        public void TransportColonists_FailsWithoutADockedShip()
+        {
+            var result = _panel.TransportColonists(5);
+            Assert.IsFalse(result.Success);
+        }
+
+        [Test]
+        public void TransportColonists_SucceedsWithADockedShipAndAccumulatesColonistCount()
+        {
+            AddDockedShip();
+            var before = PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).ColonistCount;
+
+            var result = _panel.TransportColonists(5);
+
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual(before + 5, PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).ColonistCount);
+        }
+
+        [Test]
+        public void ClaimPlanet_SucceedsThanksToTheBootstrapColonistFloor()
+        {
+            // GalaxyState's own bootstrap already floors the starting
+            // planet's colonist count to MinimumColonistsToProduce --
+            // claiming should succeed with no manual transport needed.
+            AddDockedShip();
+
+            var result = _panel.ClaimPlanet();
+
+            Assert.IsTrue(result.Success);
+            Assert.AreEqual("player-1", PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).OwnedByPlayerId);
+        }
+
+        [Test]
+        public void ClaimPlanet_FailsWithoutADockedShip()
+        {
+            var result = _panel.ClaimPlanet();
+            Assert.IsFalse(result.Success);
+        }
+
+        [Test]
+        public void BuildCitadel_FailsBeforeThePlanetIsClaimed()
+        {
+            AddDockedShip();
+            var result = _panel.BuildCitadel();
+            Assert.IsNotNull(result);
+            Assert.IsFalse(result!.Success);
+        }
+
+        [Test]
+        public void BuildCitadel_SucceedsAtLevel1WithNoMaterialAfterClaiming()
+        {
+            AddDockedShip();
+            _panel.ClaimPlanet();
+
+            var result = _panel.BuildCitadel();
+
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result!.Success);
+            Assert.AreEqual(1, PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).CitadelLevel);
+        }
+
+        [Test]
+        public void PlanetOwnershipState_PersistsAcrossASimulatedReload()
+        {
+            AddDockedShip();
+            _panel.ClaimPlanet();
+            var planetId = GalaxyState.StartingPlanet.Id;
+            var entryBeforeReload = PlanetOwnershipState.GetEntry(planetId);
+            Assert.AreEqual("player-1", entryBeforeReload.OwnedByPlayerId);
+
+            // Simulate a reload: clear the in-memory cache (but keep the
+            // same on-disk save directory) and re-inject a fresh
+            // FileSaveSystem pointed at it, the same way a real app
+            // restart would re-read from Application.persistentDataPath.
+            PlanetOwnershipState.ResetForTests();
+            PlanetOwnershipState.SetSaveSystem(new FileSaveSystem(_tempSaveDir));
+
+            var entryAfterReload = PlanetOwnershipState.GetEntry(planetId);
+            Assert.AreEqual(entryBeforeReload.ColonistCount, entryAfterReload.ColonistCount);
+            Assert.AreEqual(entryBeforeReload.CitadelLevel, entryAfterReload.CitadelLevel);
+            Assert.AreEqual(entryBeforeReload.OwnedByPlayerId, entryAfterReload.OwnedByPlayerId);
         }
     }
 }

@@ -150,6 +150,14 @@ Full scope/readiness computation: `docs/functional-agents/build.md`; the followa
 56. [`agent-56-unity-ships-travel-presentation.md`](agent-56-unity-ships-travel-presentation.md) — adds a Ships panel (seventh panel in the MVP loop) scoped to purchase→refuel→check-repair→travel→resolve-arrival only. Depends on Agent 54/55.
 57. [`agent-57-unity-ships-travel-integration.md`](agent-57-unity-ships-travel-integration.md) — confirms a real voyage can be initiated/resolved/repaired in the Unity build, and Sub-Phases A/B/C's own tests still pass unmodified. Created last in Sub-Phase D.
 
+## Unity Migration Phase 2 — Sub-Phase E (Planet Ownership) complete
+
+58. [`agent-58-unity-planet-ownership-schema.md`](agent-58-unity-planet-ownership-schema.md) — ports `PlanetOwnershipEntry` and every ownership result union; extends `CitadelLevelBenefits` with construction-cost fields. Depends on Agent 38/53. Created first in Sub-Phase E.
+59. [`agent-59-unity-planet-ownership-simulation-core.md`](agent-59-unity-planet-ownership-simulation-core.md) — ports `transportColonists.ts`/`claimPlanet.ts`/`buildCitadel.ts`/`mergePlanetOwnership.ts`, reusing Sub-Phase D's own `CitadelLevelBenefits` lookup directly. Depends on Agent 58.
+60. [`agent-60-unity-planet-ownership-parity-validation.md`](agent-60-unity-planet-ownership-parity-validation.md) — proves the C# port agrees with the real TypeScript output across all 4 functions, including the real `iron-ingot` Citadel material. Created alongside Agent 59, runs continuously.
+61. [`agent-61-unity-planet-ownership-presentation.md`](agent-61-unity-planet-ownership-presentation.md) — adds ownership actions to `GatherPanel`; introduces `PlanetOwnershipState.cs`, this migration's first REAL `ISaveSystem`-backed persistence in Presentation. Depends on Agent 59/60.
+62. [`agent-62-unity-planet-ownership-integration.md`](agent-62-unity-planet-ownership-integration.md) — confirms persistence survives a reload; found and fixed a real gap in Sub-Phase D's `ShipsPanel` (Citadel context never wired through to refuel/repair). Created last in Sub-Phase E.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:

@@ -153,6 +153,18 @@ public class ParityCorpus
 
     [JsonPropertyName("resolveCombatChoiceCases")]
     public List<ResolveCombatChoiceCase> ResolveCombatChoiceCases { get; set; } = new();
+
+    [JsonPropertyName("transportColonistsCases")]
+    public List<TransportColonistsCase> TransportColonistsCases { get; set; } = new();
+
+    [JsonPropertyName("claimPlanetCases")]
+    public List<ClaimPlanetCase> ClaimPlanetCases { get; set; } = new();
+
+    [JsonPropertyName("buildCitadelCases")]
+    public List<BuildCitadelCase> BuildCitadelCases { get; set; } = new();
+
+    [JsonPropertyName("mergePlanetOwnershipCases")]
+    public List<MergePlanetOwnershipCase> MergePlanetOwnershipCases { get; set; } = new();
 }
 
 public class TierColorCase
@@ -1889,4 +1901,154 @@ public class ResolveCombatChoiceCase
 
     [JsonPropertyName("expectedResult")]
     public SerializedCombatResolution ExpectedResult { get; set; } = new();
+}
+
+// ---- Sub-Phase E (Planet Ownership) parity DTOs (agent-60-unity-planet
+// -ownership-parity-validation.md). ----
+
+public class SerializedPlanetOwnershipEntry
+{
+    [JsonPropertyName("colonistCount")]
+    public int ColonistCount { get; set; }
+
+    [JsonPropertyName("citadelLevel")]
+    public int CitadelLevel { get; set; }
+
+    [JsonPropertyName("ownedByPlayerId")]
+    public string? OwnedByPlayerId { get; set; }
+}
+
+public class TransportColonistsCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("planet")]
+    public SerializedPlanetRef Planet { get; set; } = new();
+
+    [JsonPropertyName("quantity")]
+    public int Quantity { get; set; }
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("entry")]
+    public SerializedPlanetOwnershipEntry Entry { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedTransportColonistsResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedTransportColonistsResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+
+    [JsonPropertyName("updatedOwnershipEntry")]
+    public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
+}
+
+public class ClaimPlanetCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("planet")]
+    public SerializedPlanetRef Planet { get; set; } = new();
+
+    [JsonPropertyName("playerId")]
+    public string PlayerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("entry")]
+    public SerializedPlanetOwnershipEntry Entry { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedClaimPlanetResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedClaimPlanetResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedOwnershipEntry")]
+    public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
+}
+
+public class BuildCitadelCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("ship")]
+    public SerializedShip Ship { get; set; } = new();
+
+    [JsonPropertyName("planet")]
+    public SerializedPlanetRef Planet { get; set; } = new();
+
+    [JsonPropertyName("targetLevel")]
+    public int TargetLevel { get; set; }
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("materialQuantityAvailable")]
+    public int MaterialQuantityAvailable { get; set; }
+
+    [JsonPropertyName("entry")]
+    public SerializedPlanetOwnershipEntry Entry { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedBuildCitadelResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedBuildCitadelResult
+{
+    [JsonPropertyName("success")]
+    public bool Success { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+
+    [JsonPropertyName("updatedOwnershipEntry")]
+    public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
+
+    [JsonPropertyName("materialResourceId")]
+    public string? MaterialResourceId { get; set; }
+
+    [JsonPropertyName("materialQuantityConsumed")]
+    public int? MaterialQuantityConsumed { get; set; }
+}
+
+public class MergePlanetOwnershipCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("planet")]
+    public SerializedPlanet Planet { get; set; } = new();
+
+    [JsonPropertyName("entry")]
+    public SerializedPlanetOwnershipEntry? Entry { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPlanet ExpectedResult { get; set; } = new();
 }

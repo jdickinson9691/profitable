@@ -1,5 +1,4 @@
 #nullable enable
-using Profitable.Core.Constants;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 
@@ -36,20 +35,22 @@ namespace Profitable.Unity.Content
 
         public static Galaxy Galaxy => _galaxy ??= Generate();
 
-        // galaxy.Planets[0], overridden exactly as galaxyState.ts overrides
-        // its own rawStartingPlanet:
-        // - Discovered forced true. PlanetGenerator.Generate() always
-        //   emits false ("picking/revealing a starting planet is a later
-        //   agent's concern" -- agent-39's own comment); this is that
-        //   agent.
-        // - ColonistCount floored to the production minimum. A direct,
-        //   in-memory analog of galaxyState.ts's ensureBootstrapColonization()
-        //   floor exception, scoped down to skip the full persisted
-        //   planetOwnershipState side-table, which is Sub-Phase E's own job
-        //   to port. Without this override the Colonist-Driven Production
-        //   gate (ported early as PlanetOwnershipConstants
-        //   .MinimumColonistsToProduce) would block the MVP gather loop
-        //   before Sub-Phase E's real ownership system exists.
+        // galaxy.Planets[0], Discovered overridden exactly as
+        // galaxyState.ts overrides its own rawStartingPlanet --
+        // PlanetGenerator.Generate() always emits false ("picking/
+        // revealing a starting planet is a later agent's concern" --
+        // agent-39's own comment); this is that agent.
+        //
+        // ColonistCount is NOT set directly on this object (Sub-Phase A's
+        // own original stopgap, since removed) -- it lives exclusively in
+        // PlanetOwnershipState's real persisted side-table now that
+        // Sub-Phase E has ported it (agent-61-unity-planet-ownership
+        // -presentation.md). Callers that need a planet's live ownership
+        // state (colonist count included) must go through
+        // PlanetOwnershipState.WithOwnership(StartingPlanet), never read
+        // this raw object's own ColonistCount field directly -- it's
+        // always null here, matching GeneratePlanet()'s own real
+        // TypeScript behavior ("never set by generatePlanet()").
         public static Planet StartingPlanet => Galaxy.Planets[0];
 
         // Migration Phase 2 Sub-Phase D (Ships & Travel) addition --
@@ -69,8 +70,18 @@ namespace Profitable.Unity.Content
             var galaxy = GalaxyGenerator.Generate(PlanetCount, GameContent.Loaded.Resources, Seed);
             var startingPlanet = galaxy.Planets[0];
             startingPlanet.Discovered = true;
-            startingPlanet.ColonistCount = PlanetOwnershipConstants.MinimumColonistsToProduce;
             galaxy.Planets[1].Discovered = true;
+
+            // Bootstrap exception (planet-ownership.md), now routed
+            // through the real persisted side-table -- floor-set, so
+            // this is safe to call every session (this class has no
+            // persistence of its own to detect "brand new galaxy" vs.
+            // "existing save reloading" the way galaxyState.ts's own
+            // isNewGalaxy check does; PlanetOwnershipState.
+            // EnsureBootstrapColonization's own floor semantics make that
+            // distinction unnecessary here).
+            PlanetOwnershipState.EnsureBootstrapColonization(startingPlanet.Id);
+
             return galaxy;
         }
 

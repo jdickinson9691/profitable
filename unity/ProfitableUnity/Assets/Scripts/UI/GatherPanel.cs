@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
+using Profitable.Core.Constants;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Profitable.Unity.UI
 {
@@ -20,20 +22,32 @@ namespace Profitable.Unity.UI
     // Ship travel/current-planet tracking is Sub-Phase D's scope, not yet
     // ported -- this always reads GalaxyState.StartingPlanet, same as
     // GatherScene.ts would if getCurrentPlanet() didn't exist yet.
+    //
+    // Migration Phase 2 Sub-Phase E addition (agent-61-unity-planet
+    // -ownership-presentation.md): the "> Transport N Colonists" /
+    // "> Claim Planet" / "> Build Citadel" actions, added to this same
+    // panel per that sub-phase's own checklist instruction ("whatever
+    // Unity scene covers GatherScene's job"). All three require a ship
+    // docked at the starting planet -- resolved here (the first owned
+    // ship whose CurrentPlanetId matches), never fabricated, matching the
+    // real functions' own docking-required rejection.
     public class GatherPanel
     {
         public GameObject Root { get; }
 
+        private const int ColonistTransportQuantity = 5;
+
         private readonly Inventory _inventory;
         private readonly Action<string> _log;
         private readonly PlanetResourceCycle.ResourcesForCycle _currentResources;
+        private readonly Text _ownershipStatusText;
 
         public GatherPanel(Transform parent, Inventory inventory, Action<string> log)
         {
             _inventory = inventory;
             _log = log;
 
-            var planet = GalaxyState.StartingPlanet;
+            var planet = PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet);
             _currentResources = PlanetResourceCycle.GetCurrentPlanetResources(
                 planet,
                 GameContent.Loaded.Resources,
@@ -51,6 +65,15 @@ namespace Profitable.Unity.UI
                 var resource = FindResource(resourceId);
                 UiFactory.CreateButton(buttonRow, $"Gather {resource.Name}", () => Gather(resourceId));
             }
+
+            UiFactory.CreateText(group, "Planet Ownership:", 14);
+            _ownershipStatusText = UiFactory.CreateText(group, "", 12);
+            var ownershipButtonRow = UiFactory.CreateHorizontalGroup(group, "OwnershipButtons");
+            UiFactory.CreateButton(ownershipButtonRow, $"Transport {ColonistTransportQuantity} Colonists", () => TransportColonists(ColonistTransportQuantity));
+            UiFactory.CreateButton(ownershipButtonRow, "Claim Planet", () => ClaimPlanet());
+            UiFactory.CreateButton(ownershipButtonRow, "Build Citadel", () => BuildCitadel());
+
+            RefreshOwnership();
         }
 
         // The public entry point -- exercised directly by EditMode tests
@@ -68,6 +91,118 @@ namespace Profitable.Unity.UI
 
             _log($"Gathered 1x {resource.Name}: {DescribeQualities(qualities)}");
             return instance;
+        }
+
+        public void RefreshOwnership()
+        {
+            var entry = PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id);
+            _ownershipStatusText.text =
+                $"Colonists: {entry.ColonistCount} | Citadel level: {entry.CitadelLevel} | Owned by: {entry.OwnedByPlayerId ?? "nobody"}";
+        }
+
+        private static Ship? FindDockedShip() =>
+            ShipsState.OwnedShips.FirstOrDefault(s => s.CurrentPlanetId == GalaxyState.StartingPlanet.Id);
+
+        // Public entry points -- exercised directly by EditMode tests,
+        // same convention as every other panel's trigger methods.
+        public TransportColonistsResult TransportColonists(int quantity)
+        {
+            var ship = FindDockedShip();
+            if (ship is null)
+            {
+                var rejected = new TransportColonistsRejected { Reason = "no owned ship docked at the starting planet" };
+                _log($"Transport colonists failed: {rejected.Reason}");
+                return rejected;
+            }
+
+            var planetId = GalaxyState.StartingPlanet.Id;
+            var entry = PlanetOwnershipState.GetEntry(planetId);
+            var result = ColonistTransporter.TransportColonists(ship, GalaxyState.StartingPlanet, quantity, MarketState.Wallet, entry);
+
+            if (result is TransportColonistsSucceeded succeeded)
+            {
+                MarketState.SetWallet(succeeded.UpdatedWallet);
+                PlanetOwnershipState.SetEntry(planetId, succeeded.UpdatedOwnershipEntry);
+                _log($"Transported {quantity} colonists to {GalaxyState.StartingPlanet.Name} (now {succeeded.UpdatedOwnershipEntry.ColonistCount}).");
+            }
+            else
+            {
+                _log($"Transport colonists failed: {((TransportColonistsRejected)result).Reason}");
+            }
+
+            RefreshOwnership();
+            return result;
+        }
+
+        public ClaimPlanetResult ClaimPlanet()
+        {
+            var ship = FindDockedShip();
+            if (ship is null)
+            {
+                var rejected = new ClaimPlanetRejected { Reason = "no owned ship docked at the starting planet" };
+                _log($"Claim planet failed: {rejected.Reason}");
+                return rejected;
+            }
+
+            var planetId = GalaxyState.StartingPlanet.Id;
+            var entry = PlanetOwnershipState.GetEntry(planetId);
+            var result = PlanetClaimer.ClaimPlanet(ship, GalaxyState.StartingPlanet, PlanetOwnershipState.DefaultPlayerId, entry);
+
+            if (result is ClaimPlanetSucceeded succeeded)
+            {
+                PlanetOwnershipState.SetEntry(planetId, succeeded.UpdatedOwnershipEntry);
+                _log($"Claimed {GalaxyState.StartingPlanet.Name}.");
+            }
+            else
+            {
+                _log($"Claim planet failed: {((ClaimPlanetRejected)result).Reason}");
+            }
+
+            RefreshOwnership();
+            return result;
+        }
+
+        public BuildCitadelResult? BuildCitadel()
+        {
+            var ship = FindDockedShip();
+            if (ship is null)
+            {
+                var rejected = new BuildCitadelRejected { Reason = "no owned ship docked at the starting planet" };
+                _log($"Build Citadel failed: {rejected.Reason}");
+                return rejected;
+            }
+
+            var planetId = GalaxyState.StartingPlanet.Id;
+            var entry = PlanetOwnershipState.GetEntry(planetId);
+            if (entry.CitadelLevel >= 3)
+            {
+                _log("Build Citadel failed: already at the maximum level.");
+                return null;
+            }
+
+            var targetLevel = entry.CitadelLevel + 1;
+            var materialResourceId = PlanetOwnershipConstants.CitadelLevelBenefits[targetLevel].ConstructionMaterial?.ResourceId;
+            var materialQuantityAvailable = materialResourceId is null ? 0 : _inventory.TotalQuantity(materialResourceId);
+
+            var result = CitadelBuilder.BuildCitadel(ship, GalaxyState.StartingPlanet, targetLevel, MarketState.Wallet, materialQuantityAvailable, entry);
+
+            if (result is BuildCitadelSucceeded succeeded)
+            {
+                MarketState.SetWallet(succeeded.UpdatedWallet);
+                PlanetOwnershipState.SetEntry(planetId, succeeded.UpdatedOwnershipEntry);
+                if (succeeded.MaterialResourceId is not null)
+                {
+                    _inventory.Take(succeeded.MaterialResourceId, succeeded.MaterialQuantityConsumed);
+                }
+                _log($"Built Citadel to level {targetLevel} on {GalaxyState.StartingPlanet.Name}.");
+            }
+            else
+            {
+                _log($"Build Citadel failed: {((BuildCitadelRejected)result).Reason}");
+            }
+
+            RefreshOwnership();
+            return result;
         }
 
         private static Resource FindResource(string resourceId) =>

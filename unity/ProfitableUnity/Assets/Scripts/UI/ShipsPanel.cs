@@ -133,7 +133,7 @@ namespace Profitable.Unity.UI
                 return rejected;
             }
 
-            var result = ShipRefueler.RefuelShip(ship, MarketState.Wallet, amount);
+            var result = ShipRefueler.RefuelShip(ship, MarketState.Wallet, amount, DockedPlanetFor(ship));
             if (result is RefuelShipSucceeded succeeded)
             {
                 ShipsState.ReplaceShip(succeeded.UpdatedShip);
@@ -158,19 +158,37 @@ namespace Profitable.Unity.UI
                 return null;
             }
 
-            // No Systems Engineer/Crafter/Citadel context wired in this
-            // MVP scope -- CrewPanel's roster isn't cross-referenced for
-            // ship-role assignments here (see this class's own scope
-            // note), so this call always resolves with zero repair rate
-            // sources. Still real: it exercises the same function and
-            // updates LastRepairedAt exactly as a real assigned-crew call
-            // would, just with an empty owned-crew list.
-            var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, Array.Empty<CrewMember>(), null, null, NowMs());
+            // Migration Phase 2 Sub-Phase E integration fix
+            // (agent-62-unity-planet-ownership-integration.md): passes
+            // CrewState.Crew (this panel doesn't build ship-crew-role
+            // assignment UI itself -- see agent-56's own scope note --
+            // but the real owned-crew list is available and correct to
+            // pass regardless; no crew member has a ShipRole assigned yet
+            // since that UI doesn't exist, so this resolves the same as
+            // before until it does) and the real Citadel-owning
+            // dockedPlanet when the ship is docked there, instead of
+            // always null/empty. A ship mid-voyage passes ActiveVoyage
+            // instead -- the two are mutually exclusive, matching
+            // ResolveComponentRepair's own contract.
+            var activeVoyage = ShipsState.ActiveVoyage?.ShipId == ship.Id ? ShipsState.ActiveVoyage : null;
+            var dockedPlanet = activeVoyage is null ? DockedPlanetFor(ship) : null;
+            var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, CrewState.Crew, activeVoyage, dockedPlanet, NowMs());
             ShipsState.ReplaceShip(repaired);
             _log($"Checked repair for {ship.Name}.");
             Refresh();
             return repaired;
         }
+
+        // The only planet ownership currently exists for is the starting
+        // planet (Sub-Phase E's own scope) -- returns its real,
+        // ownership-merged Planet when the ship is docked there, or null
+        // otherwise (a ship docked at GalaxyState.SecondaryDestinationPlanet,
+        // which has no ownership side-table entry, correctly gets no
+        // Citadel benefit).
+        private static Planet? DockedPlanetFor(Ship ship) =>
+            ship.CurrentPlanetId == GalaxyState.StartingPlanet.Id
+                ? PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet)
+                : null;
 
         public InitiateVoyageResult? InitiateVoyageToSecondaryDestination(string shipId)
         {
