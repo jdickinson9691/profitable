@@ -78,6 +78,8 @@ function buildShip(index: number, homePlanetId: string): Ship {
     ownerId: PLAYER_ID,
     tier: "Grey",
     currentPlanetId: homePlanetId,
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   for (const category of ["weapon", "engine", "shield", "cargoHold"] as const) {
@@ -224,7 +226,7 @@ function main() {
     // looking obviously wrong rather than assumed correct.
     const realTravelTimeMs = calculateTravelTime(origin, destination, ship);
     const departedAt = now - realTravelTimeMs - 1000;
-    const voyage: Voyage = initiateVoyage(ship, origin, destination, [], departedAt, `scale-voyage-${i}`);
+    const { voyage } = initiateVoyage(ship, origin, destination, [], departedAt, `scale-voyage-${i}`);
     const result = resolveArrival(voyage, ship, now, destination, content.resources);
     if (result.resolved) {
       resolvedCount++;

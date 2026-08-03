@@ -18,9 +18,15 @@ import { clamp } from "../simulation/clamp.ts";
 // the final clamp." A planet with no `tier` (pre-Phase-2 content, e.g.
 // Delta Rigelus) applies no modifier at all, so this is safe to call on
 // any planet.
+// Planet Resource Generation amendment: narrowed from the full Planet type
+// to just the two fields this function has ever actually read -- lets
+// generateResourcesForCycle() (planetResourceCycle.ts) call this during
+// cycle-based generation, before a full Planet object exists to pass, with
+// no dummy id/name/producibleResourceIds fields needed. Any existing caller
+// passing a full Planet still satisfies this narrower shape unchanged.
 export function rollQualityOnPlanet(
   resource: Resource,
-  planet: Planet,
+  planet: Pick<Planet, "tier" | "specialtyResourceId">,
   random: RandomFn = Math.random,
 ): QualityRoll {
   const baseRoll = rollQuality(resource, random);

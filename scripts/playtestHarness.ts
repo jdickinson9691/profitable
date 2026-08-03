@@ -274,6 +274,8 @@ function runB4B5() {
       ownerId: "player-1",
       tier,
       currentPlanetId: scaleGalaxy.planets[0]!.id,
+      fuelCapacity: 100,
+      currentFuel: 100,
       components: { weapon: null, engine: null, shield: null, cargoHold: null },
     };
   }
@@ -334,6 +336,8 @@ function runB6() {
     ownerId: "player-1",
     tier: "Grey",
     currentPlanetId: dockedPlanet.id,
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   const allPlanets = scaleGalaxy.planets.map((p) => (p.id === dockedPlanet.id ? dockedPlanet : { ...p, discovered: false }));
@@ -358,6 +362,8 @@ function runB7() {
     ownerId: "player-1",
     tier: "Grey",
     currentPlanetId: greyPlanet!.id,
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   const WINDOW_HOURS = 24;
@@ -403,6 +409,8 @@ function runB8() {
       ownerId: "player-1",
       tier: "Grey",
       currentPlanetId: greyPlanet!.id,
+      fuelCapacity: 100,
+      currentFuel: 100,
       components: { weapon: null, engine: null, shield: null, cargoHold: null },
     };
     if (weapon) ship = assembleShip(ship, weapon, "weapon");
@@ -516,6 +524,8 @@ function runB9() {
     ownerId: "player-1",
     tier: "Grey",
     currentPlanetId: greyPlanet!.id,
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   // HAZARD_PASS_THRESHOLD = 50, Grey ship = +0 roll bonus. A 1-100 roll of

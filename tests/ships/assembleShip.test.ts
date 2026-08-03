@@ -11,6 +11,8 @@ function bareShip(): Ship {
     ownerId: "player-1",
     tier: "Grey",
     currentPlanetId: "delta-rigelus",
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
 }

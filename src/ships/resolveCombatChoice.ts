@@ -16,9 +16,21 @@ import { QUALITY_MIN, QUALITY_MAX } from "../data/constants/quality.ts";
 import {
   COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT,
   COMBAT_CREW_UNAVAILABLE_DURATION_HOURS,
+  COMBAT_ENGINEER_MITIGATION_BY_TIER,
 } from "../data/constants/shipsAndTravelConfig.ts";
 
 const MS_PER_HOUR = 60 * 60 * 1000;
+
+// Ship Crew Roles amendment: an assigned crew member of the given role on
+// this specific ship, or null if none -- shared by the Combat Engineer
+// mitigation lookup and the Pilot speed bonus passed into the retreat
+// voyage's own calculateTravelTime() call below. `ownedCrew` is the
+// player's full roster (already this function's own parameter); only the
+// entry actually assigned to *this* ship counts, same scoping as
+// assignToShipRole()'s own capacity check.
+function findAssignedCrew(ownedCrew: readonly CrewMember[], ship: Ship, role: CrewMember["shipRole"]): CrewMember | null {
+  return ownedCrew.find((member) => member.assignedShipId === ship.id && member.shipRole === role) ?? null;
+}
 
 // Combat GDD §2.4: "both sides apply the existing percentage-based
 // variance" -- reuses tierMidpoint() (deriveShipTier.ts's own tier-to-
@@ -68,12 +80,21 @@ export function resolveCombatChoice(
     throw new RangeError(`combat encounter ${combatEncounter.id} is not pending (status: ${combatEncounter.status})`);
   }
 
+  // Ship Crew Roles amendment: assignedShipId doesn't change within this
+  // function (only ship.components does, on a loss), so this is resolved
+  // once and reused by both the flee branch and the lose branch's own
+  // retreat voyage below.
+  const pilot = findAssignedCrew(ownedCrew, ship, "Pilot");
+
   if (choice === "flee") {
     return {
       combatEncounter: { ...combatEncounter, status: "resolved", outcome: "flee" },
       updatedShip: ship,
       updatedCrewMember: null,
-      retreatVoyage: initiateVoyage(ship, currentPlanet, originPlanet, voyage.cargo, currentTime, retreatVoyageId, true),
+      // A retreat voyage never touches fuel/cargo (initiateVoyage()'s own
+      // isRetreat skip) -- .updatedShip from that call is always identical
+      // to the ship passed in, so only the voyage itself is used here.
+      retreatVoyage: initiateVoyage(ship, currentPlanet, originPlanet, voyage.cargo, currentTime, retreatVoyageId, true, pilot).voyage,
     };
   }
 
@@ -105,6 +126,19 @@ export function resolveCombatChoice(
     };
   }
 
+  // Ship Crew Roles amendment: an assigned Combat Engineer mitigates the
+  // cost of a loss (never the win/lose roll itself, per the design
+  // entry) -- reduces both loss-outcome constants by the same tier-scaled
+  // fraction. No Combat Engineer assigned means no mitigation (0%), the
+  // exact pre-amendment behavior.
+  const combatEngineer = findAssignedCrew(ownedCrew, ship, "Combat Engineer");
+  let mitigationPercent = 0;
+  if (combatEngineer) {
+    const entry = COMBAT_ENGINEER_MITIGATION_BY_TIER.find((e) => e.tier === combatEngineer.tier);
+    if (!entry) throw new RangeError(`no combat engineer mitigation defined for tier ${combatEngineer.tier}`);
+    mitigationPercent = entry.mitigationPercent;
+  }
+
   // Lose: weapon durability damage + ship tier recompute, one random
   // owned crew member benched (if any owned), and a retreat voyage.
   let updatedShip = ship;
@@ -116,7 +150,7 @@ export function resolveCombatChoice(
     // simply can't be damaged by this.
     if (currentDurability !== null) {
       const damagedDurability = clamp(
-        Math.round(currentDurability * (1 - COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT)),
+        Math.round(currentDurability * (1 - COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT * (1 - mitigationPercent))),
         QUALITY_MIN,
         QUALITY_MAX,
       );
@@ -144,7 +178,7 @@ export function resolveCombatChoice(
     const chosen = ownedCrew[Math.floor(random() * ownedCrew.length)]!;
     updatedCrewMember = {
       ...chosen,
-      unavailableUntil: currentTime + COMBAT_CREW_UNAVAILABLE_DURATION_HOURS * MS_PER_HOUR,
+      unavailableUntil: currentTime + COMBAT_CREW_UNAVAILABLE_DURATION_HOURS * (1 - mitigationPercent) * MS_PER_HOUR,
     };
   }
 
@@ -152,6 +186,6 @@ export function resolveCombatChoice(
     combatEncounter: { ...combatEncounter, status: "resolved", outcome: "lose" },
     updatedShip,
     updatedCrewMember,
-    retreatVoyage: initiateVoyage(updatedShip, currentPlanet, originPlanet, voyage.cargo, currentTime, retreatVoyageId, true),
+    retreatVoyage: initiateVoyage(updatedShip, currentPlanet, originPlanet, voyage.cargo, currentTime, retreatVoyageId, true, pilot).voyage,
   };
 }

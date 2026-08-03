@@ -226,7 +226,14 @@ export class CrewScene extends Phaser.Scene {
     for (const member of roster) {
       const profLabel = member.profession ? ` (${member.profession})` : "";
       const craftLabel = member.status === "active" ? `, working on ${member.assignedCraftId}` : "";
-      const label = `${member.tier}${profLabel} — ${member.status}${craftLabel}, wage ${member.wageAmount}cr`;
+      // Ship Crew Roles amendment: a read-only indicator only -- actual
+      // assignment happens on the Ship screen (ShipStatusScene), which is
+      // the one place that also knows per-role slot capacity. Independent
+      // of status/assignedCraftId (a crew member can be both "active" on a
+      // craft and holding a ship role at once, per the design entry's own
+      // "must not gate the other 4 roles" rule).
+      const shipRoleLabel = member.shipRole ? `, ${member.shipRole} on ${member.assignedShipId}` : "";
+      const label = `${member.tier}${profLabel} — ${member.status}${craftLabel}${shipRoleLabel}, wage ${member.wageAmount}cr`;
       this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
       y += 20;
 

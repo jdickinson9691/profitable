@@ -5,6 +5,7 @@ import type { ShipCandidate } from "../../src/data/types/shipCandidate.ts";
 import type { ShipyardPool } from "../../src/data/types/shipyardPool.ts";
 import type { Wallet } from "../../src/data/types/wallet.ts";
 import type { PurchaseShipSucceeded } from "../../src/data/types/purchaseShipResult.ts";
+import { FUEL_CAPACITY_BY_TIER } from "../../src/data/constants/shipsAndTravelConfig.ts";
 
 const candidate: ShipCandidate = {
   id: "candidate-1",
@@ -32,14 +33,22 @@ test("purchaseShip() succeeds: deducts the exact tier-scaled cost, removes the c
 test("purchaseShip() creates a Ship owned by the buyer, located at the shipyard's planet", () => {
   const result = purchaseShip(candidate, basePool(), baseWallet(), "player-1") as PurchaseShipSucceeded;
 
+  const blueFuelCapacity = FUEL_CAPACITY_BY_TIER.find((e) => e.tier === "Blue")!.capacity;
   assert.deepEqual(result.ship, {
     id: "candidate-1",
     name: "Ship-candidate-1",
     ownerId: "player-1",
     tier: "Blue",
     currentPlanetId: "delta-rigelus",
+    fuelCapacity: blueFuelCapacity,
+    currentFuel: blueFuelCapacity,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   });
+});
+
+test("purchaseShip() gives a freshly-purchased ship a full tank at its own tier's capacity", () => {
+  const result = purchaseShip(candidate, basePool(), baseWallet(), "player-1") as PurchaseShipSucceeded;
+  assert.equal(result.ship.currentFuel, result.ship.fuelCapacity);
 });
 
 test("purchaseShip() rejects a candidate not present in the pool", () => {

@@ -5,6 +5,7 @@ import { queueRandom } from "../fixtures/random.ts";
 import {
   COMBAT_CREW_UNAVAILABLE_DURATION_HOURS,
   COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT,
+  COMBAT_ENGINEER_MITIGATION_BY_TIER,
 } from "../../src/data/constants/shipsAndTravelConfig.ts";
 import type { Ship } from "../../src/data/types/ship.ts";
 import type { ShipComponent } from "../../src/data/types/shipComponent.ts";
@@ -28,6 +29,8 @@ function ship(overrides: Partial<Ship> = {}): Ship {
     name: "Ship-1",
     ownerId: "player-1",
     tier: "Blue",
+    fuelCapacity: 100,
+    currentFuel: 100,
     currentPlanetId: "destination",
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
     ...overrides,
@@ -263,4 +266,65 @@ test("opponentThreatTier is never re-rolled at resolution -- only its stored val
   // Both calls above used a 2-value queueRandom (player + opponent
   // variance rolls only) and neither threw "exhausted" -- proving no
   // third random() call re-rolls a fresh 1-100 threat roll at resolution.
+});
+
+// --- Ship Crew Roles amendment: Combat Engineer ---
+
+test("attack, lose: an assigned Combat Engineer mitigates weapon durability damage by COMBAT_ENGINEER_MITIGATION_BY_TIER", () => {
+  const weapon = weaponComponent(76, "Blue");
+  const s = ship({ components: { weapon, engine: null, shield: null, cargoHold: null } });
+  const encounter = combatEncounter({ opponentThreatTier: "Gold" });
+  const engineer = crewMember("engineer-1", { tier: "Gold", shipRole: "Combat Engineer", assignedShipId: "ship-1" });
+
+  const result = resolveCombatChoice(encounter, "attack", voyage(), s, originPlanet, currentPlanet, [engineer], 0, "retreat-1", queueRandom([1, 0, 0]));
+
+  const mitigation = COMBAT_ENGINEER_MITIGATION_BY_TIER.find((e) => e.tier === "Gold")!.mitigationPercent;
+  const expectedDurability = Math.round(76 * (1 - COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT * (1 - mitigation)));
+  const damagedWeapon = result.updatedShip.components.weapon!;
+  assert.equal(damagedWeapon.qualities.durability, expectedDurability);
+
+  // Same mitigation fraction reduces the crew-unavailable duration too.
+  assert.ok(result.updatedCrewMember);
+  assert.equal(
+    result.updatedCrewMember!.unavailableUntil,
+    0 + COMBAT_CREW_UNAVAILABLE_DURATION_HOURS * (1 - mitigation) * MS_PER_HOUR,
+  );
+});
+
+test("attack, lose: a Combat Engineer assigned to a DIFFERENT ship provides no mitigation -- full damage applies", () => {
+  const weapon = weaponComponent(76, "Blue");
+  const s = ship({ components: { weapon, engine: null, shield: null, cargoHold: null } });
+  const encounter = combatEncounter({ opponentThreatTier: "Gold" });
+  const engineer = crewMember("engineer-1", { tier: "Gold", shipRole: "Combat Engineer", assignedShipId: "some-other-ship" });
+
+  const result = resolveCombatChoice(encounter, "attack", voyage(), s, originPlanet, currentPlanet, [engineer], 0, "retreat-1", queueRandom([1, 0, 0]));
+
+  const expectedDurability = Math.round(76 * (1 - COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT));
+  assert.equal(result.updatedShip.components.weapon!.qualities.durability, expectedDurability);
+});
+
+// --- Ship Crew Roles amendment: Pilot ---
+
+test("flee: an assigned Pilot speeds up the retreat voyage (arrivesAt strictly sooner than with no pilot)", () => {
+  const s = ship({ components: { weapon: weaponComponent(80, "Blue"), engine: null, shield: null, cargoHold: null } });
+  const v = voyage();
+  const encounter = combatEncounter();
+  const pilotCrew = crewMember("pilot-1", { tier: "Gold", shipRole: "Pilot", assignedShipId: "ship-1" });
+
+  const withPilot = resolveCombatChoice(encounter, "flee", v, s, originPlanet, currentPlanet, [pilotCrew], 5000, "retreat-1", queueRandom([]));
+  const withoutPilot = resolveCombatChoice(encounter, "flee", v, s, originPlanet, currentPlanet, [], 5000, "retreat-1", queueRandom([]));
+
+  assert.ok(withPilot.retreatVoyage!.arrivesAt < withoutPilot.retreatVoyage!.arrivesAt);
+});
+
+test("flee: a Pilot assigned to a DIFFERENT ship has no effect on the retreat voyage's speed", () => {
+  const s = ship({ components: { weapon: weaponComponent(80, "Blue"), engine: null, shield: null, cargoHold: null } });
+  const v = voyage();
+  const encounter = combatEncounter();
+  const pilotCrew = crewMember("pilot-1", { tier: "Gold", shipRole: "Pilot", assignedShipId: "some-other-ship" });
+
+  const withUnrelatedPilot = resolveCombatChoice(encounter, "flee", v, s, originPlanet, currentPlanet, [pilotCrew], 5000, "retreat-1", queueRandom([]));
+  const withoutPilot = resolveCombatChoice(encounter, "flee", v, s, originPlanet, currentPlanet, [], 5000, "retreat-1", queueRandom([]));
+
+  assert.equal(withUnrelatedPilot.retreatVoyage!.arrivesAt, withoutPilot.retreatVoyage!.arrivesAt);
 });

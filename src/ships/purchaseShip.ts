@@ -4,6 +4,7 @@ import type { Ship } from "../data/types/ship.ts";
 import type { Wallet } from "../data/types/wallet.ts";
 import type { PurchaseShipResult } from "../data/types/purchaseShipResult.ts";
 import { SHIP_PURCHASE_COST_BY_TIER } from "../data/constants/shipsAndTravelConfig.ts";
+import { deriveFuelCapacity } from "./deriveFuelCapacity.ts";
 
 // Phase 5 GDD §2.2. Necessary completion: takes the actual candidate/
 // pool/wallet data directly rather than IDs into an implicit store --
@@ -34,12 +35,20 @@ export function purchaseShip(
     return { purchased: false, reason: `insufficient funds: need ${cost}, have ${wallet.credits}` };
   }
 
+  // Ship Fuel amendment: a freshly-purchased ship starts with a full tank
+  // at its own tier's capacity -- never STARTING_SHIP_FUEL_CAPACITY, which
+  // is exclusively the very first, pre-assigned starting ship's bootstrap
+  // value, not a general "new ship" rule.
+  const fuelCapacity = deriveFuelCapacity(candidate.tier);
+
   const ship: Ship = {
     id: candidate.id,
     name: candidate.name,
     ownerId: playerId,
     tier: candidate.tier,
     currentPlanetId: pool.planetId,
+    fuelCapacity,
+    currentFuel: fuelCapacity,
     components: candidate.components,
   };
 

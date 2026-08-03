@@ -12,6 +12,7 @@ export const SCENE_KEYS = {
   crew: "Crew",
   shipyard: "Shipyard",
   shipAssembly: "ShipAssembly",
+  shipStatus: "ShipStatus",
   settings: "Settings",
   debugPanel: "DebugPanel",
 } as const;
@@ -27,6 +28,7 @@ const NAV_ITEMS: Array<{ key: string; label: string }> = [
   { key: SCENE_KEYS.crew, label: "Crew" },
   { key: SCENE_KEYS.shipyard, label: "Shipyard" },
   { key: SCENE_KEYS.shipAssembly, label: "Assembly" },
+  { key: SCENE_KEYS.shipStatus, label: "Ship" },
   { key: SCENE_KEYS.settings, label: "Settings" },
 ];
 

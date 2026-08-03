@@ -14,6 +14,7 @@ import { TradeMapScene } from "./scenes/TradeMapScene.ts";
 import { CrewScene } from "./scenes/CrewScene.ts";
 import { ShipyardScene } from "./scenes/ShipyardScene.ts";
 import { ShipAssemblyScene } from "./scenes/ShipAssemblyScene.ts";
+import { ShipStatusScene } from "./scenes/ShipStatusScene.ts";
 import { SettingsScene } from "./scenes/SettingsScene.ts";
 import { isDebugModeEnabled } from "./debugFlag.ts";
 
@@ -52,6 +53,7 @@ const game = new Phaser.Game({
     CrewScene,
     ShipyardScene,
     ShipAssemblyScene,
+    ShipStatusScene,
     SettingsScene,
   ],
 });

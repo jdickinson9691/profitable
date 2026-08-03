@@ -53,18 +53,22 @@ You're now set up to run every scenario in the plan doc without any grinding. Th
 **Screens: TradeMap → Gather.**
 
 This scenario needs two *discovered* planets of the **same planet type** at contrasting tiers, sharing at least one producible resource. The playtest seed discovers a real pair: your starting planet's auto-discovered neighbor (**SuperEarth, Gold tier**) and a second, separately-discovered **SuperEarth, Grey tier** planet — the Grey one is barely a side-trip (well under 1h away). Both produce **Igneous Ore** (among other shared resources).
+
+**Note (Planet Resource Generation, `profitable-design-questions.md`):** each planet-resource pair now has **one fixed quality**, rolled once at generation rather than re-rolled on every gather — gathering the same resource from the same planet repeatedly will return the *identical* result every time, not a spread. That's expected, not a bug; it's exactly what makes this comparison clean. One gather per planet is enough to see the difference.
 1. Go to **TradeMap**, scroll the discovered-planets list to find the two SuperEarth entries (one Gold tier, one Grey tier).
 2. Initiate a voyage to whichever one isn't your current location (Travel section → **`> Initiate Voyage`** next to its name). Wait for it to arrive (or see "Time-dependent scenarios" below if you don't want to wait in real time), then **`> Resolve Arrival`**.
-3. Go to **Gather** and click **`> Gather Igneous Ore`** several times; note the quality rolls.
-4. Travel to the other SuperEarth (same steps) and gather Igneous Ore there too.
+3. Go to **Gather** and click **`> Gather Igneous Ore`** once; note the fixed quality shown.
+4. Travel to the other SuperEarth (same steps) and gather Igneous Ore there too — again, one gather is enough.
 5. Compare the two planets' output quality per the plan doc's A3 question.
 
 ### A4 — Specialty planet payoff
 
 **Screens: TradeMap → Gather.**
+
+**Same note as A3:** quality is fixed per planet-resource now, not rolled per gather — one gather per resource is enough to see the specialty bonus, not "several, to see if it gets lost in the noise." The plan doc's original A4 question ("does it get lost in *normal variance*?") was written against the old per-gather-roll model; there's no longer any gather-to-gather variance for it to get lost in at a single planet, so treat the comparison as: does the specialty resource's fixed quality read as a clear step up from a non-specialty resource's fixed quality on the *same* planet, not as a noisy-vs-consistent question.
 1. Your starting planet's auto-discovered neighbor is a Gold-tier SuperEarth with a real specialty resource (Hydrogen Gas). Travel there (Initiate Voyage → Resolve Arrival, same as A3).
 2. On **Gather**, the header shows `<tier> tier — specialty: <ResourceName>` — confirm it names the specialty.
-3. Click **`> Gather <specialty resource>`** several times and compare against a non-specialty resource's rolls on the same planet.
+3. Click **`> Gather <specialty resource>`** once and note its quality, then gather a non-specialty resource once and compare — no need to repeat either, both are fixed.
 4. For extra variety, two more discovered planets have their own real specialties: a Terrestrial (Green tier, specialty Graphite Deposit) and another SuperEarth (Green tier, specialty Ammonia Gas) — both listed in the discovered-planets set from Step 1.
 
 ---

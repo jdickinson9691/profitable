@@ -97,6 +97,54 @@ No numbers previously proposed — new starting values, using a doubling-per-tie
 
 **Crew `unavailableUntil` duration:** 24 hours — matches the daily cadence used everywhere else in this design (drift windows, emergency windows, encounter windows), so a combat loss's crew consequence resolves on the same rhythm as everything else a player checks daily.
 
+## Ship Fuel, Cargo Hold Capacity, Planet Resource Generation, Ship Crew Roles
+
+**Status: design-only, zero implementation — not yet part of the buildable Alpha loop.** Unlike every system above, these four were locked in `profitable-design-questions.md` *after* the rest of this document was written, and none has a line of code behind it yet (`docs/functional-agents/ship.md`, `planet.md`, `gathering.md` carry the forward-looking contracts). Transcribed here now so this doc stays the single place every originated default lives, per its own stated purpose — not a signal that implementation has started.
+
+**Fuel capacity by ship tier** (reuses Scanner's tier-bonus delta shape on a 150 base):
+
+| Tier | Fuel capacity |
+|---|---|
+| Grey | 150 |
+| White | 190 |
+| Green | 230 |
+| Blue | 280 |
+| Purple | 340 |
+| Orange | 410 |
+| Gold | 500 |
+
+**Fuel cost per distance unit:** 0.03 (not tier-modified — sized so even Grey tier's capacity covers this galaxy's maximum possible distance, ~85 fuel at ~2,828 units, with headroom).
+
+**Refuel cost:** 2 Cr per fuel unit (a full refuel from empty costs at most 300 Cr at Grey tier, comparable to Grey-tier ship/scanner purchase costs).
+
+**Cargo hold capacity by tier** (max total item quantity across a voyage's `cargo` array):
+
+| Tier | Cargo capacity |
+|---|---|
+| Grey | 5 |
+| White | 8 |
+| Green | 12 |
+| Blue | 18 |
+| Purple | 25 |
+| Orange | 35 |
+| Gold | 50 |
+
+**Planet resource reset interval:** 168 hours (7 days) — long enough that a planet's resource identity feels stable across a normal session, short enough that the galaxy's economy genuinely shifts over a longer campaign.
+
+**Crew slots by ship tier** (Pilot / Combat-Engineer-or-Science-Officer / Systems Engineer / Crafter; "both" means the either-or slot becomes two independent slots):
+
+| Tier | Pilot | Combat Eng. / Sci. Officer | Systems Eng. | Crafter | Total |
+|---|---|---|---|---|---|
+| Grey | 1 | 1 (either) | 1 | 1 | 4 |
+| White | 1 | 1 (either) | 1 | 1 | 4 |
+| Green | 1 | 1 (either) | 1 | 2 | 5 |
+| Blue | 1 | 2 (both) | 1 | 2 | 6 |
+| Purple | 2 | 2 (both) | 1 | 2 | 7 |
+| Orange | 2 | 2 (both) | 2 | 2 | 8 |
+| Gold | 2 | 2 (both) | 2 | 3 | 9 |
+
+**Explicitly NOT decided — pending, not defaulted to anything:** the 5 ship-crew-role modifier *magnitudes* (Pilot's speed-bonus table, Combat Engineer's mitigation %, Science Officer's radius bonus, Systems Engineer's repair rate, the Crafter role's per-profession effect size). `profitable-design-questions.md`'s Ship Crew Roles section fixes *which* system each role affects, deliberately leaving *how much* for whoever implements this — do not invent numbers for these here or anywhere else without a real design pass, the same discipline this document already applies to Refining/Crafting/Galaxy-Planets' locked values (see the correction note at the top of this file).
+
 ---
 
 ## Note on This Being a Starting Point, Not a Conclusion

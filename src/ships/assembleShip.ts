@@ -2,6 +2,7 @@ import type { Ship } from "../data/types/ship.ts";
 import type { ShipComponent } from "../data/types/shipComponent.ts";
 import type { ComponentCategory } from "../data/types/componentCategory.ts";
 import { deriveShipTier } from "./deriveShipTier.ts";
+import { deriveFuelCapacity } from "./deriveFuelCapacity.ts";
 
 // Phase 5 GDD §2.1/§2.3. Necessary completion: takes the actual crafted
 // ShipComponent directly rather than a componentId into an implicit
@@ -25,5 +26,20 @@ export function assembleShip(ship: Ship, component: ShipComponent, slot: Compone
   // Tier must never be stale relative to installed components (Agent
   // 20's own contract) -- recomputed on every assembly change, never
   // read off the previous ship.tier value.
-  return { ...updated, tier: deriveShipTier(updated) };
+  const tier = deriveShipTier(updated);
+
+  // Ship Fuel amendment: fuelCapacity recomputes at the same moment tier
+  // does -- never left stale (ship.md's own contract). This is also what
+  // ends the starting ship's STARTING_SHIP_FUEL_CAPACITY bootstrap
+  // exception: its first component change routes fuelCapacity through
+  // this normal per-tier lookup instead, per that constant's own
+  // "expires on first component change" rule. currentFuel is clamped
+  // down if the new capacity is smaller (never lost fuel simply appears,
+  // but an over-full tank relative to a shrunken capacity can't persist
+  // either), left unchanged otherwise -- a bigger tank doesn't retroactively
+  // refill itself.
+  const fuelCapacity = deriveFuelCapacity(tier);
+  const currentFuel = Math.min(updated.currentFuel, fuelCapacity);
+
+  return { ...updated, tier, fuelCapacity, currentFuel };
 }

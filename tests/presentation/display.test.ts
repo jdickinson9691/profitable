@@ -117,6 +117,8 @@ function ship(overrides: Partial<Ship> = {}): Ship {
     ownerId: "player-1",
     tier: "Blue",
     currentPlanetId: "destination",
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
     ...overrides,
   };

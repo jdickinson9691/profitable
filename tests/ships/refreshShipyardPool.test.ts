@@ -36,7 +36,10 @@ test("refreshShipyardPool() generates components matching the candidate's own ro
   for (let i = 0; i < 20; i++) {
     const pool = refreshShipyardPool("delta-rigelus", `seed-${i}`, 0);
     for (const candidate of pool.availableShips) {
-      assert.equal(deriveShipTier({ ...candidate, ownerId: "x", currentPlanetId: "y" }), candidate.tier);
+      assert.equal(
+        deriveShipTier({ ...candidate, ownerId: "x", currentPlanetId: "y", fuelCapacity: 100, currentFuel: 100 }),
+        candidate.tier,
+      );
       assert.equal(candidate.components.weapon?.tier, candidate.tier);
       assert.equal(candidate.components.engine?.tier, candidate.tier);
       assert.equal(candidate.components.shield?.tier, candidate.tier);

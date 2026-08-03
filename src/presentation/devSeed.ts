@@ -27,6 +27,7 @@ import { getWallet, setWallet, PLAYER_ID } from "./tradingState.ts";
 import { addCrewMember, getCrewRoster } from "./crewState.ts";
 import { addShip, getShipRoster, setScannerPool } from "./shipsState.ts";
 import { assembleShip } from "../ships/assembleShip.ts";
+import { deriveFuelCapacity } from "../ships/deriveFuelCapacity.ts";
 import { refreshScannerPool } from "../ships/refreshScannerPool.ts";
 import { SCANNER_PURCHASE_COST_BY_TIER } from "../data/constants/shipsAndTravelConfig.ts";
 import { CREW_CAPACITY_EXPANSION_BASE_COST, CREW_WAGE_BY_TIER, TIER_6_7_PROFESSIONS } from "../data/constants/crewConfig.ts";
@@ -84,6 +85,8 @@ function buildSeededShip(): Ship {
     ownerId: PLAYER_ID,
     tier: "Grey",
     currentPlanetId: startingPlanet.id,
+    fuelCapacity: deriveFuelCapacity("Grey"),
+    currentFuel: deriveFuelCapacity("Grey"),
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   for (const category of ["weapon", "engine", "shield", "cargoHold"] as const) {
@@ -106,6 +109,8 @@ function buildSeededGreyShip(): Ship {
     ownerId: PLAYER_ID,
     tier: "Grey",
     currentPlanetId: startingPlanet.id,
+    fuelCapacity: deriveFuelCapacity("Grey"),
+    currentFuel: deriveFuelCapacity("Grey"),
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
 }
@@ -117,6 +122,8 @@ function buildSeededGoldShip(): Ship {
     ownerId: PLAYER_ID,
     tier: "Grey",
     currentPlanetId: startingPlanet.id,
+    fuelCapacity: deriveFuelCapacity("Grey"),
+    currentFuel: deriveFuelCapacity("Grey"),
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
   for (const category of ["weapon", "engine", "shield", "cargoHold"] as const) {

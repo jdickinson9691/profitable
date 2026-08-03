@@ -18,6 +18,7 @@ import {
 } from "../tradingState.ts";
 import { createListing } from "../../trading/createListing.ts";
 import { purchaseListing } from "../../trading/purchaseListing.ts";
+import { sellToMarket } from "../../trading/sellToMarket.ts";
 import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { PurchaseSucceeded } from "../../data/types/purchaseResult.ts";
 import type { Listing } from "../../data/types/listing.ts";
@@ -149,14 +150,30 @@ export class MarketScene extends Phaser.Scene {
       const resource = content.resources.find((r) => r.id === batch.resourceId);
       const marketState = getMarketState(planet.id, batch.resourceId);
       const suggestedPrice = marketState ? Math.round(marketState.currentPrice) : 10;
-      const label = `${resource?.name ?? batch.resourceId} x${batch.quantity} — list @ ${suggestedPrice}cr/unit`;
-      const button = this.scroll!.addText(16, y, `> ${label}`, {
+      const label = `${resource?.name ?? batch.resourceId} x${batch.quantity} @ ${suggestedPrice}cr/unit`;
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+
+      const listButton = this.scroll!.addText(560, y, "> List", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#2196f3",
       });
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.sell(index, suggestedPrice, planet));
+      listButton.setInteractive({ useHandCursor: true });
+      listButton.on("pointerdown", () => this.sell(index, suggestedPrice, planet));
+
+      // Trading Counterparty (profitable-design-questions.md): an instant,
+      // listing-free sell alongside the existing list-and-wait action --
+      // purely additive, neither replaces the other.
+      if (marketState) {
+        const sellNowButton = this.scroll!.addText(650, y, "> Sell Now", {
+          fontFamily: "monospace",
+          fontSize: "14px",
+          color: "#4caf50",
+        });
+        sellNowButton.setInteractive({ useHandCursor: true });
+        sellNowButton.on("pointerdown", () => this.sellNow(index, marketState));
+      }
+
       y += 22;
     });
 
@@ -235,6 +252,32 @@ export class MarketScene extends Phaser.Scene {
     setInventory(removeBatchAt(inventory, inventoryIndex));
 
     this.setStatus(`Listed ${batch.quantity}x ${resource.name} @ ${pricePerUnit}cr/unit`);
+    this.redraw();
+  }
+
+  private sellNow(inventoryIndex: number, marketState: ReturnType<typeof getMarketState>): void {
+    const inventory = getInventory();
+    const batch = inventory[inventoryIndex];
+    if (!batch || !marketState) return;
+
+    const resource = content.resources.find((r) => r.id === batch.resourceId);
+    if (!resource) return;
+
+    const result = sellToMarket(
+      { resource, quantity: batch.quantity, qualities: batch.qualities },
+      batch.quantity,
+      marketState,
+      getWallet(),
+      PLAYER_ID,
+    );
+
+    setWallet(result.updatedWallet);
+    replaceMarketState(result.updatedMarketState);
+    setInventory(removeBatchAt(inventory, inventoryIndex));
+
+    this.setStatus(
+      `Sold ${result.quantitySold}x ${resource.name} for ${result.proceedsToSeller.toFixed(0)}cr (fee: ${result.feeDeducted.toFixed(0)}cr)`,
+    );
     this.redraw();
   }
 }

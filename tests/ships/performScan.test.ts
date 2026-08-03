@@ -12,7 +12,12 @@ import type { ScannerCandidate } from "../../src/data/types/scannerCandidate.ts"
 import type { ScannerPool } from "../../src/data/types/scannerPool.ts";
 import type { Wallet } from "../../src/data/types/wallet.ts";
 import type { ScanSucceeded } from "../../src/data/types/performScanResult.ts";
-import { SCANNER_BASE_SCAN_RADIUS, SCANNER_TIER_RADIUS_BONUS } from "../../src/data/constants/shipsAndTravelConfig.ts";
+import type { CrewMember } from "../../src/data/types/crewMember.ts";
+import {
+  SCANNER_BASE_SCAN_RADIUS,
+  SCANNER_TIER_RADIUS_BONUS,
+  SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER,
+} from "../../src/data/constants/shipsAndTravelConfig.ts";
 
 const SRC_DIR = join(import.meta.dirname, "../../src");
 
@@ -26,6 +31,8 @@ function ship(overrides: Partial<Ship> = {}): Ship {
     name: "Ship-1",
     ownerId: "player-1",
     tier: "Grey",
+    fuelCapacity: 100,
+    currentFuel: 100,
     currentPlanetId: "delta-rigelus",
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
     ...overrides,
@@ -52,6 +59,23 @@ function planetAt(id: string, x: number, y: number, discovered = false): Planet 
 
 function scanner(tier: Scanner["tier"], id = `scanner-${tier}`): Scanner {
   return { id, tier, ownerId: "player-1" };
+}
+
+function scienceOfficer(tier: CrewMember["tier"]): CrewMember {
+  return {
+    id: "science-officer-1",
+    hiredByPlayerId: "player-1",
+    tier,
+    profession: null,
+    status: "idle",
+    assignedCraftId: null,
+    hiredAt: 0,
+    lastCheckedAt: 0,
+    wageAmount: 10,
+    lastPaidAt: 0,
+    shipRole: "Science Officer",
+    assignedShipId: "ship-1",
+  };
 }
 
 test("performScan() rejects when the ship is not docked at the given planet", () => {
@@ -160,6 +184,36 @@ test("guardrail: no code in the Scanner amendment references resolveEncounters()
     const source = readFileSync(join(SRC_DIR, file), "utf8");
     assert.doesNotMatch(source, /resolveEncounters|EncounterResult/, `${file} must not reference Travel Encounters`);
   }
+});
+
+// --- Ship Crew Roles amendment: Science Officer ---
+
+test("performScan() with no scienceOfficer argument behaves exactly as before the amendment", () => {
+  const withNull = performScan(ship(), dockedPlanet(), [scanner("Blue")], []);
+  const omitted = performScan(ship(), dockedPlanet(), [scanner("Blue")], []);
+  assert.deepEqual(withNull, omitted);
+});
+
+test("performScan() stacks SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER on top of the scanner's own radius bonus", () => {
+  const officerBonus = SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER.find((e) => e.tier === "Gold")!.radiusBonus;
+  const expectedRadius = SCANNER_BASE_SCAN_RADIUS + radiusBonus("Blue") + officerBonus;
+  const justInside = planetAt("inside", expectedRadius, 0);
+  const justOutside = planetAt("outside", expectedRadius + 1, 0);
+
+  const result = performScan(
+    ship(),
+    dockedPlanet(),
+    [scanner("Blue")],
+    [justInside, justOutside],
+    scienceOfficer("Gold"),
+  ) as ScanSucceeded;
+
+  assert.deepEqual(result.newlyDiscovered.map((p) => p.id), ["inside"]);
+});
+
+test("performScan() still rejects with no scanner owned even with a Science Officer assigned", () => {
+  const result = performScan(ship(), dockedPlanet(), [], [], scienceOfficer("Gold"));
+  assert.equal(result.scanned, false);
 });
 
 test("guardrail: no automatic/passive discovery -- resolveArrival() and initiateVoyage() never reference performScan or mutate Planet.discovered", () => {

@@ -21,6 +21,8 @@ Like Travel Encounters and Scanner, Combat is implemented as amendments to Agent
 ### 2.1 Reopened Deferrals (Deliberate, Not Scope Creep)
 Ship component degradation and crew loss were both explicitly deferred pending "a system like combat" existing. This is that system. Both stay **lightweight/non-permanent** per Section 2.4/2.5 below — not the permadeath/destruction that was actually ruled out.
 
+**"Non-permanent" precisely means what Section 4's Definition of Done proves below: the component is never removed from `ship.components`, and the crew member is never removed from the roster.** It does not mean the durability reduction itself heals on its own — nothing in this build restores a damaged component's durability short of crafting a full replacement. That gap sits oddly against the spirit of "lightweight, not permanent," and is exactly what the later (design-only, not-yet-built) Ship Crew Roles decision's **Systems Engineer** recommendation proposes to close — the first repair mechanic considered anywhere in this project. See `profitable-design-questions.md`'s Ship Crew Roles section and `docs/functional-agents/ship.md`.
+
 ### 2.2 Trigger Points
 Combat can be detected **during travel** (a fourth, low-weighted entry in the existing weighted type-split table alongside trade-opportunity, discovery, hazard) and **at planet arrival** (a separate, new check point). Both feed into the same underlying combat-resolution mechanism; hazard is not replaced or altered.
 
@@ -64,6 +66,8 @@ CrewMember {
   unavailableUntil: timestamp | null   // new
 }
 ```
+
+**As of Combat.** `CrewMember` was later extended again by the design-only, not-yet-built Ship Crew Roles decision (`shipRole`/`assignedShipId`) — this is the first time `CrewMember` gains any connection to a specific `Ship`. The combat-loss crew-unavailability mechanic above is confirmed **unaffected**: it still draws from the player's entire roster, not a per-ship one. One real interaction worth flagging for whoever eventually builds Crew Roles, not resolved by either document: once a crew member can be tied to a *specific* ship, a combat loss aboard Ship A benching a crew member assigned as Ship B's Pilot may read as surprising — see `profitable-design-questions.md`'s Ship Crew Roles section.
 
 `ShipComponent`'s existing `qualities` field already supports the durability reduction — no new field needed there, only a mutation to an existing value.
 

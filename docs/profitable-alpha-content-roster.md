@@ -128,6 +128,8 @@ Mapped to the four component categories plus general crafted goods, closing the 
 | Cargo Specialist | Cargo hold components |
 | Artisan | General tier 6-7 crafted goods (non-component) |
 
+**Note:** these are crafting professions (`CrewMember.profession`), unrelated to the newer ship-crew `shipRole` roles proposed in `profitable-design-questions.md`'s Ship Crew Roles section (Pilot, Combat Engineer, Science Officer, **Systems Engineer**, Crafter — design-only, not yet built). The ship-role list deliberately uses "Systems Engineer," not "Engineer," specifically to avoid colliding with the `Engineer` row above.
+
 ## 7. Ship Build Presets (4)
 
 Onboarding content only — suggested component combinations, not a new data structure (per Section 1.7's recommendation):

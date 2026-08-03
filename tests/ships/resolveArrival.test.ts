@@ -17,6 +17,8 @@ function ship(): Ship {
     ownerId: "player-1",
     tier: "Grey",
     currentPlanetId: "origin",
+    fuelCapacity: 100,
+    currentFuel: 100,
     components: { weapon: null, engine: null, shield: null, cargoHold: null },
   };
 }

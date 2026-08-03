@@ -91,13 +91,15 @@ Voyage {
 }
 ```
 
+**As of Phase 5.** `Ship` and `Voyage.cargo` above later gained fields/rules this document doesn't show — `fuelCapacity`/`currentFuel` (Ship Fuel) and a real capacity check on `cargo` (Cargo Hold Capacity) — both design-locked in `profitable-design-questions.md` but not yet implemented; see `docs/functional-agents/ship.md`. The 4-category `components` shape itself is unchanged — no 5th slot was added, and none is planned (see Section 5's isolation-boundary bullet below for why).
+
 ### New constant tables/values (encoded as data, not embedded in logic)
 
 - **Distance-to-travel-time scaling constant** (2.8) — tunable.
 - **Ship tier speed modifier table** (2.4) — reuses the shape of the refiner/crafter variance table; exact percentages tunable.
 - **Shipwright pool refresh interval and pool size per planet** (2.2) — tunable, same pattern as the Phase 4 crew pool.
 
-`Resource`/`Recipe`/`Schematic`/`Planet`/`Listing`/`PlanetMarketState`/`Wallet`/`CrewMember` types from prior phases are unchanged; Phase 5 does not touch them. Component recipes reuse the existing `Recipe` type — no new recipe shape is needed, only new recipe *content* (Agent 23).
+`Resource`/`Recipe`/`Schematic`/`Planet`/`Listing`/`PlanetMarketState`/`Wallet`/`CrewMember` types from prior phases are unchanged; Phase 5 does not touch them. Component recipes reuse the existing `Recipe` type — no new recipe shape is needed, only new recipe *content* (Agent 23). (**As of Phase 5** — `CrewMember` was later extended by the design-only, not-yet-built Ship Crew Roles decision, which connects a crew member to a specific ship for the first time; see `profitable-design-questions.md`'s section of that name and `docs/functional-agents/ship.md`. `Planet`/`Resource` were also later extended by Planet Resource Generation — see `docs/functional-agents/planet.md`.)
 
 ## 4. AI Agent Development Plan — Phase 5
 
@@ -125,6 +127,6 @@ Full individual contracts live in `docs/agents/agent-01-amendment-phase5-schema.
 
 Same as every prior phase (see `docs/agents/README.md`), plus:
 
-- **All prior isolation boundaries extend to Ships & Travel.** Nothing in Phase 5 may modify Agent 2's `refine()`/`craft()` internals, Agent 8's galaxy/planet generation logic, Agent 11's trading logic, or Agent 16's crew logic to accommodate ship/travel data. Ships & Travel Core *calls* `craft()` (for components) and reads planet position/discovery data, but never alters what any of those functions do.
+- **All prior isolation boundaries extend to Ships & Travel.** Nothing in Phase 5 may modify Agent 2's `refine()`/`craft()` internals, Agent 8's galaxy/planet generation logic, Agent 11's trading logic, or Agent 16's crew logic to accommodate ship/travel data. Ships & Travel Core *calls* `craft()` (for components) and reads planet position/discovery data, but never alters what any of those functions do. (**Later, deliberately, additively reopened once** — the design-only, not-yet-built Ship Crew Roles decision formally connects Agent 16's crew to a ship for the first time, via a new `assignToShipRole()` function that explicitly does not touch hiring/wage/upkeep/attrition logic. See `profitable-design-questions.md`'s Ship Crew Roles section — this is a documented amendment, not a violation of the boundary stated here.)
 - **No agent implements encounters, combat, or any travel-hazard mechanic.** Section 2.9 is explicit that this is deferred — building it now would be speculative work against a scope that doesn't exist yet, the same reasoning already applied to crew loss/attrition and trading's manipulation-detection deferral.
 - **The Phase 3 remote tier 6-7 sale mechanic must resolve through a real `Voyage`, not a stub.** Phase 3 explicitly deferred exact travel-time mechanics to this milestone; Agent 24's integration report must confirm this connection actually works, not just that Ships & Travel work in isolation.

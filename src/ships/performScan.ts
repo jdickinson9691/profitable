@@ -1,9 +1,14 @@
 import type { Ship } from "../data/types/ship.ts";
 import type { Planet } from "../data/types/planet.ts";
 import type { Scanner } from "../data/types/scanner.ts";
+import type { CrewMember } from "../data/types/crewMember.ts";
 import type { PerformScanResult } from "../data/types/performScanResult.ts";
 import { calculateDistance } from "./calculateDistance.ts";
-import { SCANNER_BASE_SCAN_RADIUS, SCANNER_TIER_RADIUS_BONUS } from "../data/constants/shipsAndTravelConfig.ts";
+import {
+  SCANNER_BASE_SCAN_RADIUS,
+  SCANNER_TIER_RADIUS_BONUS,
+  SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER,
+} from "../data/constants/shipsAndTravelConfig.ts";
 
 // Scanner/Probe GDD §2.4: "if multiple owned scanners, use only the
 // highest-tier one -- do not sum bonuses." SCANNER_TIER_RADIUS_BONUS is
@@ -33,11 +38,19 @@ function highestOwnedRadiusBonus(ownedScanners: readonly Scanner[]): number | nu
 // same field resolveArrival() already uses to represent "where a ship
 // currently is" -- there is no separate player-location concept anywhere
 // in this codebase to hang this check on instead.
+// Ship Crew Roles amendment: `scienceOfficer` is a new, optional trailing
+// parameter, same "caller resolves the assignment, this function doesn't
+// re-validate shipRole/assignedShipId" discipline as calculateTravelTime()'s
+// pilot parameter. Only stacks on top of an already-owned scanner's own
+// bonus (the pre-amendment "no scanner owned" rejection is untouched) --
+// per the design entry, this is an additional lever on scan range, not a
+// replacement for owning a scanner at all.
 export function performScan(
   ship: Ship,
   dockedPlanet: Planet,
   ownedScanners: readonly Scanner[],
   allPlanets: readonly Planet[],
+  scienceOfficer: CrewMember | null = null,
 ): PerformScanResult {
   if (ship.currentPlanetId !== dockedPlanet.id) {
     return { scanned: false, reason: "ship is not docked at the given planet" };
@@ -60,7 +73,14 @@ export function performScan(
     return { scanned: false, reason: "no scanner owned" };
   }
 
-  const effectiveRadius = SCANNER_BASE_SCAN_RADIUS + radiusBonus;
+  let scienceOfficerBonus = 0;
+  if (scienceOfficer) {
+    const entry = SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER.find((e) => e.tier === scienceOfficer.tier);
+    if (!entry) throw new RangeError(`no science officer radius bonus defined for tier ${scienceOfficer.tier}`);
+    scienceOfficerBonus = entry.radiusBonus;
+  }
+
+  const effectiveRadius = SCANNER_BASE_SCAN_RADIUS + radiusBonus + scienceOfficerBonus;
 
   const newlyDiscovered: Planet[] = [];
   for (const planet of allPlanets) {

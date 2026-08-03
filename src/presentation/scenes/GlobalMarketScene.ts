@@ -16,6 +16,7 @@ import {
 } from "../tradingState.ts";
 import { createListing } from "../../trading/createListing.ts";
 import { purchaseListing } from "../../trading/purchaseListing.ts";
+import { sellToGlobalMarket } from "../../trading/sellToGlobalMarket.ts";
 import { getGlobalPrice } from "../../trading/globalPrice.ts";
 import { GLOBAL_LISTABLE_MAX_ITEM_TIER } from "../../data/constants/tradingConfig.ts";
 import type { PurchaseSucceeded } from "../../data/types/purchaseResult.ts";
@@ -150,14 +151,35 @@ export class GlobalMarketScene extends Phaser.Scene {
       if (!resource || !this.canListGlobally(resource.itemTier)) return;
       anyListable = true;
 
-      const label = `${resource.name} x${batch.quantity} — list globally @ 10cr/unit`;
-      const button = this.scroll!.addText(16, y, `> ${label}`, {
+      const label = `${resource.name} x${batch.quantity}`;
+      this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+
+      const listButton = this.scroll!.addText(560, y, "> List @ 10cr", {
         fontFamily: "monospace",
         fontSize: "14px",
         color: "#2196f3",
       });
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.sell(index, 10));
+      listButton.setInteractive({ useHandCursor: true });
+      listButton.on("pointerdown", () => this.sell(index, 10));
+
+      // Trading Counterparty (profitable-design-questions.md): the global
+      // sibling of MarketScene's "Sell Now" -- only offered when at least
+      // one planet currently trades the item, mirroring the derived-price
+      // display's own try/catch above.
+      try {
+        const sellPrice = getGlobalPrice(resource.id, "sell", marketStates);
+        const sellNowButton = this.scroll!.addText(700, y, `> Sell Now @ ${sellPrice.toFixed(0)}cr`, {
+          fontFamily: "monospace",
+          fontSize: "14px",
+          color: "#4caf50",
+        });
+        sellNowButton.setInteractive({ useHandCursor: true });
+        sellNowButton.on("pointerdown", () => this.sellNow(index));
+      } catch {
+        // No planet currently trades this item -- no derivable sell price,
+        // so no "Sell Now" button, same as the price list above.
+      }
+
       y += 22;
     });
     if (!anyListable) {
@@ -236,6 +258,35 @@ export class GlobalMarketScene extends Phaser.Scene {
     setInventory(removeBatchAt(inventory, inventoryIndex));
 
     this.setStatus(`Listed ${batch.quantity}x ${resource.name} globally @ ${pricePerUnit}cr/unit`);
+    this.redraw();
+  }
+
+  private sellNow(inventoryIndex: number): void {
+    const inventory = getInventory();
+    const batch = inventory[inventoryIndex];
+    if (!batch) return;
+
+    const resource = content.resources.find((r) => r.id === batch.resourceId);
+    if (!resource) return;
+
+    // UI-level guard mirrors createListing()'s own tier check, same as the
+    // list action above -- this button is only ever rendered for an
+    // eligible, currently-tradeable item, so this call should never throw
+    // in practice.
+    const result = sellToGlobalMarket(
+      { resource, quantity: batch.quantity, qualities: batch.qualities },
+      batch.quantity,
+      getMarketStates(),
+      getWallet(),
+      PLAYER_ID,
+    );
+
+    setWallet(result.updatedWallet);
+    setInventory(removeBatchAt(inventory, inventoryIndex));
+
+    this.setStatus(
+      `Sold ${result.quantitySold}x ${resource.name} globally for ${result.proceedsToSeller.toFixed(0)}cr (fee: ${result.feeDeducted.toFixed(0)}cr)`,
+    );
     this.redraw();
   }
 }

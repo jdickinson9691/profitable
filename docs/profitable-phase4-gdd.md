@@ -63,6 +63,8 @@ Chosen over unlimited capacity (would undercut the exclusivity/scarcity theme bu
 
 Capacity expansion doubles as **another currency sink**, consistent with the reasoning already used for the transaction fee. Doesn't depend on the not-yet-designed Travel/ships milestone to function now, but leaves an obvious future hook — if ships/crew quarters get designed later, capacity could naturally scale with ship size too, without a redesign.
 
+**This hook was later picked up, but not literally as written.** Ship Crew Roles (`profitable-design-questions.md`, design-only, not yet built) does scale a crew-related number by ship tier — but it's a *separate* concept (`CREW_SLOTS_BY_TIER`, how many of a player's already-hired crew can hold a bridge-role slot on one ship) from `CrewCapacity` above (how many crew a player can hire in total), which stays exactly as designed here, untouched. The "ships/crew quarters" framing this hook imagined (a literal quarters component driving hire capacity) was explicitly considered and rejected in favor of the tier-based approach — see `docs/functional-agents/ship.md`.
+
 Base capacity and the expansion cost curve are left as tunables, not locked.
 
 ### 2.5 Interaction With the Player's Own Crafting
@@ -103,7 +105,10 @@ CrewMember {
   wageAmount: number            // recurring upkeep cost, tier-scaled (2.6)
   lastPaidAt: timestamp         // used to detect unpaid-upkeep attrition (2.7)
 }
+```
+**As of Phase 4.** `CrewMember` was later extended twice: `unavailableUntil` (Combat, built) and `shipRole`/`assignedShipId` (Ship Crew Roles, design-only, not yet built — see `profitable-design-questions.md`'s section of that name and `docs/functional-agents/ship.md`). Hiring/wage/upkeep/attrition as described below are unchanged by either.
 
+```
 CrewCapacity {
   playerId: string
   baseCapacity: number          // starting slots (2.4)

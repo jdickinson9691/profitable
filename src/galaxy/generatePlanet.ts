@@ -3,10 +3,18 @@ import type { Planet, PlanetPosition } from "../data/types/planet.ts";
 import type { PlanetType } from "../data/types/planetType.ts";
 import type { TierColor } from "../data/types/tierColor.ts";
 import type { RandomFn } from "../data/types/random.ts";
-import { PLANET_TYPE_ELIGIBILITY } from "../data/constants/planetTypeEligibility.ts";
-import { RESOURCE_SUBSET_PERCENTAGE } from "../data/constants/resourceSubsetPercentage.ts";
 import { getTierColor } from "../simulation/tierColor.ts";
 import { createSeededRandom } from "./seededRandom.ts";
+import { generateResourcesForCycle } from "./planetResourceCycle.ts";
+
+// Planet Resource Generation amendment: getEligibleResources/
+// computeSubsetCount/selectResourceSubset moved to resourceSubset.ts (both
+// this file and planetResourceCycle.ts need them, and generatePlanet() now
+// calls INTO generateResourcesForCycle() -- keeping them here would have
+// made that a circular import). Re-exported unchanged so no existing
+// import path needs to change.
+export { getEligibleResources, computeSubsetCount, selectResourceSubset } from "./resourceSubset.ts";
+export type { ResourceSubsetSelection } from "./resourceSubset.ts";
 
 const PLANET_TYPES: readonly PlanetType[] = ["Terrestrial", "SuperEarth", "Neptunian", "GasGiant"];
 
@@ -24,100 +32,23 @@ export function choosePlanetType(random: RandomFn): PlanetType {
   return PLANET_TYPES[index]!;
 }
 
-// Reconciles the GDD's broad category vocabulary ("Solid"/"Gas"/"Crystal")
-// against Resource.category, which stays a free-form string per the MVP's
-// Resource type (e.g. "radioactive crystal", "refined-metal"). Matched via
-// case-insensitive substring rather than exact equality -- this correctly
-// includes raw resources like "radioactive crystal" (containing its broad
-// category as a substring).
-//
-// Bug fix (found auditing the alpha playtest seed's starting planet, whose
-// producible list turned out to include Master Crystal Array -- a tier-3
-// CRAFTED item -- as if it were gatherable raw produce): the substring
-// match alone is not sufficient to exclude refined/crafted outputs.
-// content/README.md's own convention sets a refined/crafted resource's
-// `category` to its own id (so recipe-input category resolution never
-// collides with a second resource) -- and once Alpha's content roster grew
-// past the original 2 refined/crafted items, some of those self-referential
-// id-as-category strings started accidentally CONTAINING a broad category
-// substring (e.g. "master-crystal-array" contains "crystal";
-// "polished-crystal-lattice" contains "crystal"; "fusion-gas-mix" contains
-// "gas"). The original version of this comment claimed the substring match
-// "correctly excludes the 2 refined/crafted outputs" -- true only for the
-// 2 non-colliding names that existed at the time, not a real invariant;
-// the real content roster falsifies it (confirmed: 3 non-raw resources
-// leak through across the 4 planet types). Explicitly requiring itemTier
-// 1 (content/README.md's own "raw=1, refined=2, first-order-crafted=3"
-// pipeline-depth rule; missing itemTier defaults to 1, same convention
-// createListing.ts's tradeableResources filter already uses) closes this
-// regardless of what any future resource happens to be named.
-export function getEligibleResources(planetType: PlanetType, resources: Resource[]): Resource[] {
-  const eligibility = PLANET_TYPE_ELIGIBILITY.find((entry) => entry.planetType === planetType);
-  if (!eligibility) {
-    throw new RangeError(`no eligibility entry for planet type ${planetType}`);
-  }
-  const categories = eligibility.eligibleCategories.map((category) => category.toLowerCase());
-  return resources.filter((resource) => {
-    if ((resource.itemTier ?? 1) !== 1) return false;
-    const resourceCategory = resource.category.toLowerCase();
-    return categories.some((category) => resourceCategory.includes(category));
-  });
-}
-
-// Phase 2 GDD §2.4 -- count = max(1, ceil(percentage * eligible_count)).
-export function computeSubsetCount(tier: TierColor, eligibleCount: number): number {
-  const entry = RESOURCE_SUBSET_PERCENTAGE.find((candidate) => candidate.tier === tier);
-  if (!entry) {
-    throw new RangeError(`no resource subset percentage for tier ${tier}`);
-  }
-  return Math.max(1, Math.ceil(entry.percentage * eligibleCount));
-}
-
-export interface ResourceSubsetSelection {
-  producibleResourceIds: string[];
-  specialtyResourceId: string | null;
-}
-
-// Phase 2 GDD §2.5 -- the reserved-slot rule: for White-tier-or-higher
-// planets, the specialty is selected FIRST and occupies one of the `count`
-// slots (never inflating it); the remaining count-1 slots are filled by a
-// uniform draw from the eligible pool minus the specialty. Grey-tier
-// planets never get a specialty and fill all `count` slots normally.
-export function selectResourceSubset(
-  eligibleResources: Resource[],
-  tier: TierColor,
-  count: number,
-  random: RandomFn,
-): ResourceSubsetSelection {
-  const pool = [...eligibleResources];
-  const chosen: Resource[] = [];
-  let specialtyResourceId: string | null = null;
-
-  if (tier !== "Grey" && pool.length > 0) {
-    const specialtyIndex = Math.floor(random() * pool.length);
-    const [specialty] = pool.splice(specialtyIndex, 1);
-    specialtyResourceId = specialty!.id;
-    chosen.push(specialty!);
-  }
-
-  const remainingSlots = count - chosen.length;
-  for (let i = 0; i < remainingSlots && pool.length > 0; i++) {
-    const index = Math.floor(random() * pool.length);
-    const [picked] = pool.splice(index, 1);
-    chosen.push(picked!);
-  }
-
-  return {
-    producibleResourceIds: chosen.map((resource) => resource.id),
-    specialtyResourceId,
-  };
-}
-
 // Phase 2 GDD §2.1-2.9. `resources` is the full resource catalog -- not
 // part of Agent 8's originally-specified signature, added because the
 // subset-selection algorithm has no way to know which resources exist
 // otherwise (the same kind of necessary completion as the MVP's
 // loadContent()/RefiningRecipe additions).
+//
+// Planet Resource Generation amendment: resource-subset selection and the
+// new fixed-quality roll both moved into generateResourcesForCycle()
+// (planetResourceCycle.ts), called here with cycleIndex 0 for this
+// planet's initial snapshot -- one shared implementation with the live
+// reset-cycle read path, never two copies of the same formula. Tier/type
+// still roll here, on the original seed stream, exactly as before; only
+// the resource subset's own random draw moved to its own independently-
+// seeded stream (`${id}:resources:0`), the same "separate stream per
+// concern" pattern positions-vs-index generation already established --
+// confirmed safe: no test or real save data depends on the exact resource
+// subset a specific seed previously produced.
 export function generatePlanet(
   seed: string,
   position: PlanetPosition,
@@ -127,32 +58,30 @@ export function generatePlanet(
 
   const tier = rollPlanetTier(random);
   const planetType = choosePlanetType(random);
-  const eligibleResources = getEligibleResources(planetType, resources);
-  if (eligibleResources.length === 0) {
-    // GDD §2.4's max(1, ...) floor is only a real guarantee if every
-    // Planet Type has at least one eligible resource in the catalog to
-    // begin with -- that's a content/catalog invariant the design assumes,
-    // not something the formula itself can enforce. Failing loudly here
-    // beats silently producing an empty producibleResourceIds that would
-    // later fail planet.schema.json's minItems: 1 downstream.
-    throw new Error(`no eligible resources for planet type ${planetType} in the given catalog`);
-  }
-  const count = computeSubsetCount(tier, eligibleResources.length);
-  const { producibleResourceIds, specialtyResourceId } = selectResourceSubset(
-    eligibleResources,
+  const id = `planet-${seed}`;
+
+  // GDD §2.4's max(1, ...) floor is only a real guarantee if every Planet
+  // Type has at least one eligible resource in the catalog to begin with --
+  // generateResourcesForCycle() throws for an empty eligible pool, the same
+  // "fail loudly rather than silently produce an empty producibleResourceIds"
+  // behavior this function always had.
+  const { producibleResourceIds, specialtyResourceId, resourceQualities } = generateResourcesForCycle(
+    id,
     tier,
-    count,
-    random,
+    planetType,
+    resources,
+    0,
   );
 
   return {
-    id: `planet-${seed}`,
+    id,
     name: `Planet-${seed}`, // real name generation deferred per GDD §2.8
     planetType,
     tier,
     position,
     producibleResourceIds,
     specialtyResourceId,
+    resourceQualities,
     discovered: false, // starting-planet override is Agent 10's job
   };
 }

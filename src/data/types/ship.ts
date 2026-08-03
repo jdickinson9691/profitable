@@ -17,16 +17,35 @@ import type { TierColor } from "./tierColor.ts";
 // updated only by resolveArrival() on a successful arrival -- never
 // mutated mid-voyage; the Voyage record itself is what represents
 // "currently in transit."
+// Ship Fuel amendment (profitable-design-questions.md). Required, not
+// optional -- same precedent currentPlanetId itself set (added required,
+// fixtures updated) rather than Voyage.encounters/isRetreat's backward-
+// compatible-optional pattern, since every Ship going forward gets these
+// via purchaseShip()/assembleShip(), not retrofitted onto old save data
+// silently. fuelCapacity is derived from tier (deriveFuelCapacity(),
+// recomputed by assembleShip() on every component change, same moment
+// tier itself recomputes) -- never set directly except by the starting-
+// ship bootstrap exception (STARTING_SHIP_FUEL_CAPACITY).
 export interface Ship {
   id: string;
   name: string;
   ownerId: string;
   tier: TierColor;
   currentPlanetId: string;
+  fuelCapacity: number;
+  currentFuel: number;
   components: {
     weapon: ShipComponent | null;
     engine: ShipComponent | null;
     shield: ShipComponent | null;
     cargoHold: ShipComponent | null;
   };
+  // Ship Crew Roles amendment (resolveComponentRepair()). Optional, unlike
+  // fuelCapacity/currentFuel's required-field precedent -- missing means
+  // "never repaired/no tracked history," which resolveComponentRepair()
+  // reads as zero elapsed time on its first call for a given ship, never
+  // a free retroactive catch-up. Mutated only by resolveComponentRepair()
+  // itself, same "own field, own writer" pattern currentFuel follows for
+  // initiateVoyage()/refuelShip().
+  lastRepairedAt?: number;
 }

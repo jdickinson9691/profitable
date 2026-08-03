@@ -6,9 +6,11 @@ import { consume, addBatch, totalQuantity } from "../inventory.ts";
 import type { InventoryBatch } from "../inventory.ts";
 import { craft } from "../../simulation/craft.ts";
 import { resolveSchematicTier } from "../../simulation/schematicTier.ts";
-import { getShipsContent } from "../shipsState.ts";
+import { getShipsContent, getShipRoster } from "../shipsState.ts";
+import { getCrewRoster } from "../crewState.ts";
 import { formatQualityRoll, formatQualityLabel, describeCraftResult } from "../display.ts";
 import { renderOnboardingStep } from "./onboardingOverlay.ts";
+import { ARTISAN_MATERIAL_DISCOUNT_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { ResourceInstance } from "../../data/types/resourceInstance.ts";
 import type { Resource } from "../../data/types/resource.ts";
@@ -164,13 +166,40 @@ export class CraftScene extends Phaser.Scene {
     return content.resources.find((resource) => resource.category === category);
   }
 
+  // Ship Crew Roles amendment: an Artisan assigned as the active ship's
+  // Crafter discounts general-recipe input quantities, applied entirely
+  // upstream of craft() -- craft() itself is never touched (design entry's
+  // own "no new parameter, no crew read anywhere in src/simulation/craft.ts"
+  // rule). "The active ship" reuses TradeMapScene's own single-player
+  // convention (getShipRoster()[0]) -- there is no separate concept of
+  // "the ship the player is currently crafting from" anywhere else in this
+  // codebase to hang this off of instead.
+  private getArtisanDiscountPercent(): number {
+    const ship = getShipRoster()[0];
+    if (!ship) return 0;
+    const artisan = getCrewRoster().find(
+      (member) => member.assignedShipId === ship.id && member.shipRole === "Crafter" && member.profession === "Artisan",
+    );
+    if (!artisan) return 0;
+    return ARTISAN_MATERIAL_DISCOUNT_BY_TIER.find((e) => e.tier === artisan.tier)?.discountPercent ?? 0;
+  }
+
+  // Fraction of a slot's required quantity waived, rounded down, never
+  // below 1 unit required -- exactly ARTISAN_MATERIAL_DISCOUNT_BY_TIER's
+  // own documented rule.
+  private effectiveSlotQuantity(baseQuantity: number): number {
+    const discount = this.getArtisanDiscountPercent();
+    if (discount <= 0) return baseQuantity;
+    return Math.max(1, Math.floor(baseQuantity * (1 - discount)));
+  }
+
   private hasEnoughInputs(): boolean {
     const recipe = this.getSelectedRecipe();
     if (!recipe) return false;
     const inventory = getInventory();
     return recipe.inputs.every((slot) => {
       const resource = this.resolveSlotResource(slot.category);
-      return resource !== undefined && totalQuantity(inventory, resource.id) >= slot.quantity;
+      return resource !== undefined && totalQuantity(inventory, resource.id) >= this.effectiveSlotQuantity(slot.quantity);
     });
   }
 
@@ -184,7 +213,7 @@ export class CraftScene extends Phaser.Scene {
     const lines = recipe.inputs.map((slot) => {
       const resource = this.resolveSlotResource(slot.category);
       const have = resource ? totalQuantity(inventory, resource.id) : 0;
-      return `${resource?.name ?? slot.category}: ${have} / ${slot.quantity} needed`;
+      return `${resource?.name ?? slot.category}: ${have} / ${this.effectiveSlotQuantity(slot.quantity)} needed`;
     });
     const craftedCount = totalQuantity(inventory, recipe.outputResourceId);
     this.statusText?.setText([`Requires (${recipe.name}):`, ...lines, `Already crafted: ${craftedCount}`]);
@@ -210,7 +239,7 @@ export class CraftScene extends Phaser.Scene {
     for (const slot of recipe.inputs) {
       const resource = this.resolveSlotResource(slot.category);
       if (!resource) continue;
-      const { inventory: remaining, consumed } = consume(inventory, resource.id, slot.quantity);
+      const { inventory: remaining, consumed } = consume(inventory, resource.id, this.effectiveSlotQuantity(slot.quantity));
       inventory = remaining;
       consumedBySlot.push(consumed);
       for (const batch of consumed) {

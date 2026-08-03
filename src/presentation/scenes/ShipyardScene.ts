@@ -8,6 +8,7 @@ import {
   setShipyardPool,
   getShipRoster,
   addShip,
+  replaceShip,
   getScannerPool,
   setScannerPool,
   getOwnedScanners,
@@ -15,12 +16,14 @@ import {
 } from "../shipsState.ts";
 import { purchaseShip } from "../../ships/purchaseShip.ts";
 import { purchaseScanner } from "../../ships/purchaseScanner.ts";
-import { SHIP_PURCHASE_COST_BY_TIER, SCANNER_PURCHASE_COST_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
+import { refuelShip } from "../../ships/refuelShip.ts";
+import { SHIP_PURCHASE_COST_BY_TIER, SCANNER_PURCHASE_COST_BY_TIER, REFUEL_COST_PER_UNIT } from "../../data/constants/shipsAndTravelConfig.ts";
 import { TIER_COLOR_BREAKPOINTS } from "../../data/constants/tierColor.ts";
 import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { ShipCandidate } from "../../data/types/shipCandidate.ts";
 import type { ScannerCandidate } from "../../data/types/scannerCandidate.ts";
 import type { Scanner } from "../../data/types/scanner.ts";
+import type { Ship } from "../../data/types/ship.ts";
 import type { TierColor } from "../../data/types/tierColor.ts";
 import type { Planet } from "../../data/types/planet.ts";
 
@@ -154,11 +157,34 @@ export class ShipyardScene extends Phaser.Scene {
 
     for (const ship of roster) {
       const atHome = ship.currentPlanetId === planet.id;
-      const label = `${ship.name} — ${ship.tier} tier — at ${atHome ? planet.name : ship.currentPlanetId}`;
+      const label = `${ship.name} — ${ship.tier} tier — at ${atHome ? planet.name : ship.currentPlanetId} — fuel ${ship.currentFuel}/${ship.fuelCapacity}`;
       this.scroll!.addText(16, y, label, { fontFamily: "monospace", fontSize: "14px", color: "#cccccc" });
+
+      // Ship Fuel amendment: refuel only makes sense for a ship physically
+      // docked at this planet, mirroring "any planet with a shipyard" from
+      // refuelShip()'s own contract comment -- no fuel-hauling/remote
+      // refuel mechanic exists.
+      if (atHome && ship.currentFuel < ship.fuelCapacity) {
+        const refuelBtn = this.scroll!.addText(560, y, "> Refuel", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
+        refuelBtn.setInteractive({ useHandCursor: true });
+        refuelBtn.on("pointerdown", () => this.onRefuel(ship));
+      }
       y += 20;
     }
     return y;
+  }
+
+  private onRefuel(ship: Ship): void {
+    const amount = ship.fuelCapacity - ship.currentFuel;
+    const result = refuelShip(ship, getWallet(), amount);
+    if (!result.refueled) {
+      this.setStatus(`Refuel failed: ${result.reason}`);
+      return;
+    }
+    setWallet(result.updatedWallet);
+    replaceShip(result.updatedShip);
+    this.setStatus(`Refueled ${result.updatedShip.name} to ${result.updatedShip.currentFuel}/${result.updatedShip.fuelCapacity} (${amount * REFUEL_COST_PER_UNIT}cr).`);
+    this.redraw();
   }
 
   private onPurchase(candidate: ShipCandidate, planet: Planet): void {

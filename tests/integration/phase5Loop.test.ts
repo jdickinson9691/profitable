@@ -143,7 +143,7 @@ test("full extended loop: craft one component per category -> purchase a ship ->
   // Step 5: initiate and resolve a real voyage; the ship's location only
   // updates on a successful resolveArrival(), never before.
   const departedAt = 0;
-  const voyage = initiateVoyage(ship, originPlanet, destinationPlanet, [], departedAt, "voyage-full-loop");
+  const { voyage } = initiateVoyage(ship, originPlanet, destinationPlanet, [], departedAt, "voyage-full-loop");
   assert.equal(voyage.arrivesAt, departedAt + actualTravelTimeMs);
 
   const tooEarly = resolveArrival(voyage, ship, voyage.arrivesAt - 1);
@@ -191,7 +191,7 @@ test("Phase 3 remote tier 6-7 sale connection: the item travels via a real Voyag
   // listingQualities side-table already uses for ordinary purchases.
   const cargo = [{ itemId: exoticArtifact.id, quantity: 1 }];
   const departedAt = 0;
-  const voyage = initiateVoyage(ship, originPlanet, discoveredDestination, cargo, departedAt, "voyage-remote-sale");
+  const { voyage } = initiateVoyage(ship, originPlanet, discoveredDestination, cargo, departedAt, "voyage-remote-sale");
 
   const activeListings: Listing[] = [];
 

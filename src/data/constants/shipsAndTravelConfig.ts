@@ -5,6 +5,8 @@ import type { HazardTierModifier } from "../types/hazardTierModifier.ts";
 import type { HazardFailureCostBand } from "../types/hazardFailureCostBand.ts";
 import type { ScannerPurchaseCostByTier } from "../types/scannerPurchaseCost.ts";
 import type { ScannerTierRadiusBonus } from "../types/scannerTierRadiusBonus.ts";
+import type { TierColor } from "../types/tierColor.ts";
+import type { ShipCrewRole } from "../types/shipCrewRole.ts";
 
 // Phase 5 GDD §2/§3 -- tunable ships & travel constants. Like Phase 4's
 // crewConfig.ts, the design doc gives no example numbers for these (only
@@ -398,3 +400,231 @@ export function setScannerTierRadiusBonusForTier(tier: ScannerTierRadiusBonus["t
   const entry = SCANNER_TIER_RADIUS_BONUS.find((e) => e.tier === tier);
   if (entry) entry.radiusBonus = radiusBonus;
 }
+
+// Ship Fuel (profitable-design-questions.md, "Amendment -- Fuel
+// Management" for the retuned values). Grey 50 up to Gold 190 -- retuned
+// down from an original 150-500 table specifically so a low/mid-tier ship
+// (Grey/White/Green) cannot always reach the galaxy's single worst-case
+// route (~85 fuel at the ~2,828-unit max diagonal) in one hop, while Blue
+// and above always can (100 > 85) -- the numeric line where fuel becomes a
+// genuine routing constraint.
+export const FUEL_CAPACITY_BY_TIER: readonly { tier: TierColor; capacity: number }[] = [
+  { tier: "Grey", capacity: 50 },
+  { tier: "White", capacity: 65 },
+  { tier: "Green", capacity: 80 },
+  { tier: "Blue", capacity: 100 },
+  { tier: "Purple", capacity: 125 },
+  { tier: "Orange", capacity: 155 },
+  { tier: "Gold", capacity: 190 },
+];
+export function setFuelCapacityForTier(tier: TierColor, capacity: number): void {
+  const entry = FUEL_CAPACITY_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.capacity = capacity;
+}
+
+// Deliberately not tier-modified -- a faster (higher-tier) ship reaching a
+// destination sooner doesn't burn less fuel for covering the same physical
+// distance; tier's fuel-relevant effect is capacity (how far a full tank
+// reaches), not efficiency (cost per unit distance).
+export let FUEL_COST_PER_DISTANCE_UNIT = 0.03;
+export function setFuelCostPerDistanceUnit(value: number): void {
+  FUEL_COST_PER_DISTANCE_UNIT = value;
+}
+
+export let REFUEL_COST_PER_UNIT = 2;
+export function setRefuelCostPerUnit(value: number): void {
+  REFUEL_COST_PER_UNIT = value;
+}
+
+// Bootstrap exception, not a general Grey-tier rule: the very first,
+// pre-assigned starting ship's fuelCapacity/currentFuel are set to this
+// flat value instead of FUEL_CAPACITY_BY_TIER[Grey]'s tighter 50, so a
+// bad-seed roll can never make secondaryDiscoveredPlanet structurally
+// unreachable from startingPlanet before the player can afford repeated
+// refueling. Comfortably clears the ~85-fuel worst-case single trip.
+// Expires the moment the starting ship's first component change routes it
+// through the normal deriveFuelCapacity() lookup instead.
+export let STARTING_SHIP_FUEL_CAPACITY = 100;
+export function setStartingShipFuelCapacity(value: number): void {
+  STARTING_SHIP_FUEL_CAPACITY = value;
+}
+
+// Cargo Hold Capacity (profitable-design-questions.md). Constrains
+// Voyage.cargo only, not general inventory -- a modest curve reflecting an
+// occasional remote-sale trip's cargo, not a primary resource-hauling
+// mechanic.
+export const CARGO_HOLD_CAPACITY_BY_TIER: readonly { tier: TierColor; capacity: number }[] = [
+  { tier: "Grey", capacity: 5 },
+  { tier: "White", capacity: 8 },
+  { tier: "Green", capacity: 12 },
+  { tier: "Blue", capacity: 18 },
+  { tier: "Purple", capacity: 25 },
+  { tier: "Orange", capacity: 35 },
+  { tier: "Gold", capacity: 50 },
+];
+export function setCargoHoldCapacityForTier(tier: TierColor, capacity: number): void {
+  const entry = CARGO_HOLD_CAPACITY_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.capacity = capacity;
+}
+
+// Ship Crew Roles (profitable-design-questions.md). combatEngineerOrScienceOfficer
+// is a single COMBINED pool shared between the two roles, not two
+// independent per-role caps -- at Grey/White/Green the pool holds 1 total
+// (either a Combat Engineer or a Science Officer, never both at once,
+// since only 1 slot exists between them); at Blue and above the pool
+// grows to 2, letting both roles be filled simultaneously. Not a strict
+// "exactly one of each" quota once the pool reaches 2 -- two Combat
+// Engineers (or two Science Officers) would also be valid, the pool just
+// caps the combined total, the simpler of two readings the design entry's
+// "2 (both at once)" wording could support.
+export interface CrewSlotsByTierEntry {
+  tier: TierColor;
+  pilot: number;
+  combatEngineerOrScienceOfficer: number;
+  systemsEngineer: number;
+  crafter: number;
+}
+export const CREW_SLOTS_BY_TIER: readonly CrewSlotsByTierEntry[] = [
+  { tier: "Grey", pilot: 1, combatEngineerOrScienceOfficer: 1, systemsEngineer: 1, crafter: 1 },
+  { tier: "White", pilot: 1, combatEngineerOrScienceOfficer: 1, systemsEngineer: 1, crafter: 1 },
+  { tier: "Green", pilot: 1, combatEngineerOrScienceOfficer: 1, systemsEngineer: 1, crafter: 2 },
+  { tier: "Blue", pilot: 1, combatEngineerOrScienceOfficer: 2, systemsEngineer: 1, crafter: 2 },
+  { tier: "Purple", pilot: 2, combatEngineerOrScienceOfficer: 2, systemsEngineer: 1, crafter: 2 },
+  { tier: "Orange", pilot: 2, combatEngineerOrScienceOfficer: 2, systemsEngineer: 2, crafter: 2 },
+  { tier: "Gold", pilot: 2, combatEngineerOrScienceOfficer: 2, systemsEngineer: 2, crafter: 3 },
+];
+export function setCrewSlotsForTier(tier: TierColor, entry: Omit<CrewSlotsByTierEntry, "tier">): void {
+  const index = CREW_SLOTS_BY_TIER.findIndex((e) => e.tier === tier);
+  if (index === -1) return;
+  (CREW_SLOTS_BY_TIER as CrewSlotsByTierEntry[])[index] = { tier, ...entry };
+}
+
+// Role-effect magnitudes, all originated defaults/tunables, not locked in
+// the design entry -- "this decision fixes which profession affects which
+// system, not the magnitude" (Ship Crew Roles' own closing status line).
+export const PILOT_SPEED_BONUS_BY_TIER: readonly { tier: TierColor; travelTimeMultiplier: number }[] = [
+  { tier: "Grey", travelTimeMultiplier: 1.0 },
+  { tier: "White", travelTimeMultiplier: 0.98 },
+  { tier: "Green", travelTimeMultiplier: 0.96 },
+  { tier: "Blue", travelTimeMultiplier: 0.94 },
+  { tier: "Purple", travelTimeMultiplier: 0.93 },
+  { tier: "Orange", travelTimeMultiplier: 0.91 },
+  { tier: "Gold", travelTimeMultiplier: 0.9 },
+];
+export function setPilotSpeedBonusForTier(tier: TierColor, travelTimeMultiplier: number): void {
+  const entry = PILOT_SPEED_BONUS_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.travelTimeMultiplier = travelTimeMultiplier;
+}
+
+// Combat Engineer: reduces the loss-outcome mitigation constants
+// (COMBAT_COMPONENT_DURABILITY_DAMAGE_PERCENT/COMBAT_CREW_UNAVAILABLE_DURATION_HOURS)
+// by this fraction on a loss -- mitigation only, never the win/lose roll.
+export const COMBAT_ENGINEER_MITIGATION_BY_TIER: readonly { tier: TierColor; mitigationPercent: number }[] = [
+  { tier: "Grey", mitigationPercent: 0.05 },
+  { tier: "White", mitigationPercent: 0.1 },
+  { tier: "Green", mitigationPercent: 0.15 },
+  { tier: "Blue", mitigationPercent: 0.2 },
+  { tier: "Purple", mitigationPercent: 0.3 },
+  { tier: "Orange", mitigationPercent: 0.4 },
+  { tier: "Gold", mitigationPercent: 0.5 },
+];
+export function setCombatEngineerMitigationForTier(tier: TierColor, mitigationPercent: number): void {
+  const entry = COMBAT_ENGINEER_MITIGATION_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.mitigationPercent = mitigationPercent;
+}
+
+// Science Officer: an additional scan-radius bonus stacking with
+// SCANNER_TIER_RADIUS_BONUS, keyed off the crew member's own tier.
+export const SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER: readonly { tier: TierColor; radiusBonus: number }[] = [
+  { tier: "Grey", radiusBonus: 10 },
+  { tier: "White", radiusBonus: 20 },
+  { tier: "Green", radiusBonus: 35 },
+  { tier: "Blue", radiusBonus: 55 },
+  { tier: "Purple", radiusBonus: 80 },
+  { tier: "Orange", radiusBonus: 110 },
+  { tier: "Gold", radiusBonus: 150 },
+];
+export function setScienceOfficerRadiusBonusForTier(tier: TierColor, radiusBonus: number): void {
+  const entry = SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.radiusBonus = radiusBonus;
+}
+
+// Crafter (Artisan only): a material-quantity discount on general
+// (non-component) recipes, applied entirely upstream of craft() in
+// CraftScene -- see crafting.md's own cross-reference. Fraction of a
+// recipe's required input quantity waived, per input slot, rounded down;
+// never below 1 unit required.
+export const ARTISAN_MATERIAL_DISCOUNT_BY_TIER: readonly { tier: TierColor; discountPercent: number }[] = [
+  { tier: "Grey", discountPercent: 0.05 },
+  { tier: "White", discountPercent: 0.1 },
+  { tier: "Green", discountPercent: 0.15 },
+  { tier: "Blue", discountPercent: 0.2 },
+  { tier: "Purple", discountPercent: 0.25 },
+  { tier: "Orange", discountPercent: 0.3 },
+  { tier: "Gold", discountPercent: 0.35 },
+];
+export function setArtisanMaterialDiscountForTier(tier: TierColor, discountPercent: number): void {
+  const entry = ARTISAN_MATERIAL_DISCOUNT_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.discountPercent = discountPercent;
+}
+
+// resolveComponentRepair() (task #89) -- the resolved 3-way Systems
+// Engineer / Citadel Level 3 / Crafter interaction. Durability points
+// restored per elapsed hour, keyed by the Systems Engineer crew member's
+// own tier. Unconditional -- applies to any damaged component category
+// regardless of activeVoyage/dockedPlanet, the one repair source with no
+// location gate.
+export const SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER: readonly { tier: TierColor; rate: number }[] = [
+  { tier: "Grey", rate: 0.5 },
+  { tier: "White", rate: 0.75 },
+  { tier: "Green", rate: 1 },
+  { tier: "Blue", rate: 1.5 },
+  { tier: "Purple", rate: 2 },
+  { tier: "Orange", rate: 2.5 },
+  { tier: "Gold", rate: 3 },
+];
+export function setSystemsEngineerRepairRateForTier(tier: TierColor, rate: number): void {
+  const entry = SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.rate = rate;
+}
+
+// Same shape, deliberately smaller magnitude than Systems Engineer's own
+// per-tier rate (a specialist assist to one matching category, not the
+// primary repair role) -- only accrues while activeVoyage !== null
+// ("while traveling", the design entry's own literal wording).
+export const CRAFTER_REPAIR_RATE_BY_TIER: readonly { tier: TierColor; rate: number }[] = [
+  { tier: "Grey", rate: 0.25 },
+  { tier: "White", rate: 0.4 },
+  { tier: "Green", rate: 0.55 },
+  { tier: "Blue", rate: 0.75 },
+  { tier: "Purple", rate: 1 },
+  { tier: "Orange", rate: 1.25 },
+  { tier: "Gold", rate: 1.5 },
+];
+export function setCrafterRepairRateForTier(tier: TierColor, rate: number): void {
+  const entry = CRAFTER_REPAIR_RATE_BY_TIER.find((e) => e.tier === tier);
+  if (entry) entry.rate = rate;
+}
+
+// A single flat rate, not tier-keyed -- a Citadel has levels, not a
+// crew/ship tier. Only accrues while docked (activeVoyage === null) at an
+// owned Level 3 Citadel.
+export let CITADEL_LEVEL_3_REPAIR_RATE = 1;
+export function setCitadelLevel3RepairRate(value: number): void {
+  CITADEL_LEVEL_3_REPAIR_RATE = value;
+}
+
+// A new, independent cap constant for resolveComponentRepair()'s own
+// elapsed-time window -- deliberately not a reuse of crew's
+// ELAPSED_TIME_CAP_HOURS, so the two catch-up windows can be tuned
+// independently even though they share the same "cap the elapsed hours"
+// shape (same "reuse the shape, not the literal constant" discipline this
+// project follows whenever a pattern crosses a system boundary).
+export let REPAIR_ELAPSED_TIME_CAP_HOURS = 48;
+export function setRepairElapsedTimeCapHours(value: number): void {
+  REPAIR_ELAPSED_TIME_CAP_HOURS = value;
+}
+
+// Re-exported so callers elsewhere don't need a second import path just
+// for the role literal union.
+export type { ShipCrewRole };

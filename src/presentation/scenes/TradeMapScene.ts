@@ -476,9 +476,27 @@ export class TradeMapScene extends Phaser.Scene {
     // tier 6-7 sale connection) is Agent 24's own required integration
     // check, exercised directly against initiateVoyage()/resolveArrival(),
     // not through a cargo-selection UI this contract never asked for.
-    const voyage = initiateVoyage(ship, originPlanet, destinationPlanet, [], Date.now(), `voyage-${ship.id}-${Date.now()}`);
-    addVoyage(voyage);
-    this.setStatus(`${ship.name} departed for ${destinationPlanet.name}.`);
+    //
+    // Ship Fuel / Cargo Hold Capacity amendment: initiateVoyage() now
+    // throws (insufficient fuel, or cargo over capacity -- unreachable
+    // here with an always-empty cargo array, but the check still runs)
+    // instead of always succeeding, and returns { voyage, updatedShip }
+    // since fuel deduction is a real Ship state change to persist.
+    try {
+      const { voyage, updatedShip } = initiateVoyage(
+        ship,
+        originPlanet,
+        destinationPlanet,
+        [],
+        Date.now(),
+        `voyage-${ship.id}-${Date.now()}`,
+      );
+      replaceShip(updatedShip);
+      addVoyage(voyage);
+      this.setStatus(`${ship.name} departed for ${destinationPlanet.name}.`);
+    } catch (error) {
+      this.setStatus(`Cannot depart: ${error instanceof Error ? error.message : String(error)}`);
+    }
     this.redraw();
   }
 

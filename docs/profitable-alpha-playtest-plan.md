@@ -16,7 +16,7 @@ These already have exact numbers — this isn't about finding new values, it's a
 
 **A3 — Planet tier gathering feel.** Gather the same resource on a Grey-tier planet and a Gold-tier planet back to back. **Watch for:** is the difference in output quality obviously noticeable, making "which planet do I gather on" feel like a real decision?
 
-**A4 — Specialty planet payoff.** Find a White-or-higher planet with a specialty resource, gather it several times. **Watch for:** does the specialty resource's +15 bonus feel like a genuine reason to seek out that specific planet, or does it get lost in normal variance?
+**A4 — Specialty planet payoff.** Find a White-or-higher planet with a specialty resource, gather it once, then gather a non-specialty resource on the same planet once. **Watch for:** does the specialty resource's +15 bonus read as a genuine, clearly-visible step up over the non-specialty resource, making that specific planet feel worth seeking out? (Revised — per `profitable-design-questions.md`'s Planet Resource Generation, a planet-resource's quality is now fixed at generation rather than rolled fresh per gather, so there's no longer any gather-to-gather variance for the bonus to "get lost in" at a single planet; the comparison is now a clean fixed-value-vs-fixed-value one, not signal-vs-noise.)
 
 ---
 

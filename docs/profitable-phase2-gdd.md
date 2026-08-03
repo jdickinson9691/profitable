@@ -2,6 +2,8 @@
 
 Status: **Phase 2 complete and verified** (Agent 1 amendment, Agent 8, Agent 9, and Agent 10 all delivered; full roster committed). This document remains the historical record of the Phase 2 build; see `CLAUDE.md` for current project status and the next milestone (the trading loop).
 
+**Later, materially superseded (design-only, not yet built):** this document describes gathering as a **per-action random roll** — a fresh `rollQuality()` call every time a player gathers, modified by the planet's tier/specialty. The "Planet Resource Generation" decision in `profitable-design-questions.md` replaces that: each planet-resource pair now gets **one fixed quality**, rolled once at generation (and again on a periodic reset cycle), with gathering itself becoming a deterministic read. The tier-modifier/specialty-bonus *formula* below is unchanged — only *when* it's applied moved, from every gather action to planet generation/reset. See `docs/functional-agents/planet.md` and `gathering.md` for the current, consolidated contract.
+
 ---
 
 ## 1. Phase 2 Scope
