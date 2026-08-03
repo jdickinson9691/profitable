@@ -63,6 +63,30 @@ public class ParityCorpus
 
     [JsonPropertyName("expireListingsCases")]
     public List<ExpireListingsCase> ExpireListingsCases { get; set; } = new();
+
+    [JsonPropertyName("hireCrewCases")]
+    public List<HireCrewCase> HireCrewCases { get; set; } = new();
+
+    [JsonPropertyName("dismissCrewCases")]
+    public List<DismissCrewCase> DismissCrewCases { get; set; } = new();
+
+    [JsonPropertyName("payUpkeepCases")]
+    public List<PayUpkeepCase> PayUpkeepCases { get; set; } = new();
+
+    [JsonPropertyName("checkAttritionCases")]
+    public List<CheckAttritionCase> CheckAttritionCases { get; set; } = new();
+
+    [JsonPropertyName("purchaseCapacityCases")]
+    public List<PurchaseCapacityCase> PurchaseCapacityCases { get; set; } = new();
+
+    [JsonPropertyName("refreshCrewPoolCases")]
+    public List<RefreshCrewPoolCase> RefreshCrewPoolCases { get; set; } = new();
+
+    [JsonPropertyName("assignToCraftCases")]
+    public List<AssignToCraftCase> AssignToCraftCases { get; set; } = new();
+
+    [JsonPropertyName("resolveBackgroundCraftingCases")]
+    public List<ResolveBackgroundCraftingCase> ResolveBackgroundCraftingCases { get; set; } = new();
 }
 
 public class TierColorCase
@@ -632,4 +656,349 @@ public class ExpireListingsCase
 
     [JsonPropertyName("expectedResult")]
     public SerializedListingExpiryResult ExpectedResult { get; set; } = new();
+}
+
+// ---- Sub-Phase C (Crew) parity DTOs (agent-50-unity-crew-parity
+// -validation.md). ----
+
+public class SerializedCrewCandidate
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("profession")]
+    public string? Profession { get; set; }
+}
+
+public class SerializedCrewCapacity
+{
+    [JsonPropertyName("playerId")]
+    public string PlayerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("baseCapacity")]
+    public int BaseCapacity { get; set; }
+
+    [JsonPropertyName("purchasedSlots")]
+    public int PurchasedSlots { get; set; }
+}
+
+public class SerializedPlanetCrewPool
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("availableHires")]
+    public List<SerializedCrewCandidate> AvailableHires { get; set; } = new();
+
+    [JsonPropertyName("lastRefreshedAt")]
+    public long LastRefreshedAt { get; set; }
+}
+
+public class SerializedCrewMember
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("hiredByPlayerId")]
+    public string HiredByPlayerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("profession")]
+    public string? Profession { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("assignedCraftId")]
+    public string? AssignedCraftId { get; set; }
+
+    [JsonPropertyName("hiredAt")]
+    public long HiredAt { get; set; }
+
+    [JsonPropertyName("lastCheckedAt")]
+    public long LastCheckedAt { get; set; }
+
+    [JsonPropertyName("wageAmount")]
+    public double WageAmount { get; set; }
+
+    [JsonPropertyName("lastPaidAt")]
+    public long LastPaidAt { get; set; }
+
+    [JsonPropertyName("unavailableUntil")]
+    public long? UnavailableUntil { get; set; }
+
+    [JsonPropertyName("shipRole")]
+    public string? ShipRole { get; set; }
+
+    [JsonPropertyName("assignedShipId")]
+    public string? AssignedShipId { get; set; }
+}
+
+public class HireCrewCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("candidate")]
+    public SerializedCrewCandidate Candidate { get; set; } = new();
+
+    [JsonPropertyName("pool")]
+    public SerializedPlanetCrewPool Pool { get; set; } = new();
+
+    [JsonPropertyName("capacity")]
+    public SerializedCrewCapacity Capacity { get; set; } = new();
+
+    [JsonPropertyName("existingCrew")]
+    public List<SerializedCrewMember> ExistingCrew { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("playerId")]
+    public string PlayerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedHireResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedHireResult
+{
+    [JsonPropertyName("hired")]
+    public bool Hired { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember? CrewMember { get; set; }
+
+    [JsonPropertyName("updatedPool")]
+    public SerializedPlanetCrewPool? UpdatedPool { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class DismissCrewCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("playerId")]
+    public string PlayerId { get; set; } = string.Empty;
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedDismissResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedDismissResult
+{
+    [JsonPropertyName("dismissed")]
+    public bool Dismissed { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+}
+
+public class PayUpkeepCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPaymentResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedPaymentResult
+{
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember? UpdatedCrewMember { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class CheckAttritionCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedAttritionResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedAttritionResult
+{
+    [JsonPropertyName("departed")]
+    public bool Departed { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+}
+
+public class PurchaseCapacityCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("capacity")]
+    public SerializedCrewCapacity Capacity { get; set; } = new();
+
+    [JsonPropertyName("wallet")]
+    public SerializedWallet Wallet { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPurchaseCapacityResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedPurchaseCapacityResult
+{
+    [JsonPropertyName("purchased")]
+    public bool Purchased { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedCapacity")]
+    public SerializedCrewCapacity? UpdatedCapacity { get; set; }
+
+    [JsonPropertyName("updatedWallet")]
+    public SerializedWallet? UpdatedWallet { get; set; }
+}
+
+public class RefreshCrewPoolCase
+{
+    [JsonPropertyName("planetId")]
+    public string PlanetId { get; set; } = string.Empty;
+
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedPlanetCrewPool ExpectedResult { get; set; } = new();
+}
+
+public class SerializedCraftAction
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("inputs")]
+    public List<SerializedInstance> Inputs { get; set; } = new();
+
+    [JsonPropertyName("recipeId")]
+    public string RecipeId { get; set; } = string.Empty;
+
+    [JsonPropertyName("schematicTier")]
+    public string SchematicTier { get; set; } = string.Empty;
+}
+
+public class AssignToCraftCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("craftAction")]
+    public SerializedCraftAction CraftAction { get; set; } = new();
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedAssignResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedAssignResult
+{
+    [JsonPropertyName("assigned")]
+    public bool Assigned { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember? UpdatedCrewMember { get; set; }
+
+    [JsonPropertyName("craftResult")]
+    public ExpectedCraftResult? CraftResult { get; set; }
+}
+
+public class ResolveBackgroundCraftingCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("crewMember")]
+    public SerializedCrewMember CrewMember { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("backgroundRateOmitted")]
+    public bool BackgroundRateOmitted { get; set; }
+
+    [JsonPropertyName("backgroundRate")]
+    public double? BackgroundRate { get; set; }
+
+    [JsonPropertyName("maxUnits")]
+    public double? MaxUnits { get; set; }
+
+    [JsonPropertyName("randomSequence")]
+    public List<double> RandomSequence { get; set; } = new();
+
+    [JsonPropertyName("expectedResult")]
+    public SerializedBackgroundResult ExpectedResult { get; set; } = new();
+}
+
+public class SerializedBackgroundResult
+{
+    [JsonPropertyName("resolved")]
+    public bool Resolved { get; set; }
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("unitsCompleted")]
+    public int? UnitsCompleted { get; set; }
+
+    [JsonPropertyName("results")]
+    public List<ExpectedCraftResult>? Results { get; set; }
+
+    [JsonPropertyName("updatedCrewMember")]
+    public SerializedCrewMember UpdatedCrewMember { get; set; } = new();
 }

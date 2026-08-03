@@ -38,6 +38,14 @@ import { purchaseListing } from "../src/trading/purchaseListing.ts";
 import { sellToMarket } from "../src/trading/sellToMarket.ts";
 import { sellToGlobalMarket } from "../src/trading/sellToGlobalMarket.ts";
 import { expireListings } from "../src/trading/expireListings.ts";
+import { hireCrew } from "../src/crew/hireCrew.ts";
+import { dismissCrew } from "../src/crew/dismissCrew.ts";
+import { payUpkeep } from "../src/crew/payUpkeep.ts";
+import { checkAttrition } from "../src/crew/checkAttrition.ts";
+import { purchaseCapacity } from "../src/crew/purchaseCapacity.ts";
+import { refreshCrewPool } from "../src/crew/refreshCrewPool.ts";
+import { assignToCraft } from "../src/crew/assignToCraft.ts";
+import { resolveBackgroundCrafting } from "../src/crew/resolveBackgroundCrafting.ts";
 
 import type { Resource } from "../src/data/types/resource.ts";
 import type { ResourceInstance } from "../src/data/types/resourceInstance.ts";
@@ -50,6 +58,11 @@ import type { PlanetType } from "../src/data/types/planetType.ts";
 import type { Listing, MarketLocation } from "../src/data/types/listing.ts";
 import type { PlanetMarketState } from "../src/data/types/planetMarketState.ts";
 import type { Wallet } from "../src/data/types/wallet.ts";
+import type { CrewCandidate } from "../src/data/types/crewCandidate.ts";
+import type { CrewCapacity } from "../src/data/types/crewCapacity.ts";
+import type { CrewMember } from "../src/data/types/crewMember.ts";
+import type { PlanetCrewPool } from "../src/data/types/planetCrewPool.ts";
+import type { CraftAction } from "../src/data/types/craftAction.ts";
 
 const TIERS: TierColor[] = ["Grey", "White", "Green", "Blue", "Purple", "Orange", "Gold"];
 
@@ -654,6 +667,284 @@ const expireListingsCases = [
   },
 ];
 
+// ---- Sub-Phase C (Crew) cases. Real content resources/recipes for the
+// craft-touching functions (AssignToCraft/ResolveBackgroundCrafting);
+// hand-built crew/wallet/capacity fixtures elsewhere, since none of that
+// data comes from the content catalog. ----
+function serializeCrewMember(member: CrewMember): Record<string, unknown> {
+  return {
+    id: member.id,
+    hiredByPlayerId: member.hiredByPlayerId,
+    tier: member.tier,
+    profession: member.profession,
+    status: member.status,
+    assignedCraftId: member.assignedCraftId,
+    hiredAt: member.hiredAt,
+    lastCheckedAt: member.lastCheckedAt,
+    wageAmount: member.wageAmount,
+    lastPaidAt: member.lastPaidAt,
+    unavailableUntil: member.unavailableUntil ?? null,
+    shipRole: member.shipRole ?? null,
+    assignedShipId: member.assignedShipId ?? null,
+  };
+}
+
+function crewMemberFixture(overrides: Partial<CrewMember>): CrewMember {
+  return {
+    id: "crew-1",
+    hiredByPlayerId: "player-1",
+    tier: "White",
+    profession: null,
+    status: "idle",
+    assignedCraftId: null,
+    hiredAt: 0,
+    lastCheckedAt: 0,
+    wageAmount: 10,
+    lastPaidAt: 0,
+    ...overrides,
+  };
+}
+
+const hireCrewSubjects: Array<{
+  label: string;
+  candidate: CrewCandidate;
+  pool: PlanetCrewPool;
+  capacity: CrewCapacity;
+  existingCrew: CrewMember[];
+  wallet: Wallet;
+  playerId: string;
+  now: number;
+}> = [
+  {
+    label: "successful-hire",
+    candidate: { id: "candidate-1", tier: "White", profession: null },
+    pool: { planetId: "planet-alpha", availableHires: [{ id: "candidate-1", tier: "White", profession: null }], lastRefreshedAt: 0 },
+    capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 0 },
+    existingCrew: [],
+    wallet: { playerId: "player-1", credits: 1000 },
+    playerId: "player-1",
+    now: 1_000_000,
+  },
+  {
+    label: "rejected-not-in-pool",
+    candidate: { id: "candidate-missing", tier: "White", profession: null },
+    pool: { planetId: "planet-alpha", availableHires: [{ id: "candidate-1", tier: "White", profession: null }], lastRefreshedAt: 0 },
+    capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 0 },
+    existingCrew: [],
+    wallet: { playerId: "player-1", credits: 1000 },
+    playerId: "player-1",
+    now: 1_000_000,
+  },
+  {
+    label: "rejected-at-capacity",
+    candidate: { id: "candidate-1", tier: "White", profession: null },
+    pool: { planetId: "planet-alpha", availableHires: [{ id: "candidate-1", tier: "White", profession: null }], lastRefreshedAt: 0 },
+    capacity: { playerId: "player-1", baseCapacity: 1, purchasedSlots: 0 },
+    existingCrew: [crewMemberFixture({ id: "crew-existing" })],
+    wallet: { playerId: "player-1", credits: 1000 },
+    playerId: "player-1",
+    now: 1_000_000,
+  },
+  {
+    label: "rejected-insufficient-funds",
+    candidate: { id: "candidate-1", tier: "Gold", profession: null },
+    pool: { planetId: "planet-alpha", availableHires: [{ id: "candidate-1", tier: "Gold", profession: null }], lastRefreshedAt: 0 },
+    capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 0 },
+    existingCrew: [],
+    wallet: { playerId: "player-1", credits: 10 },
+    playerId: "player-1",
+    now: 1_000_000,
+  },
+];
+const hireCrewCases = hireCrewSubjects.map((s) => {
+  const result = hireCrew(s.candidate, s.pool, s.capacity, s.existingCrew, s.wallet, s.playerId, s.now);
+  return {
+    label: s.label,
+    candidate: s.candidate,
+    pool: s.pool,
+    capacity: s.capacity,
+    existingCrew: s.existingCrew.map(serializeCrewMember),
+    wallet: s.wallet,
+    playerId: s.playerId,
+    nowMs: s.now,
+    expectedResult: result.hired
+      ? { hired: true, crewMember: serializeCrewMember(result.crewMember), updatedPool: result.updatedPool, updatedWallet: result.updatedWallet }
+      : { hired: false, reason: result.reason },
+  };
+});
+
+const dismissCrewSubjects = [
+  { label: "owner-dismisses", crewMember: crewMemberFixture({ hiredByPlayerId: "player-1" }), playerId: "player-1" },
+  { label: "non-owner-rejected", crewMember: crewMemberFixture({ hiredByPlayerId: "player-1" }), playerId: "player-2" },
+];
+const dismissCrewCases = dismissCrewSubjects.map((s) => ({
+  label: s.label,
+  crewMember: serializeCrewMember(s.crewMember),
+  playerId: s.playerId,
+  expectedResult: dismissCrew(s.crewMember, s.playerId),
+}));
+
+const payUpkeepSubjects = [
+  { label: "not-due", crewMember: crewMemberFixture({ lastPaidAt: 0, wageAmount: 10 }), wallet: { playerId: "player-1", credits: 100 } as Wallet, now: 1 * 60 * 60 * 1000 },
+  { label: "paid", crewMember: crewMemberFixture({ lastPaidAt: 0, wageAmount: 10 }), wallet: { playerId: "player-1", credits: 100 } as Wallet, now: 25 * 60 * 60 * 1000 },
+  { label: "insufficient-funds", crewMember: crewMemberFixture({ lastPaidAt: 0, wageAmount: 10 }), wallet: { playerId: "player-1", credits: 1 } as Wallet, now: 25 * 60 * 60 * 1000 },
+];
+const payUpkeepCases = payUpkeepSubjects.map((s) => {
+  const result = payUpkeep(s.crewMember, s.wallet, s.now);
+  return {
+    label: s.label,
+    crewMember: serializeCrewMember(s.crewMember),
+    wallet: s.wallet,
+    nowMs: s.now,
+    expectedResult: result.status === "paid"
+      ? { status: "paid", updatedCrewMember: serializeCrewMember(result.updatedCrewMember), updatedWallet: result.updatedWallet }
+      : { status: result.status },
+  };
+});
+
+const checkAttritionSubjects = [
+  { label: "within-grace-period", crewMember: crewMemberFixture({ lastPaidAt: 0 }), now: 24 * 60 * 60 * 1000 },
+  { label: "exactly-at-grace-period-boundary", crewMember: crewMemberFixture({ lastPaidAt: 0 }), now: 48 * 60 * 60 * 1000 },
+  { label: "past-grace-period", crewMember: crewMemberFixture({ lastPaidAt: 0 }), now: 49 * 60 * 60 * 1000 },
+];
+const checkAttritionCases = checkAttritionSubjects.map((s) => ({
+  label: s.label,
+  crewMember: serializeCrewMember(s.crewMember),
+  nowMs: s.now,
+  expectedResult: checkAttrition(s.crewMember, s.now),
+}));
+
+const purchaseCapacitySubjects = [
+  { label: "slot-0-sufficient-funds", capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 0 } as CrewCapacity, wallet: { playerId: "player-1", credits: 1000 } as Wallet },
+  { label: "slot-2-sufficient-funds", capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 2 } as CrewCapacity, wallet: { playerId: "player-1", credits: 3000 } as Wallet },
+  { label: "insufficient-funds", capacity: { playerId: "player-1", baseCapacity: 2, purchasedSlots: 0 } as CrewCapacity, wallet: { playerId: "player-1", credits: 1 } as Wallet },
+];
+const purchaseCapacityCases = purchaseCapacitySubjects.map((s) => {
+  const result = purchaseCapacity(s.capacity, s.wallet);
+  return {
+    label: s.label,
+    capacity: s.capacity,
+    wallet: s.wallet,
+    expectedResult: result.purchased
+      ? { purchased: true, updatedCapacity: result.updatedCapacity, updatedWallet: result.updatedWallet }
+      : { purchased: false, reason: result.reason },
+  };
+});
+
+const refreshCrewPoolSubjects = [
+  { planetId: "planet-alpha", seed: "crew-pool-seed-1", now: 1_000_000 },
+  { planetId: "planet-beta", seed: "crew-pool-seed-2", now: 2_000_000 },
+  { planetId: "planet-gamma", seed: "crew-pool-seed-3", now: 3_000_000 },
+];
+const refreshCrewPoolCases = refreshCrewPoolSubjects.map((s) => ({
+  planetId: s.planetId,
+  seed: s.seed,
+  nowMs: s.now,
+  expectedResult: refreshCrewPool(s.planetId, s.seed, s.now),
+}));
+
+const assignToCraftSubjects = [
+  {
+    label: "gold-crew-blue-schematic",
+    crewMember: crewMemberFixture({ tier: "Gold" }),
+    craftAction: {
+      id: "craft-1",
+      inputs: [
+        makeInstance(radiantAlloyBar, 1, { purity: 60, density: 60, potency: 60, durability: 60, rarity: 60 }),
+        makeInstance(hydrogenGas, 1, { purity: 60, density: 60, potency: 60, rarity: 60 }),
+      ],
+      recipe: ionForgedHullPlateRecipe,
+      schematicTier: "Blue" as TierColor,
+    } as CraftAction,
+  },
+  {
+    label: "grey-crew-white-schematic",
+    crewMember: crewMemberFixture({ tier: "Grey" }),
+    craftAction: {
+      id: "craft-2",
+      inputs: [
+        makeInstance(radiantAlloyBar, 1, { purity: 40, density: 40, potency: 40, durability: 40, rarity: 40 }),
+        makeInstance(hydrogenGas, 1, { purity: 40, density: 40, potency: 40, rarity: 40 }),
+      ],
+      recipe: ionForgedHullPlateRecipe,
+      schematicTier: "White" as TierColor,
+    } as CraftAction,
+  },
+];
+const assignToCraftCases = assignToCraftSubjects.map((s) => {
+  const sequence = randomSequence();
+  const result = assignToCraft(s.crewMember, s.craftAction, queueRandom([...sequence]));
+  return {
+    label: s.label,
+    crewMember: serializeCrewMember(s.crewMember),
+    craftAction: {
+      id: s.craftAction.id,
+      inputs: s.craftAction.inputs.map(serializeInstance),
+      recipeId: s.craftAction.recipe.id,
+      schematicTier: s.craftAction.schematicTier,
+    },
+    randomSequence: sequence,
+    expectedResult: result.assigned
+      ? {
+          assigned: true,
+          updatedCrewMember: serializeCrewMember(result.updatedCrewMember),
+          craftResult: result.craftResult.accepted
+            ? { accepted: true, qualities: serializeQualityRoll(result.craftResult.qualities) }
+            : { accepted: false, reason: result.craftResult.reason },
+        }
+      : { assigned: false, reason: result.reason },
+  };
+});
+
+const backgroundCraftAction: CraftAction = {
+  id: "background-craft-1",
+  inputs: [
+    makeInstance(radiantAlloyBar, 1, { purity: 60, density: 60, potency: 60, durability: 60, rarity: 60 }),
+    makeInstance(hydrogenGas, 1, { purity: 60, density: 60, potency: 60, rarity: 60 }),
+  ],
+  recipe: ionForgedHullPlateRecipe,
+  schematicTier: "Blue",
+};
+const resolveBackgroundCraftingSubjects: Array<{
+  label: string;
+  crewMember: CrewMember;
+  now: number;
+  backgroundRateOmitted: boolean;
+  backgroundRate?: number | null;
+  maxUnits?: number;
+}> = [
+  { label: "omitted-rate-uses-config-default", crewMember: crewMemberFixture({ tier: "Blue", lastCheckedAt: 0 }), now: 6 * 60 * 60 * 1000, backgroundRateOmitted: true },
+  { label: "explicit-null-rate-unavailable", crewMember: crewMemberFixture({ tier: "Blue", lastCheckedAt: 0 }), now: 6 * 60 * 60 * 1000, backgroundRateOmitted: false, backgroundRate: null },
+  { label: "max-units-caps-below-elapsed-derived-count", crewMember: crewMemberFixture({ tier: "Blue", lastCheckedAt: 0 }), now: 6 * 60 * 60 * 1000, backgroundRateOmitted: false, backgroundRate: 0.5, maxUnits: 1 },
+  { label: "zero-elapsed-time", crewMember: crewMemberFixture({ tier: "Blue", lastCheckedAt: 1_000 }), now: 1_000, backgroundRateOmitted: false, backgroundRate: 0.5 },
+];
+const resolveBackgroundCraftingCases = resolveBackgroundCraftingSubjects.map((s) => {
+  const sequence = randomSequence();
+  const random = queueRandom([...sequence]);
+  const result = s.backgroundRateOmitted
+    ? resolveBackgroundCrafting(s.crewMember, backgroundCraftAction, s.now, undefined, random, s.maxUnits)
+    : resolveBackgroundCrafting(s.crewMember, backgroundCraftAction, s.now, s.backgroundRate, random, s.maxUnits);
+  return {
+    label: s.label,
+    crewMember: serializeCrewMember(s.crewMember),
+    nowMs: s.now,
+    backgroundRateOmitted: s.backgroundRateOmitted,
+    backgroundRate: s.backgroundRate ?? null,
+    maxUnits: s.maxUnits ?? null,
+    randomSequence: sequence,
+    expectedResult: result.resolved
+      ? {
+          resolved: true,
+          unitsCompleted: result.unitsCompleted,
+          results: result.results.map((r) =>
+            r.accepted ? { accepted: true, qualities: serializeQualityRoll(r.qualities) } : { accepted: false, reason: r.reason },
+          ),
+          updatedCrewMember: serializeCrewMember(result.updatedCrewMember),
+        }
+      : { resolved: false, reason: result.reason, updatedCrewMember: serializeCrewMember(result.updatedCrewMember) },
+  };
+});
+
 const output = {
   generatedAt: new Date().toISOString(),
   tierColorCases,
@@ -673,6 +964,14 @@ const output = {
   sellToMarketCases,
   sellToGlobalMarketCases,
   expireListingsCases,
+  hireCrewCases,
+  dismissCrewCases,
+  payUpkeepCases,
+  checkAttritionCases,
+  purchaseCapacityCases,
+  refreshCrewPoolCases,
+  assignToCraftCases,
+  resolveBackgroundCraftingCases,
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -688,5 +987,9 @@ console.log(
     `applyRecovery: ${applyRecoveryCases.length}, season: ${seasonCases.length}, ` +
     `emergency: ${emergencyCases.length}, globalPrice: ${globalPriceCases.length}, ` +
     `purchaseListing: ${purchaseListingCases.length}, sellToMarket: ${sellToMarketCases.length}, ` +
-    `sellToGlobalMarket: ${sellToGlobalMarketCases.length}, expireListings: ${expireListingsCases.length}`,
+    `sellToGlobalMarket: ${sellToGlobalMarketCases.length}, expireListings: ${expireListingsCases.length}, ` +
+    `hireCrew: ${hireCrewCases.length}, dismissCrew: ${dismissCrewCases.length}, ` +
+    `payUpkeep: ${payUpkeepCases.length}, checkAttrition: ${checkAttritionCases.length}, ` +
+    `purchaseCapacity: ${purchaseCapacityCases.length}, refreshCrewPool: ${refreshCrewPoolCases.length}, ` +
+    `assignToCraft: ${assignToCraftCases.length}, resolveBackgroundCrafting: ${resolveBackgroundCraftingCases.length}`,
 );

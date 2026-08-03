@@ -16,6 +16,7 @@ namespace Profitable.Unity.UI
         private RefinePanel _refinePanel = null!;
         private CraftPanel _craftPanel = null!;
         private MarketPanel _marketPanel = null!;
+        private CrewPanel _crewPanel = null!;
         private Text _logText = null!;
 
         // Read-only accessor for the log's current text -- exists for
@@ -60,12 +61,14 @@ namespace Profitable.Unity.UI
             _refinePanel = new RefinePanel(content, _inventory, Log);
             _craftPanel = new CraftPanel(content, _inventory, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
+            _crewPanel = new CrewPanel(content, _inventory, Log);
 
             UiFactory.CreateButton(nav, "Map", () => ShowOnly(_mapPanel.Root));
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));
             UiFactory.CreateButton(nav, "Refine", () => ShowOnly(_refinePanel.Root));
             UiFactory.CreateButton(nav, "Craft", () => ShowOnly(_craftPanel.Root));
             UiFactory.CreateButton(nav, "Market", () => ShowOnly(_marketPanel.Root));
+            UiFactory.CreateButton(nav, "Crew", () => ShowOnly(_crewPanel.Root));
 
             _logText = UiFactory.CreateText(root, "", 12);
 
@@ -79,18 +82,20 @@ namespace Profitable.Unity.UI
             _refinePanel.Root.SetActive(_refinePanel.Root == visible);
             _craftPanel.Root.SetActive(_craftPanel.Root == visible);
             _marketPanel.Root.SetActive(_marketPanel.Root == visible);
+            _crewPanel.Root.SetActive(_crewPanel.Root == visible);
         }
 
         // Shared log sink passed to every panel -- also refreshes Refine
-        // /Craft/Market's availability display, since almost any logged
-        // action (a gather, a refine, a craft, a sell) changes Inventory's
-        // contents.
+        // /Craft/Market/Crew's availability display, since almost any
+        // logged action (a gather, a refine, a craft, a sell, a crew
+        // action) changes Inventory's/CrewState's contents.
         private void Log(string message)
         {
             _logText.text = $"{_logText.text}\n{message}".TrimStart('\n');
             _refinePanel.Refresh();
             _craftPanel.Refresh();
             _marketPanel.Refresh();
+            _crewPanel.Refresh();
         }
     }
 }

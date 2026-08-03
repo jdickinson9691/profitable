@@ -134,6 +134,14 @@ Full scope/readiness computation: `docs/functional-agents/build.md`; the followa
 46. [`agent-46-unity-trading-presentation.md`](agent-46-unity-trading-presentation.md) — adds a Market panel (fifth panel in the MVP loop) scoped to the Trading Counterparty instant-sell functions only. Depends on Agent 44/45.
 47. [`agent-47-unity-trading-integration.md`](agent-47-unity-trading-integration.md) — confirms the Market panel drives real gather→refine→craft→sell end-to-end and Sub-Phase A's own tests still pass unmodified (regression proof). Created last in Sub-Phase B.
 
+## Unity Migration Phase 2 — Sub-Phase C (Crew) complete
+
+48. [`agent-48-unity-crew-schema.md`](agent-48-unity-crew-schema.md) — ports `CrewMember`/`CrewCandidate`/`PlanetCrewPool`/`CrewCapacity`/`CraftAction` and every crew result union, plus `CrewConfig` and the early-scoped `ShipCrewRole` enum. Depends on Agent 38. Created first in Sub-Phase C.
+49. [`agent-49-unity-crew-simulation-core.md`](agent-49-unity-crew-simulation-core.md) — ports all 8 `src/crew/*.ts` functions; found and resolved a live-default-parameter-semantics gap in `resolveBackgroundCrafting`'s port via a two-overload split. Depends on Agent 48.
+50. [`agent-50-unity-crew-parity-validation.md`](agent-50-unity-crew-parity-validation.md) — proves the C# port agrees with the real TypeScript output across all 8 functions, including the omitted-vs-explicit-null `backgroundRate` distinction. Created alongside Agent 49, runs continuously.
+51. [`agent-51-unity-crew-presentation.md`](agent-51-unity-crew-presentation.md) — adds a Crew panel (sixth panel in the MVP loop); introduces `UiFactory.ClearChildren`, this migration's first dynamic-rebuild UI. Depends on Agent 49/50.
+52. [`agent-52-unity-crew-integration.md`](agent-52-unity-crew-integration.md) — confirms assign-to-craft genuinely drives `Crafter.Craft` from the crew member's own tier, and Sub-Phases A/B's own tests still pass unmodified. Created last in Sub-Phase C.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:
