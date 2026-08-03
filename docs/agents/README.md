@@ -116,13 +116,15 @@ Running in parallel with the Alpha checklist (`docs/product-alpha.md`), not sequ
 54. [`agent-35-unity-mvp-presentation.md`](agent-35-unity-mvp-presentation.md) — builds minimal Unity scenes for gather/refine/craft, calling Agent 32's ported functions only. Depends on Agent 32 and Agent 34.
 55. [`agent-36-unity-migration-phase1-integration.md`](agent-36-unity-migration-phase1-integration.md) — wires everything together and verifies the full gather→refine→craft loop in Unity, confirming Agent 33's parity proof holds end-to-end. Created last.
 
-## Unity Migration Phase 2 — Sub-Phase A (Galaxy, Planet, Mining) in progress
+## Unity Migration Phase 2 — Sub-Phase A (Galaxy, Planet, Mining) complete
 
-Full scope/readiness computation: `docs/functional-agents/build.md`; the followable task list: `docs/unity-migration-phase2-checklist.md`. Sub-Phase A's Schema/Simulation Core/Parity Validation roles are done; Presentation/Phase Integration remain (need the Unity Editor, confirmed installed — 6000.5.6f1).
+Full scope/readiness computation: `docs/functional-agents/build.md`; the followable task list: `docs/unity-migration-phase2-checklist.md`. All six roles are done.
 
-56. [`agent-38-unity-galaxy-planet-schema.md`](agent-38-unity-galaxy-planet-schema.md) — extends Agent 31's `Planet` with the Phase 2+ fields (`PlanetType`, `Tier`, `Position`, etc.) and the galaxy/planet-generation constant tables. Depends on Agent 31. Created first in Sub-Phase A.
-57. [`agent-39-unity-galaxy-planet-simulation-core.md`](agent-39-unity-galaxy-planet-simulation-core.md) — ports `SeededRandom`, `GalaxyGenerator`, `PlanetGenerator`, `ResourceSubsetSelector`, `PlanetQualityRoller`, `PlanetResourceCycle` to C#, exactly. Depends on Agent 38.
-58. [`agent-40-unity-galaxy-planet-parity-validation.md`](agent-40-unity-galaxy-planet-parity-validation.md) — proves the C# port agrees with the real TypeScript output end-to-end (real 60-resource content catalog, not synthetic fixtures), including real 50-planet-scale galaxy generation. Created alongside Agent 39, runs continuously.
+38. [`agent-38-unity-galaxy-planet-schema.md`](agent-38-unity-galaxy-planet-schema.md) — extends Agent 31's `Planet` with the Phase 2+ fields (`PlanetType`, `Tier`, `Position`, etc.) and the galaxy/planet-generation constant tables. Depends on Agent 31. Created first in Sub-Phase A.
+39. [`agent-39-unity-galaxy-planet-simulation-core.md`](agent-39-unity-galaxy-planet-simulation-core.md) — ports `SeededRandom`, `GalaxyGenerator`, `PlanetGenerator`, `ResourceSubsetSelector`, `PlanetQualityRoller`, `PlanetResourceCycle` to C#, exactly. Depends on Agent 38.
+40. [`agent-40-unity-galaxy-planet-parity-validation.md`](agent-40-unity-galaxy-planet-parity-validation.md) — proves the C# port agrees with the real TypeScript output end-to-end (real 60-resource content catalog, not synthetic fixtures), including real 50-planet-scale galaxy generation. Created alongside Agent 39, runs continuously.
+41. [`agent-41-unity-galaxy-planet-presentation.md`](agent-41-unity-galaxy-planet-presentation.md) — rewrites `MapPanel`/`GatherPanel` against a real generated galaxy (`GalaxyState.cs`), replacing Phase 1's static Delta Rigelus content; quality is now read once per visit instead of rolled per click. Depends on Agent 39/40.
+42. [`agent-42-unity-galaxy-planet-mining-integration.md`](agent-42-unity-galaxy-planet-mining-integration.md) — confirms the real galaxy drives the existing gather→refine→craft loop end-to-end, reusing Agent 36's own click-through test unmodified. Created last in Sub-Phase A.
 
 ## Cross-Cutting Rules (apply to every agent, not just one)
 

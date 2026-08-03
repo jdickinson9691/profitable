@@ -1,5 +1,6 @@
 using System.Collections;
 using NUnit.Framework;
+using Profitable.Unity.Content;
 using Profitable.Unity.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,6 +16,11 @@ namespace Profitable.Unity.Tests.PlayMode
     // mode, builds its UI hierarchy without error -- the literal claim
     // in this agent's own Definition of Done ("a player can open
     // MvpLoop.unity and press Play").
+    //
+    // Migration Phase 2 Sub-Phase A (agent-41-unity-galaxy-planet
+    // -presentation.md): MapPanel now shows the real generated galaxy's
+    // starting planet instead of the hardcoded "Delta Rigelus" -- the
+    // label assertion below follows that real name instead of a literal.
     public class MvpLoopSceneSmokeTest
     {
         [UnityTest]
@@ -38,16 +44,21 @@ namespace Profitable.Unity.Tests.PlayMode
             // currently-visible panel -- a test artifact, not a bug in
             // the panel-switching behavior itself.
             var buttons = Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            // 4 nav buttons + 3 gather buttons + 1 refine + 1 craft + 7
-            // refine-tier-picker + 14 craft-tier-picker (schematic +
-            // crafter) = 30. Asserting a minimum, not an exact count, so
-            // this doesn't become a brittle tripwire on cosmetic changes.
+            // 4 nav buttons + gather buttons (count now varies with the
+            // real generated starting planet's producible resources,
+            // Sub-Phase A's own change -- at least the 3 tutorial
+            // -guaranteed ones) + 1 refine + 1 craft + 7 refine-tier
+            // -picker + 14 craft-tier-picker (schematic + crafter) >= 30.
+            // Asserting a minimum, not an exact count, so this doesn't
+            // become a brittle tripwire on cosmetic or gather-count
+            // changes.
             Assert.GreaterOrEqual(buttons.Length, 10, "expected at least the nav + gather + refine + craft buttons to exist");
 
             var canvasText = canvas.GetComponentsInChildren<Text>(includeInactive: true);
+            var startingPlanetName = GalaxyState.StartingPlanet.Name;
             Assert.IsTrue(
-                System.Array.Exists(canvasText, t => t.text.Contains("Delta Rigelus")),
-                "MapPanel's starting-planet label was not found in the built UI");
+                System.Array.Exists(canvasText, t => t.text.Contains(startingPlanetName)),
+                $"MapPanel's starting-planet label ('{startingPlanetName}') was not found in the built UI");
         }
     }
 }

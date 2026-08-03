@@ -6,12 +6,13 @@ using UnityEngine;
 
 namespace Profitable.Unity.Tests.EditMode
 {
-    // Agent 35 -- exercises GatherPanel.Gather() directly (the same
-    // method a real Button click invokes via onClick), proving the
-    // gather -> Inventory wiring is correct. See agent-35-unity-mvp
-    // -presentation.md's Testing Requirements for why this tests wiring,
-    // not formula correctness (already proven by Agent 33's parity
-    // suite against the same RollQuality() this calls).
+    // Migration Phase 2 Sub-Phase A rewrite (agent-41-unity-galaxy-planet
+    // -presentation.md) -- exercises GatherPanel.Gather() directly (the
+    // same method a real Button click invokes via onClick), proving the
+    // gather -> Inventory wiring is correct. Still not testing formula
+    // correctness (that's Agent 40's parity suite's job); this proves
+    // wiring plus the one behavior this rewrite actually changes: quality
+    // is now fixed per current cycle, not rolled fresh every click.
     public class GatherPanelTests
     {
         private GameObject _parent = null!;
@@ -22,6 +23,7 @@ namespace Profitable.Unity.Tests.EditMode
         public void SetUp()
         {
             GameContent.ResetForTests();
+            GalaxyState.ResetForTests();
             _parent = new GameObject("TestParent", typeof(RectTransform));
             _inventory = new Inventory();
             _panel = new GatherPanel(_parent.transform, _inventory, _ => { });
@@ -33,14 +35,14 @@ namespace Profitable.Unity.Tests.EditMode
         [Test]
         public void GatherAddsOneBatchToInventory()
         {
-            _panel.Gather(GameContent.IgneousOre);
+            _panel.Gather("igneous-ore");
             Assert.AreEqual(1, _inventory.TotalQuantity("igneous-ore"));
         }
 
         [Test]
         public void GatherProducesValuesInRangeForEveryApplicableQuality()
         {
-            var instance = _panel.Gather(GameContent.IgneousOre);
+            var instance = _panel.Gather("igneous-ore");
             foreach (var quality in Qualities.All)
             {
                 var value = instance.Qualities[quality];
@@ -52,17 +54,33 @@ namespace Profitable.Unity.Tests.EditMode
         public void GatherLeavesInapplicableQualitiesNullNeverZero()
         {
             // Autunite Crystal has no purity (see GameContent's real
-            // content, mirroring tests/fixtures/resources.ts).
-            var instance = _panel.Gather(GameContent.AutuniteCrystal);
+            // content, mirroring tests/fixtures/resources.ts). Still
+            // guaranteed producible on the starting planet regardless of
+            // this galaxy's real roll -- the tutorial guarantee.
+            var instance = _panel.Gather("autunite-crystal");
             Assert.IsNull(instance.Qualities[Quality.Purity]);
         }
 
         [Test]
         public void RepeatedGatherAccumulatesQuantity()
         {
-            _panel.Gather(GameContent.HydrogenGas);
-            _panel.Gather(GameContent.HydrogenGas);
+            _panel.Gather("hydrogen-gas");
+            _panel.Gather("hydrogen-gas");
             Assert.AreEqual(2, _inventory.TotalQuantity("hydrogen-gas"));
+        }
+
+        [Test]
+        public void RepeatedGatherProducesIdenticalQuality()
+        {
+            // The actual behavior this rewrite introduces: quality is
+            // fixed per current cycle, read once at panel-construction
+            // time, never re-rolled per click.
+            var first = _panel.Gather("hydrogen-gas");
+            var second = _panel.Gather("hydrogen-gas");
+            foreach (var quality in Qualities.All)
+            {
+                Assert.AreEqual(first.Qualities[quality], second.Qualities[quality]);
+            }
         }
     }
 }
