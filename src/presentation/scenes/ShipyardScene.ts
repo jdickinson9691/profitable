@@ -17,7 +17,7 @@ import {
 import { purchaseShip } from "../../ships/purchaseShip.ts";
 import { purchaseScanner } from "../../ships/purchaseScanner.ts";
 import { refuelShip } from "../../ships/refuelShip.ts";
-import { SHIP_PURCHASE_COST_BY_TIER, SCANNER_PURCHASE_COST_BY_TIER, REFUEL_COST_PER_UNIT } from "../../data/constants/shipsAndTravelConfig.ts";
+import { SHIP_PURCHASE_COST_BY_TIER, SCANNER_PURCHASE_COST_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
 import { TIER_COLOR_BREAKPOINTS } from "../../data/constants/tierColor.ts";
 import { renderOnboardingStep } from "./onboardingOverlay.ts";
 import type { ShipCandidate } from "../../data/types/shipCandidate.ts";
@@ -167,23 +167,25 @@ export class ShipyardScene extends Phaser.Scene {
       if (atHome && ship.currentFuel < ship.fuelCapacity) {
         const refuelBtn = this.scroll!.addText(560, y, "> Refuel", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
         refuelBtn.setInteractive({ useHandCursor: true });
-        refuelBtn.on("pointerdown", () => this.onRefuel(ship));
+        refuelBtn.on("pointerdown", () => this.onRefuel(ship, planet));
       }
       y += 20;
     }
     return y;
   }
 
-  private onRefuel(ship: Ship): void {
+  private onRefuel(ship: Ship, dockedPlanet: Planet): void {
     const amount = ship.fuelCapacity - ship.currentFuel;
-    const result = refuelShip(ship, getWallet(), amount);
+    const walletBefore = getWallet();
+    const result = refuelShip(ship, walletBefore, amount, dockedPlanet);
     if (!result.refueled) {
       this.setStatus(`Refuel failed: ${result.reason}`);
       return;
     }
     setWallet(result.updatedWallet);
     replaceShip(result.updatedShip);
-    this.setStatus(`Refueled ${result.updatedShip.name} to ${result.updatedShip.currentFuel}/${result.updatedShip.fuelCapacity} (${amount * REFUEL_COST_PER_UNIT}cr).`);
+    const paid = walletBefore.credits - result.updatedWallet.credits;
+    this.setStatus(`Refueled ${result.updatedShip.name} to ${result.updatedShip.currentFuel}/${result.updatedShip.fuelCapacity} (${paid}cr).`);
     this.redraw();
   }
 

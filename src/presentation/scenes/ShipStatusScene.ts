@@ -1,15 +1,21 @@
 import Phaser from "phaser";
 import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
-import { getShipRoster } from "../shipsState.ts";
+import { getShipRoster, getVoyages, replaceShip } from "../shipsState.ts";
 import { getCrewRoster, replaceCrewMember } from "../crewState.ts";
 import { getCrewSlotsForShip } from "../../ships/getCrewSlotsForShip.ts";
 import { assignToShipRole } from "../../ships/assignToShipRole.ts";
+import { resolveComponentRepair } from "../../ships/resolveComponentRepair.ts";
+import { galaxy, startingPlanet, getDiscoveredPlanets } from "../galaxyState.ts";
+import { withPlanetOwnership } from "../planetOwnershipState.ts";
 import { COMPONENT_CATEGORIES } from "../../data/types/componentCategory.ts";
 import { CARGO_HOLD_CAPACITY_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
+import { QUALITY_MAX } from "../../data/constants/quality.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { CrewMember } from "../../data/types/crewMember.ts";
 import type { ShipCrewRole } from "../../data/types/shipCrewRole.ts";
+import type { Planet } from "../../data/types/planet.ts";
+import type { Voyage } from "../../data/types/voyage.ts";
 
 // One-line description of what each component category actually does,
 // per ship.md's consolidated contract -- weapon/shield feed Combat's own
@@ -117,11 +123,45 @@ export class ShipStatusScene extends Phaser.Scene {
 
     y = this.renderComponents(ship, y);
     y += 8;
+
+    const checkRepairBtn = this.scroll!.addText(32, y, "> Check Repair", { fontFamily: "monospace", fontSize: "13px", color: "#4caf50" });
+    checkRepairBtn.setInteractive({ useHandCursor: true });
+    checkRepairBtn.on("pointerdown", () => this.onCheckRepair(ship));
+    y += 20;
+
     y = this.renderCrewRoles(ship, y);
     y += 8;
     y = this.renderAssignmentControls(ship, y);
 
     return y;
+  }
+
+  // Ship Crew Roles / Citadels, task #89: resolveComponentRepair()'s own
+  // 3-way Systems Engineer / Crafter / Citadel-Level-3 resolution needs the
+  // caller to state which of "traveling" or "docked" currently applies --
+  // no hidden lookup inside that function, same convention its own doc
+  // comment establishes. getVoyages() (not ship.currentPlanetId alone) is
+  // the only way to actually tell the two apart, per ship.ts's own note.
+  private resolveShipDockContext(ship: Ship): { activeVoyage: Voyage | null; dockedPlanet: Planet | null } {
+    const activeVoyage = getVoyages().find((voyage) => voyage.shipId === ship.id) ?? null;
+    if (activeVoyage) return { activeVoyage, dockedPlanet: null };
+
+    const dockedPlanet =
+      getDiscoveredPlanets().find((planet) => planet.id === ship.currentPlanetId) ??
+      (() => {
+        const raw = galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
+        return raw ? withPlanetOwnership(raw) : undefined;
+      })() ??
+      (ship.currentPlanetId === startingPlanet.id ? startingPlanet : null);
+    return { activeVoyage: null, dockedPlanet: dockedPlanet ?? null };
+  }
+
+  private onCheckRepair(ship: Ship): void {
+    const { activeVoyage, dockedPlanet } = this.resolveShipDockContext(ship);
+    const updatedShip = resolveComponentRepair(ship, getCrewRoster(), activeVoyage, dockedPlanet, Date.now());
+    replaceShip(updatedShip);
+    this.setStatus(`Checked repair on ${updatedShip.name}.`);
+    this.redraw();
   }
 
   private renderComponents(ship: Ship, startY: number): number {
@@ -131,8 +171,10 @@ export class ShipStatusScene extends Phaser.Scene {
 
     for (const category of COMPONENT_CATEGORIES) {
       const installed = ship.components[category];
+      const durabilityLabel =
+        installed && installed.qualities.durability !== null ? `, durability ${installed.qualities.durability}/${QUALITY_MAX}` : "";
       const label = installed
-        ? `${category}: ${installed.tier} tier — affects ${COMPONENT_EFFECT_LABEL[category]}`
+        ? `${category}: ${installed.tier} tier${durabilityLabel} — affects ${COMPONENT_EFFECT_LABEL[category]}`
         : `${category}: (empty) — affects ${COMPONENT_EFFECT_LABEL[category]}`;
       this.scroll!.addText(32, y, label, { fontFamily: "monospace", fontSize: "13px", color: installed ? "#cccccc" : "#888888" });
       y += 18;
