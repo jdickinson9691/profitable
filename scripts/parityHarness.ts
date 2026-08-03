@@ -29,6 +29,15 @@ import { QUALITIES } from "../src/data/types/quality.ts";
 import { loadContent } from "../src/simulation/loadContent.ts";
 import { generateGalaxy } from "../src/galaxy/generateGalaxy.ts";
 import { generateResourcesForCycle, getCurrentPlanetResources } from "../src/galaxy/planetResourceCycle.ts";
+import { createListing } from "../src/trading/createListing.ts";
+import { applyDrift, applyRecovery } from "../src/trading/drift.ts";
+import { getCurrentSeason, getSeasonalEffect, getSeasonalPriceMultiplier } from "../src/trading/season.ts";
+import { getActiveEmergency, getEmergencyPriceMultiplier } from "../src/trading/emergency.ts";
+import { getGlobalPrice } from "../src/trading/globalPrice.ts";
+import { purchaseListing } from "../src/trading/purchaseListing.ts";
+import { sellToMarket } from "../src/trading/sellToMarket.ts";
+import { sellToGlobalMarket } from "../src/trading/sellToGlobalMarket.ts";
+import { expireListings } from "../src/trading/expireListings.ts";
 
 import type { Resource } from "../src/data/types/resource.ts";
 import type { ResourceInstance } from "../src/data/types/resourceInstance.ts";
@@ -38,6 +47,9 @@ import type { QualityRoll } from "../src/data/types/quality.ts";
 import type { RandomFn } from "../src/data/types/random.ts";
 import type { Planet } from "../src/data/types/planet.ts";
 import type { PlanetType } from "../src/data/types/planetType.ts";
+import type { Listing, MarketLocation } from "../src/data/types/listing.ts";
+import type { PlanetMarketState } from "../src/data/types/planetMarketState.ts";
+import type { Wallet } from "../src/data/types/wallet.ts";
 
 const TIERS: TierColor[] = ["Grey", "White", "Green", "Blue", "Purple", "Orange", "Gold"];
 
@@ -381,6 +393,267 @@ const gcprCases = [
   };
 });
 
+// ---- Sub-Phase B (Trading) cases. Real content resources throughout
+// (igneous-ore/autunite-crystal/radiant-alloy-bar/ion-forged-hull-plate),
+// same "real content, not synthetic fixtures" discipline as the
+// galaxy/planet cases above. Error/rejection paths that can't be reached
+// with real content (e.g. a global listing above the tier-5 ceiling --
+// nothing in the real catalog exceeds tier 4 yet) are covered by each
+// language's own direct unit tests instead, not recorded here. ----
+function findRealResource(id: string): Resource {
+  const resource = realResources.find((r) => r.id === id);
+  if (!resource) throw new Error(`parityHarness: real resource '${id}' not found`);
+  return resource;
+}
+
+function serializeListing(listing: Listing): Record<string, unknown> {
+  return {
+    id: listing.id,
+    itemId: listing.itemId,
+    quantity: listing.quantity,
+    pricePerUnit: listing.pricePerUnit,
+    marketTier: listing.marketTier,
+    location: listing.location,
+    createdByPlayerId: listing.createdByPlayerId,
+    createdAt: listing.createdAt,
+    expiresAt: listing.expiresAt,
+  };
+}
+
+const createListingSubjects = [
+  {
+    itemInstance: makeInstance(findRealResource("igneous-ore"), 10, { purity: 60, density: 60, potency: 60, durability: 60, rarity: 60 }),
+    quantity: 10,
+    pricePerUnit: 5,
+    location: "global" as MarketLocation,
+    playerId: "player-1",
+    id: "listing-1",
+    now: 1_000_000_000_000,
+  },
+  {
+    itemInstance: makeInstance(findRealResource("autunite-crystal"), 3, { density: 80, potency: 80, durability: 80, rarity: 80 }),
+    quantity: 3,
+    pricePerUnit: 12,
+    location: { planetId: "planet-alpha" } as MarketLocation,
+    playerId: "player-2",
+    id: "listing-2",
+    now: 1_000_000_050_000,
+  },
+  {
+    itemInstance: makeInstance(findRealResource("ion-forged-hull-plate"), 2, { purity: 45, density: 45, potency: 45, durability: 45, rarity: 45 }),
+    quantity: 2,
+    pricePerUnit: 40,
+    location: "global" as MarketLocation,
+    playerId: "player-3",
+    id: "listing-3",
+    now: 1_000_000_100_000,
+  },
+];
+const createListingCases = createListingSubjects.map((c) => ({
+  itemInstance: serializeInstance(c.itemInstance),
+  quantity: c.quantity,
+  pricePerUnit: c.pricePerUnit,
+  location: c.location,
+  playerId: c.playerId,
+  id: c.id,
+  nowMs: c.now,
+  expectedListing: serializeListing(createListing(c.itemInstance, c.quantity, c.pricePerUnit, c.location, c.playerId, c.id, c.now)),
+}));
+
+const driftMarketStateSubjects: PlanetMarketState[] = [
+  { planetId: "planet-alpha", itemId: "igneous-ore", currentPrice: 5, basePrice: 5 },
+  { planetId: "planet-beta", itemId: "hydrogen-gas", currentPrice: 6, basePrice: 4 },
+  { planetId: "planet-gamma", itemId: "autunite-crystal", currentPrice: 8, basePrice: 12 },
+];
+const applyDriftCases = [
+  { marketState: driftMarketStateSubjects[0]!, unitsTraded: 1, direction: "buy" as const },
+  { marketState: driftMarketStateSubjects[0]!, unitsTraded: 10, direction: "sell" as const },
+  { marketState: driftMarketStateSubjects[1]!, unitsTraded: 25, direction: "buy" as const }, // enough units to hit the ceiling clamp
+  { marketState: driftMarketStateSubjects[2]!, unitsTraded: 25, direction: "sell" as const }, // enough units to hit the floor clamp
+].map((c) => ({ ...c, expectedMarketState: applyDrift(c.marketState, c.unitsTraded, c.direction) }));
+
+const applyRecoveryCases = [
+  { marketState: driftMarketStateSubjects[0]!, elapsedHours: 1 },
+  { marketState: driftMarketStateSubjects[1]!, elapsedHours: 12.5 },
+  { marketState: driftMarketStateSubjects[2]!, elapsedHours: 0 },
+  { marketState: driftMarketStateSubjects[2]!, elapsedHours: 500 }, // effectively fully recovered
+].map((c) => ({ ...c, expectedMarketState: applyRecovery(c.marketState, c.elapsedHours) }));
+
+const seasonSubjects = [
+  { planetId: "planet-alpha", now: 1_000_000_000_000, categories: ["solid", "gas", "radioactive crystal"] },
+  { planetId: "planet-beta", now: 1_000_000_000_000 + 6 * 60 * 60 * 1000, categories: ["solid", "gas"] },
+  { planetId: "planet-gamma", now: 1_000_000_000_000 + 30 * 60 * 60 * 1000, categories: [] as string[] },
+];
+const seasonCases = seasonSubjects.map((s) => {
+  const season = getCurrentSeason(s.planetId, s.now);
+  const effect = getSeasonalEffect(s.planetId, s.now, s.categories);
+  return {
+    planetId: s.planetId,
+    nowMs: s.now,
+    categories: s.categories,
+    expectedSeason: season,
+    expectedEffect: effect,
+    expectedMultiplierForFirstCategory: s.categories.length > 0 ? getSeasonalPriceMultiplier(s.categories[0]!, effect) : null,
+  };
+});
+
+const emergencySubjects = [
+  { planetId: "planet-alpha", now: 1_000_000_000_000, categories: ["solid", "gas", "radioactive crystal"] },
+  { planetId: "planet-beta", now: 1_000_000_000_000 + 2 * 60 * 60 * 1000, categories: ["solid", "gas"] },
+  { planetId: "planet-gamma", now: 1_000_000_000_000 + 10 * 60 * 60 * 1000, categories: ["solid"] },
+  { planetId: "planet-delta", now: 1_000_000_000_000, categories: [] as string[] },
+  // Found by search (not hand-picked to "look right"): this exact
+  // (planetId, now, categories) combination is one of the ~15% of
+  // windows that actually triggers, so the corpus exercises the
+  // triggered branch's category/endsAt fields too, not just the far
+  // more common "no emergency" result.
+  { planetId: "emergency-search-3", now: 1_000_000_000_000, categories: ["solid", "gas", "radioactive crystal"] },
+];
+const emergencyCases = emergencySubjects.map((s) => {
+  const emergency = getActiveEmergency(s.planetId, s.now, s.categories);
+  return {
+    planetId: s.planetId,
+    nowMs: s.now,
+    categories: s.categories,
+    expectedEmergency: emergency,
+    expectedMultiplierForFirstCategory: s.categories.length > 0 ? getEmergencyPriceMultiplier(s.categories[0]!, emergency) : null,
+  };
+});
+
+const globalPriceMarketStates: PlanetMarketState[] = [
+  { planetId: "planet-alpha", itemId: "igneous-ore", currentPrice: 4.5, basePrice: 5 },
+  { planetId: "planet-beta", itemId: "igneous-ore", currentPrice: 5.5, basePrice: 5 },
+  { planetId: "planet-gamma", itemId: "igneous-ore", currentPrice: 5.0, basePrice: 5 },
+];
+const globalPriceCases = [
+  { itemId: "igneous-ore", direction: "buy" as const, marketStates: globalPriceMarketStates },
+  { itemId: "igneous-ore", direction: "sell" as const, marketStates: globalPriceMarketStates },
+].map((c) => ({ ...c, expectedPrice: getGlobalPrice(c.itemId, c.direction, c.marketStates) }));
+
+const purchaseListingSubjects: Array<{
+  label: string;
+  listing: Listing;
+  quantityToBuy: number;
+  buyerPlayerId: string;
+  marketState: PlanetMarketState | null;
+}> = [
+  {
+    label: "successful-planet-purchase",
+    listing: { id: "l1", itemId: "igneous-ore", quantity: 10, pricePerUnit: 5, marketTier: "White", location: { planetId: "planet-alpha" }, createdByPlayerId: "seller-1", createdAt: 0, expiresAt: 999_999_999_999 },
+    quantityToBuy: 4,
+    buyerPlayerId: "buyer-1",
+    marketState: { planetId: "planet-alpha", itemId: "igneous-ore", currentPrice: 5, basePrice: 5 },
+  },
+  {
+    label: "successful-global-purchase-closes-listing",
+    listing: { id: "l2", itemId: "hydrogen-gas", quantity: 3, pricePerUnit: 4, marketTier: "Green", location: "global", createdByPlayerId: "seller-2", createdAt: 0, expiresAt: 999_999_999_999 },
+    quantityToBuy: 3,
+    buyerPlayerId: "buyer-2",
+    marketState: null,
+  },
+  {
+    label: "self-trade-rejected",
+    listing: { id: "l3", itemId: "igneous-ore", quantity: 5, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-3", createdAt: 0, expiresAt: 999_999_999_999 },
+    quantityToBuy: 1,
+    buyerPlayerId: "seller-3",
+    marketState: null,
+  },
+  {
+    label: "insufficient-quantity-rejected",
+    listing: { id: "l4", itemId: "igneous-ore", quantity: 2, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-4", createdAt: 0, expiresAt: 999_999_999_999 },
+    quantityToBuy: 5,
+    buyerPlayerId: "buyer-4",
+    marketState: null,
+  },
+  {
+    label: "non-positive-quantity-rejected",
+    listing: { id: "l5", itemId: "igneous-ore", quantity: 5, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-5", createdAt: 0, expiresAt: 999_999_999_999 },
+    quantityToBuy: 0,
+    buyerPlayerId: "buyer-5",
+    marketState: null,
+  },
+];
+const purchaseListingCases = purchaseListingSubjects.map((s) => {
+  const result = purchaseListing(s.listing, s.quantityToBuy, s.buyerPlayerId, s.marketState);
+  return {
+    label: s.label,
+    listing: serializeListing(s.listing),
+    quantityToBuy: s.quantityToBuy,
+    buyerPlayerId: s.buyerPlayerId,
+    marketState: s.marketState,
+    expectedResult: result.success
+      ? {
+          success: true,
+          updatedListing: serializeListing(result.updatedListing),
+          closed: result.closed,
+          quantityPurchased: result.quantityPurchased,
+          totalPaid: result.totalPaid,
+          feeDeducted: result.feeDeducted,
+          proceedsToSeller: result.proceedsToSeller,
+          updatedMarketState: result.updatedMarketState,
+        }
+      : { success: false, reason: result.reason },
+  };
+});
+
+const sellToMarketSubjects = [
+  {
+    itemInstance: makeInstance(findRealResource("igneous-ore"), 5, { purity: 60, density: 60, potency: 60, durability: 60, rarity: 60 }),
+    quantity: 5,
+    marketState: { planetId: "planet-alpha", itemId: "igneous-ore", currentPrice: 5, basePrice: 5 } as PlanetMarketState,
+    wallet: { playerId: "seller-1", credits: 100 } as Wallet,
+    sellerPlayerId: "seller-1",
+  },
+  {
+    itemInstance: makeInstance(findRealResource("hydrogen-gas"), 8, { purity: 70, density: 70, potency: 70, rarity: 70 }),
+    quantity: 8,
+    marketState: { planetId: "planet-beta", itemId: "hydrogen-gas", currentPrice: 4, basePrice: 4 } as PlanetMarketState,
+    wallet: { playerId: "seller-2", credits: 0 } as Wallet,
+    sellerPlayerId: "seller-2",
+  },
+];
+const sellToMarketCases = sellToMarketSubjects.map((s) => ({
+  itemInstance: serializeInstance(s.itemInstance),
+  quantity: s.quantity,
+  marketState: s.marketState,
+  wallet: s.wallet,
+  sellerPlayerId: s.sellerPlayerId,
+  expectedResult: sellToMarket(s.itemInstance, s.quantity, s.marketState, s.wallet, s.sellerPlayerId),
+}));
+
+const sellToGlobalMarketSubjects = [
+  {
+    itemInstance: makeInstance(findRealResource("igneous-ore"), 6, { purity: 55, density: 55, potency: 55, durability: 55, rarity: 55 }),
+    quantity: 6,
+    marketStates: globalPriceMarketStates,
+    wallet: { playerId: "seller-1", credits: 50 } as Wallet,
+    sellerPlayerId: "seller-1",
+  },
+];
+const sellToGlobalMarketCases = sellToGlobalMarketSubjects.map((s) => ({
+  itemInstance: serializeInstance(s.itemInstance),
+  quantity: s.quantity,
+  marketStates: s.marketStates,
+  wallet: s.wallet,
+  sellerPlayerId: s.sellerPlayerId,
+  expectedResult: sellToGlobalMarket(s.itemInstance, s.quantity, s.marketStates, s.wallet, s.sellerPlayerId),
+}));
+
+const expireListingsSubjects: Listing[] = [
+  { id: "e1", itemId: "igneous-ore", quantity: 4, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-1", createdAt: 0, expiresAt: 500 }, // expired, global, non-zero -> returned to inventory
+  { id: "e2", itemId: "igneous-ore", quantity: 3, pricePerUnit: 5, marketTier: "White", location: { planetId: "planet-alpha" }, createdByPlayerId: "seller-2", createdAt: 0, expiresAt: 500 }, // expired, planet, non-zero -> planet-pickup
+  { id: "e3", itemId: "igneous-ore", quantity: 0, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-3", createdAt: 0, expiresAt: 500 }, // expired but sold out -> nothing returned
+  { id: "e4", itemId: "igneous-ore", quantity: 5, pricePerUnit: 5, marketTier: "White", location: "global", createdByPlayerId: "seller-4", createdAt: 0, expiresAt: 1_500 }, // not yet expired
+];
+const expireListingsCurrentTime = 1000;
+const expireListingsCases = [
+  {
+    listings: expireListingsSubjects.map(serializeListing),
+    currentTimeMs: expireListingsCurrentTime,
+    expectedResult: expireListings(expireListingsSubjects, expireListingsCurrentTime),
+  },
+];
+
 const output = {
   generatedAt: new Date().toISOString(),
   tierColorCases,
@@ -390,6 +663,16 @@ const output = {
   galaxyCases,
   planetResourceCycleCases,
   gcprCases,
+  createListingCases,
+  applyDriftCases,
+  applyRecoveryCases,
+  seasonCases,
+  emergencyCases,
+  globalPriceCases,
+  purchaseListingCases,
+  sellToMarketCases,
+  sellToGlobalMarketCases,
+  expireListingsCases,
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -400,5 +683,10 @@ console.log(`Wrote ${outPath}`);
 console.log(
   `  tierColor: ${tierColorCases.length}, rollQuality: ${rollQualityCases.length}, ` +
     `refine: ${refineCases.length}, craft: ${craftCases.length}, galaxy: ${galaxyCases.length}, ` +
-    `planetResourceCycle: ${planetResourceCycleCases.length}, gcpr: ${gcprCases.length}`,
+    `planetResourceCycle: ${planetResourceCycleCases.length}, gcpr: ${gcprCases.length}, ` +
+    `createListing: ${createListingCases.length}, applyDrift: ${applyDriftCases.length}, ` +
+    `applyRecovery: ${applyRecoveryCases.length}, season: ${seasonCases.length}, ` +
+    `emergency: ${emergencyCases.length}, globalPrice: ${globalPriceCases.length}, ` +
+    `purchaseListing: ${purchaseListingCases.length}, sellToMarket: ${sellToMarketCases.length}, ` +
+    `sellToGlobalMarket: ${sellToGlobalMarketCases.length}, expireListings: ${expireListingsCases.length}`,
 );

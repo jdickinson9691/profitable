@@ -1,1 +1,3 @@
 Copies of the real `content/*.json` files (`resources.json`, `recipes.json`, `refiningRecipes.json`, `schematics.json`, `planets.json`), read at runtime by `GameContent.cs` via `ContentLoader.LoadFromFiles(Application.streamingAssetsPath + ...)`. Same "reuse as-is, keep in sync" caveat as `unity/ProfitableCore.Tests/Fixtures/README.md` — if the real `content/*.json` files change, re-copy them here.
+
+`tradingBasePrices.json`/`planetMarketPreferences.json` were added the same way for Sub-Phase B (Trading, agent-46-unity-trading-presentation.md), read at runtime by `MarketState.cs` via `TradingContentLoader.LoadFromFiles(...)`.

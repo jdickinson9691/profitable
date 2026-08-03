@@ -126,6 +126,14 @@ Full scope/readiness computation: `docs/functional-agents/build.md`; the followa
 41. [`agent-41-unity-galaxy-planet-presentation.md`](agent-41-unity-galaxy-planet-presentation.md) — rewrites `MapPanel`/`GatherPanel` against a real generated galaxy (`GalaxyState.cs`), replacing Phase 1's static Delta Rigelus content; quality is now read once per visit instead of rolled per click. Depends on Agent 39/40.
 42. [`agent-42-unity-galaxy-planet-mining-integration.md`](agent-42-unity-galaxy-planet-mining-integration.md) — confirms the real galaxy drives the existing gather→refine→craft loop end-to-end, reusing Agent 36's own click-through test unmodified. Created last in Sub-Phase A.
 
+## Unity Migration Phase 2 — Sub-Phase B (Trading) complete
+
+43. [`agent-43-unity-trading-schema.md`](agent-43-unity-trading-schema.md) — ports `Listing`/`PlanetMarketState`/`Wallet`/`MarketLocation`/`PurchaseResult`/`ItemBasePrice`/`PlanetMarketPreference` and `TradingConfig` (the first sub-phase needing mutable debug-tunable constants). Depends on Agent 38. Created first in Sub-Phase B.
+44. [`agent-44-unity-trading-simulation-core.md`](agent-44-unity-trading-simulation-core.md) — ports `createListing`/`purchaseListing`/`drift`/`season`/`emergency`/`expireListings`/`globalPrice`/`sellToMarket`/`sellToGlobalMarket`/`loadTradingContent` to C#, exactly. Depends on Agent 43.
+45. [`agent-45-unity-trading-parity-validation.md`](agent-45-unity-trading-parity-validation.md) — proves the C# port agrees with the real TypeScript output end-to-end across all 10 functions, including a search-found (not hand-picked) triggered-emergency case. Created alongside Agent 44, runs continuously.
+46. [`agent-46-unity-trading-presentation.md`](agent-46-unity-trading-presentation.md) — adds a Market panel (fifth panel in the MVP loop) scoped to the Trading Counterparty instant-sell functions only. Depends on Agent 44/45.
+47. [`agent-47-unity-trading-integration.md`](agent-47-unity-trading-integration.md) — confirms the Market panel drives real gather→refine→craft→sell end-to-end and Sub-Phase A's own tests still pass unmodified (regression proof). Created last in Sub-Phase B.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:
