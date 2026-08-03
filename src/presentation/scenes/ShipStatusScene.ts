@@ -5,6 +5,7 @@ import { getShipRoster, getVoyages, replaceShip } from "../shipsState.ts";
 import { getCrewRoster, replaceCrewMember } from "../crewState.ts";
 import { getCrewSlotsForShip } from "../../ships/getCrewSlotsForShip.ts";
 import { assignToShipRole } from "../../ships/assignToShipRole.ts";
+import { unassignFromShipRole } from "../../ships/unassignFromShipRole.ts";
 import { resolveComponentRepair } from "../../ships/resolveComponentRepair.ts";
 import { galaxy, startingPlanet, getDiscoveredPlanets } from "../galaxyState.ts";
 import { withPlanetOwnership } from "../planetOwnershipState.ts";
@@ -256,6 +257,15 @@ export class ShipStatusScene extends Phaser.Scene {
         btn.on("pointerdown", () => this.onAssignRole(ship, member, role));
         x += btn.width + 14;
       }
+      // Closes a previously-flagged gap: only offered when currently
+      // assigned to THIS ship -- unassigning from elsewhere isn't this
+      // scene's concern, same "one ship's own controls" scoping every
+      // other button here already follows.
+      if (member.assignedShipId === ship.id) {
+        const unassignBtn = this.scroll!.addText(x, y, "> Unassign", { fontFamily: "monospace", fontSize: "12px", color: "#f44336" });
+        unassignBtn.setInteractive({ useHandCursor: true });
+        unassignBtn.on("pointerdown", () => this.onUnassignRole(member));
+      }
       y += 20;
     }
     return y;
@@ -269,6 +279,17 @@ export class ShipStatusScene extends Phaser.Scene {
     }
     replaceCrewMember(result.updatedCrewMember);
     this.setStatus(`Assigned ${result.updatedCrewMember.tier} crew member as ${role} on ${ship.name}.`);
+    this.redraw();
+  }
+
+  private onUnassignRole(member: CrewMember): void {
+    const result = unassignFromShipRole(member);
+    if (!result.unassigned) {
+      this.setStatus(`Unassign failed: ${result.reason}`);
+      return;
+    }
+    replaceCrewMember(result.updatedCrewMember);
+    this.setStatus(`Unassigned ${result.updatedCrewMember.tier} crew member.`);
     this.redraw();
   }
 }

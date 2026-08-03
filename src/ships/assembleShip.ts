@@ -29,15 +29,11 @@ export function assembleShip(ship: Ship, component: ShipComponent, slot: Compone
   const tier = deriveShipTier(updated);
 
   // Ship Fuel amendment: fuelCapacity recomputes at the same moment tier
-  // does -- never left stale (ship.md's own contract). This is also what
-  // ends the starting ship's STARTING_SHIP_FUEL_CAPACITY bootstrap
-  // exception: its first component change routes fuelCapacity through
-  // this normal per-tier lookup instead, per that constant's own
-  // "expires on first component change" rule. currentFuel is clamped
-  // down if the new capacity is smaller (never lost fuel simply appears,
-  // but an over-full tank relative to a shrunken capacity can't persist
-  // either), left unchanged otherwise -- a bigger tank doesn't retroactively
-  // refill itself.
+  // does -- never left stale (ship.md's own contract). currentFuel is
+  // clamped down if the new capacity is smaller (never lost fuel simply
+  // appears, but an over-full tank relative to a shrunken capacity can't
+  // persist either), left unchanged otherwise -- a bigger tank doesn't
+  // retroactively refill itself.
   const fuelCapacity = deriveFuelCapacity(tier);
   const currentFuel = Math.min(updated.currentFuel, fuelCapacity);
 

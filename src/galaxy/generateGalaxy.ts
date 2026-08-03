@@ -7,7 +7,13 @@ import { generatePlanet } from "./generatePlanet.ts";
 // design; this is a documented default (a bounded square, uniform random),
 // not a literal requirement. Cheap to change later since nothing besides
 // display/travel (both post-MVP) reads position values yet.
-const POSITION_RANGE = 1000;
+// Exported (Ship Fuel amendment): the galaxy's real worst-case single-trip
+// distance -- corner-to-corner, 2*POSITION_RANGE on each axis -- is what
+// FUEL_CAPACITY_BY_TIER's "Blue is the first always-reachable-in-one-hop
+// tier" claim is verified against (shipsAndTravelConfig.ts's own comment).
+// Read from here rather than duplicated as a second literal, so the two
+// stay structurally linked if this value ever changes.
+export const POSITION_RANGE = 1000;
 
 function generatePosition(random: () => number): PlanetPosition {
   return {

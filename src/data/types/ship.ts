@@ -24,8 +24,7 @@ import type { TierColor } from "./tierColor.ts";
 // via purchaseShip()/assembleShip(), not retrofitted onto old save data
 // silently. fuelCapacity is derived from tier (deriveFuelCapacity(),
 // recomputed by assembleShip() on every component change, same moment
-// tier itself recomputes) -- never set directly except by the starting-
-// ship bootstrap exception (STARTING_SHIP_FUEL_CAPACITY).
+// tier itself recomputes) -- never set directly.
 export interface Ship {
   id: string;
   name: string;

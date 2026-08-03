@@ -436,18 +436,6 @@ export function setRefuelCostPerUnit(value: number): void {
   REFUEL_COST_PER_UNIT = value;
 }
 
-// Bootstrap exception, not a general Grey-tier rule: the very first,
-// pre-assigned starting ship's fuelCapacity/currentFuel are set to this
-// flat value instead of FUEL_CAPACITY_BY_TIER[Grey]'s tighter 50, so a
-// bad-seed roll can never make secondaryDiscoveredPlanet structurally
-// unreachable from startingPlanet before the player can afford repeated
-// refueling. Comfortably clears the ~85-fuel worst-case single trip.
-// Expires the moment the starting ship's first component change routes it
-// through the normal deriveFuelCapacity() lookup instead.
-export let STARTING_SHIP_FUEL_CAPACITY = 100;
-export function setStartingShipFuelCapacity(value: number): void {
-  STARTING_SHIP_FUEL_CAPACITY = value;
-}
 
 // Cargo Hold Capacity (profitable-design-questions.md). Constrains
 // Voyage.cargo only, not general inventory -- a modest curve reflecting an
