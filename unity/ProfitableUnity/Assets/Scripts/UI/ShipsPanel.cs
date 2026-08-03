@@ -18,28 +18,47 @@ namespace Profitable.Unity.UI
     // GalaxyState's two reachable planets (starting + secondary
     // destination). Deliberately does NOT include ship-crew-role
     // assignment UI (Pilot/Combat Engineer/etc. -- CrewPanel already
-    // covers hiring/upkeep/dismiss without touching ship roles), scanner
-    // purchase/scan UI, or combat/encounter resolution UI -- each is a
-    // real, separate presentation surface of its own scope (ship-crew
-    // roles interact with CrewPanel's roster, not this panel's ships;
-    // combat/encounters are Sub-Phase F's own Presentation job, since
-    // ResolveEncounters/ResolveCombatChoice were ported here as a schema
-    // dependency, not a claim that their UI is in scope here too). Only
-    // one active voyage is tracked at a time (ShipsState.ActiveVoyage),
-    // matching this MVP's existing "one thing at a time" simplicity
-    // rather than a full multi-ship concurrent-voyage manager.
+    // covers hiring/upkeep/dismiss without touching ship roles) or
+    // scanner purchase/scan UI -- both real, separate presentation
+    // surfaces of their own scope this panel doesn't claim.
+    //
+    // Migration Phase 2 Sub-Phase F addition (agent-63-unity-encounters
+    // -combat-presentation.md): ResolveArrival now opts into real
+    // encounter/combat resolution (passing destinationPlanet/resources),
+    // applies TradeOpportunity/Discovery/Hazard outcomes to
+    // Wallet/Inventory (ResolveEncounters' own contract: it only reports
+    // what happened, applying it is the caller's job), and surfaces any
+    // detected pending combat as an Attack/Flee choice. A won combat
+    // leaves the ship exactly where it is -- this MVP has no "return
+    // voyage" UI for a normal win, only the automatic retreat voyage a
+    // flee/loss produces; a full bidirectional travel system is out of
+    // scope for what this integration needs to prove.
     public class ShipsPanel
     {
         public GameObject Root { get; }
 
+        private readonly Inventory _inventory;
         private readonly Action<string> _log;
+        private readonly RandomFn _random;
         private readonly Text _statusText;
         private readonly RectTransform _shipyardGroup;
         private readonly RectTransform _shipsGroup;
+        private readonly RectTransform _pendingCombatsGroup;
 
-        public ShipsPanel(Transform parent, Action<string> log)
+        private static readonly System.Random SharedRandom = new();
+        private static double DefaultRandom() => SharedRandom.NextDouble();
+
+        // `random` is an injection seam, not a real gameplay knob -- real
+        // play always gets the default `System.Random`-backed roll;
+        // EditMode tests pass a fixed sequence so encounter/combat
+        // outcomes (otherwise genuinely random) are actually assertable,
+        // same reasoning PlanetOwnershipState's SetSaveSystem seam
+        // already established for FileSaveSystem.
+        public ShipsPanel(Transform parent, Inventory inventory, Action<string> log, RandomFn? random = null)
         {
+            _inventory = inventory;
             _log = log;
+            _random = random ?? DefaultRandom;
 
             var group = UiFactory.CreateVerticalGroup(parent, "ShipsPanel");
             Root = group.gameObject;
@@ -53,10 +72,22 @@ namespace Profitable.Unity.UI
             UiFactory.CreateText(group, "Owned ships:", 14);
             _shipsGroup = UiFactory.CreateVerticalGroup(group, "OwnedShips");
 
+            UiFactory.CreateText(group, "Pending combat:", 14);
+            _pendingCombatsGroup = UiFactory.CreateVerticalGroup(group, "PendingCombats");
+
             Refresh();
         }
 
         private static long NowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        // The only two planets this MVP's travel loop ever moves between
+        // -- resolves whichever one a Voyage's own DestinationPlanetId
+        // names, so ResolveArrival works correctly for both the outbound
+        // leg and an automatic retreat voyage's return leg.
+        private static Planet ResolveKnownPlanet(string planetId) =>
+            planetId == GalaxyState.StartingPlanet.Id
+                ? PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet)
+                : GalaxyState.SecondaryDestinationPlanet;
 
         public void Refresh()
         {
@@ -90,6 +121,15 @@ namespace Profitable.Unity.UI
                 {
                     UiFactory.CreateButton(row, $"Resolve Arrival {ship.Id}", () => ResolveArrival(ship.Id));
                 }
+            }
+
+            UiFactory.ClearChildren(_pendingCombatsGroup);
+            foreach (var pending in ShipsState.PendingCombats)
+            {
+                var row = UiFactory.CreateHorizontalGroup(_pendingCombatsGroup, $"PendingCombat_{pending.Encounter.Id}");
+                UiFactory.CreateText(row, $"{pending.ShipId}: opponent tier {pending.Encounter.OpponentThreatTier}", 12);
+                UiFactory.CreateButton(row, $"Attack {pending.Encounter.Id}", () => ResolveCombat(pending.Encounter.Id, "attack"));
+                UiFactory.CreateButton(row, $"Flee {pending.Encounter.Id}", () => ResolveCombat(pending.Encounter.Id, "flee"));
             }
         }
 
@@ -235,17 +275,94 @@ namespace Profitable.Unity.UI
                 return null;
             }
 
-            var result = ArrivalResolver.ResolveArrival(voyage, ship, NowMs());
+            var destinationPlanet = ResolveKnownPlanet(voyage.DestinationPlanetId);
+            var result = ArrivalResolver.ResolveArrival(voyage, ship, NowMs(), destinationPlanet, GameContent.Loaded.Resources, _random);
             if (result is ArrivalResolved resolved)
             {
                 ShipsState.ReplaceShip(resolved.UpdatedShip);
                 ShipsState.SetActiveVoyage(null);
                 _log($"{ship.Name} arrived at {resolved.DestinationPlanetId}.");
+
+                foreach (var encounter in resolved.Encounters)
+                {
+                    ApplyEncounter(encounter);
+                }
+                foreach (var combat in resolved.PendingCombats)
+                {
+                    ShipsState.PendingCombats.Add(new ShipsState.PendingCombatEntry { Encounter = combat, ShipId = shipId, Voyage = voyage });
+                    _log($"{ship.Name} encountered a hostile ship (threat tier {combat.OpponentThreatTier}).");
+                }
             }
             else
             {
                 _log($"Not yet arrived: {((ArrivalNotYetDue)result).Reason}");
             }
+
+            Refresh();
+            return result;
+        }
+
+        // ResolveEncounters' own contract: it only reports what happened
+        // (credits to grant, resource to award, credits to lose) --
+        // applying that to the real Wallet/Inventory is the caller's
+        // job, same division of responsibility ArrivalResult's own doc
+        // comment already draws for delivered cargo.
+        private void ApplyEncounter(EncounterResult encounter)
+        {
+            switch (encounter)
+            {
+                case TradeOpportunityEncounterResult trade:
+                    MarketState.SetWallet(new Wallet { PlayerId = MarketState.Wallet.PlayerId, Credits = MarketState.Wallet.Credits + trade.CreditsGranted });
+                    _log($"Trade opportunity: gained {trade.CreditsGranted:F2} credits.");
+                    break;
+                case DiscoveryEncounterResult discovery:
+                    var resource = GameContent.Loaded.Resources.First(r => r.Id == discovery.ResourceId);
+                    _inventory.Add(new ResourceInstance { Resource = resource, Quantity = 1, Qualities = discovery.Qualities });
+                    _log($"Discovery: found 1x {resource.Name}.");
+                    break;
+                case HazardEncounterResult hazard when !hazard.Passed:
+                    MarketState.SetWallet(new Wallet { PlayerId = MarketState.Wallet.PlayerId, Credits = MarketState.Wallet.Credits - hazard.CreditsLost });
+                    _log($"Hazard: lost {hazard.CreditsLost:F2} credits.");
+                    break;
+                case HazardEncounterResult:
+                    _log("Hazard: avoided without loss.");
+                    break;
+            }
+        }
+
+        public CombatResolution? ResolveCombat(string combatEncounterId, string choice)
+        {
+            var pending = ShipsState.PendingCombats.FirstOrDefault(p => p.Encounter.Id == combatEncounterId);
+            if (pending is null)
+            {
+                _log($"Resolve combat failed: no pending combat '{combatEncounterId}'.");
+                return null;
+            }
+            var ship = ShipsState.OwnedShips.FirstOrDefault(s => s.Id == pending.ShipId);
+            if (ship is null)
+            {
+                _log($"Resolve combat failed: no owned ship '{pending.ShipId}'.");
+                return null;
+            }
+
+            var originPlanet = ResolveKnownPlanet(pending.Voyage.OriginPlanetId);
+            var currentPlanet = ResolveKnownPlanet(pending.Voyage.DestinationPlanetId);
+            var result = CombatChoiceResolver.ResolveCombatChoice(
+                pending.Encounter, choice, pending.Voyage, ship, originPlanet, currentPlanet,
+                CrewState.Crew, NowMs(), $"{pending.Voyage.Id}-retreat-{NowMs()}", _random);
+
+            ShipsState.PendingCombats.Remove(pending);
+            ShipsState.ReplaceShip(result.UpdatedShip);
+            if (result.UpdatedCrewMember is not null)
+            {
+                var index = CrewState.Crew.FindIndex(c => c.Id == result.UpdatedCrewMember.Id);
+                if (index >= 0) CrewState.Crew[index] = result.UpdatedCrewMember;
+            }
+            if (result.RetreatVoyage is not null)
+            {
+                ShipsState.SetActiveVoyage(result.RetreatVoyage);
+            }
+            _log($"Combat resolved ({choice}): {result.CombatEncounter.Outcome}.");
 
             Refresh();
             return result;

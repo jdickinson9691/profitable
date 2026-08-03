@@ -25,6 +25,7 @@ namespace Profitable.Unity.Tests.EditMode
     {
         private GameObject _parent = null!;
         private ShipsPanel _panel = null!;
+        private Inventory _inventory = null!;
         private string _tempSaveDir = null!;
 
         [SetUp]
@@ -45,7 +46,8 @@ namespace Profitable.Unity.Tests.EditMode
             MarketState.SetWallet(new Wallet { PlayerId = "player-1", Credits = 1_000_000 });
 
             _parent = new GameObject("TestParent", typeof(RectTransform));
-            _panel = new ShipsPanel(_parent.transform, _ => { });
+            _inventory = new Inventory();
+            _panel = new ShipsPanel(_parent.transform, _inventory, _ => { });
         }
 
         [TearDown]
@@ -205,6 +207,104 @@ namespace Profitable.Unity.Tests.EditMode
             var costWithoutDiscount = creditsBeforeSecond - MarketState.Wallet.Credits;
 
             Assert.Less(costWithDiscount, costWithoutDiscount);
+        }
+
+        // A short, directly-constructed Voyage (1 hour) rather than a
+        // real InitiateVoyageToSecondaryDestination trip -- keeps
+        // ResolveEncounters' own windowCount at exactly 1
+        // (ceil(1/EncounterCheckWindowHours=24) == 1), so the fixed
+        // random sequence below maps onto a single, known roll path
+        // instead of however many hours the real inter-planet distance
+        // happens to produce.
+        private static void SetShortActiveVoyage(string shipId, string destinationPlanetId)
+        {
+            ShipsState.SetActiveVoyage(new Voyage
+            {
+                Id = "test-voyage",
+                ShipId = shipId,
+                OriginPlanetId = GalaxyState.StartingPlanet.Id,
+                DestinationPlanetId = destinationPlanetId,
+                DepartedAt = 0,
+                ArrivesAt = 60 * 60 * 1000,
+                Cargo = new(),
+            });
+        }
+
+        // Mirrors IntegrationTests.cs's own TestFixtureRandom helper --
+        // a fixed queue of random() results, so encounter/combat rolls
+        // (otherwise genuinely random) are actually assertable here.
+        private static RandomFn QueueRandom(params double[] values)
+        {
+            var index = 0;
+            return () =>
+            {
+                if (index >= values.Length)
+                {
+                    throw new System.InvalidOperationException($"QueueRandom exhausted after {values.Length} calls");
+                }
+                return values[index++];
+            };
+        }
+
+        [Test]
+        public void ResolveArrival_AppliesTradeOpportunityEncounterToWallet()
+        {
+            // trigger(0.1<0.2) -> pick TradeOpportunity(0.1<0.4 cumulative)
+            // -> credits roll(0.5 -> round(50+0.5*150)=125) -> arrival
+            // combat check(0.5 >= 0.1 -> no extra combat).
+            var panel = new ShipsPanel(_parent.transform, _inventory, _ => { }, QueueRandom(0.1, 0.1, 0.5, 0.5));
+            var candidateId = FirstShipyardCandidateId();
+            panel.PurchaseShip(candidateId);
+            var ship = ShipsState.OwnedShips[0];
+            SetShortActiveVoyage(ship.Id, GalaxyState.SecondaryDestinationPlanet.Id);
+            var creditsBefore = MarketState.Wallet.Credits;
+
+            var result = panel.ResolveArrival(ship.Id);
+
+            Assert.IsNotNull(result);
+            Assert.IsTrue(result!.Resolved);
+            var resolved = (ArrivalResolved)result;
+            Assert.AreEqual(1, resolved.Encounters.Count);
+            Assert.IsInstanceOf<TradeOpportunityEncounterResult>(resolved.Encounters[0]);
+            Assert.AreEqual(creditsBefore + 125, MarketState.Wallet.Credits, 0.001);
+            Assert.IsEmpty(ShipsState.PendingCombats);
+        }
+
+        [Test]
+        public void ResolveArrival_DetectsPendingCombatAndFleeInitiatesARetreatVoyage()
+        {
+            // trigger(0.5>=0.2 -> skip window, no encounter) -> arrival
+            // combat check(0.05<0.1 -> combat detected) -> threat roll(0.5).
+            var panel = new ShipsPanel(_parent.transform, _inventory, _ => { }, QueueRandom(0.5, 0.05, 0.5));
+            var candidateId = FirstShipyardCandidateId();
+            panel.PurchaseShip(candidateId);
+            var ship = ShipsState.OwnedShips[0];
+            SetShortActiveVoyage(ship.Id, GalaxyState.SecondaryDestinationPlanet.Id);
+
+            var result = panel.ResolveArrival(ship.Id);
+
+            Assert.IsNotNull(result);
+            var resolved = (ArrivalResolved)result!;
+            Assert.IsEmpty(resolved.Encounters);
+            Assert.AreEqual(1, ShipsState.PendingCombats.Count);
+            var pendingId = ShipsState.PendingCombats[0].Encounter.Id;
+            Assert.AreEqual(ship.Id, ShipsState.PendingCombats[0].ShipId);
+
+            var combatResult = panel.ResolveCombat(pendingId, "flee");
+
+            Assert.IsNotNull(combatResult);
+            Assert.AreEqual(CombatOutcome.Flee, combatResult!.CombatEncounter.Outcome);
+            Assert.IsEmpty(ShipsState.PendingCombats);
+            Assert.IsNotNull(ShipsState.ActiveVoyage);
+            Assert.AreEqual(GalaxyState.StartingPlanet.Id, ShipsState.ActiveVoyage!.DestinationPlanetId);
+        }
+
+        [Test]
+        public void ResolveCombat_FailsForUnknownPendingCombatId()
+        {
+            var result = _panel.ResolveCombat("no-such-combat", "flee");
+
+            Assert.IsNull(result);
         }
     }
 }

@@ -63,7 +63,7 @@ namespace Profitable.Unity.UI
             _craftPanel = new CraftPanel(content, _inventory, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
             _crewPanel = new CrewPanel(content, _inventory, Log);
-            _shipsPanel = new ShipsPanel(content, Log);
+            _shipsPanel = new ShipsPanel(content, _inventory, Log);
 
             UiFactory.CreateButton(nav, "Map", () => ShowOnly(_mapPanel.Root));
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));

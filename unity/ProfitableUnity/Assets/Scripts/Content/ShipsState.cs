@@ -17,11 +17,32 @@ namespace Profitable.Unity.Content
     // CrewState already established for hiring/upkeep/capacity.
     public static class ShipsState
     {
+        // Migration Phase 2 Sub-Phase F (Encounters & Combat) addition --
+        // docs/agents/agent-63-unity-encounters-combat-presentation.md.
+        // A detected-but-unresolved CombatEncounter needs to remember
+        // which ship it belongs to -- the Voyage that produced it is
+        // discarded once ResolveArrival finishes (ActiveVoyage is cleared
+        // immediately), so the encounter alone isn't enough to resolve a
+        // later player choice against.
+        public sealed class PendingCombatEntry
+        {
+            public CombatEncounter Encounter { get; set; } = new();
+            public string ShipId { get; set; } = string.Empty;
+
+            // The voyage that produced this encounter, kept only so a
+            // later ResolveCombatChoice call can rebuild the origin/
+            // current planets and cargo a retreat voyage needs -- not
+            // read for any other purpose.
+            public Voyage Voyage { get; set; } = new();
+        }
+
         private static List<Ship>? _ownedShips;
         private static ShipyardPool? _shipyardPool;
         private static Voyage? _activeVoyage;
+        private static List<PendingCombatEntry>? _pendingCombats;
 
         public static List<Ship> OwnedShips => _ownedShips ??= new List<Ship>();
+        public static List<PendingCombatEntry> PendingCombats => _pendingCombats ??= new List<PendingCombatEntry>();
 
         public static void ReplaceShip(Ship updated)
         {
@@ -60,6 +81,7 @@ namespace Profitable.Unity.Content
             _ownedShips = null;
             _shipyardPool = null;
             _activeVoyage = null;
+            _pendingCombats = null;
         }
     }
 }

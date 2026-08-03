@@ -158,6 +158,13 @@ Full scope/readiness computation: `docs/functional-agents/build.md`; the followa
 61. [`agent-61-unity-planet-ownership-presentation.md`](agent-61-unity-planet-ownership-presentation.md) — adds ownership actions to `GatherPanel`; introduces `PlanetOwnershipState.cs`, this migration's first REAL `ISaveSystem`-backed persistence in Presentation. Depends on Agent 59/60.
 62. [`agent-62-unity-planet-ownership-integration.md`](agent-62-unity-planet-ownership-integration.md) — confirms persistence survives a reload; found and fixed a real gap in Sub-Phase D's `ShipsPanel` (Citadel context never wired through to refuel/repair). Created last in Sub-Phase E.
 
+## Unity Migration Phase 2 — Sub-Phase F (Encounters & Combat) complete
+
+Schema/Simulation Core/Parity Validation were already done in Sub-Phase D (agents 53-55), since `resolveEncounters.ts`/`resolveCombatChoice.ts`/`initiateCombat.ts` live in `src/ships/` — only Presentation and Phase Integration were needed here. **Migration Phase 2 (Sub-Phases A-F) is complete as of Agent 64.**
+
+63. [`agent-63-unity-encounters-combat-presentation.md`](agent-63-unity-encounters-combat-presentation.md) — wires `EncounterResolver`/`CombatChoiceResolver` into `ShipsPanel.ResolveArrival`, applying Trade/Discovery/Hazard outcomes to the real Wallet/Inventory and surfacing pending combat as a real Attack/Flee choice; adds a `RandomFn` test-injection seam mirroring `PlanetOwnershipState.SetSaveSystem`'s own pattern. Depends on Agent 54/55. Created first in Sub-Phase F.
+64. [`agent-64-unity-encounters-combat-integration.md`](agent-64-unity-encounters-combat-integration.md) — confirms a real encounter outcome applies and a real pending combat resolves (attack/flee, including the automatic retreat voyage) through the real Unity build; confirms no equivalent to Sub-Phase E's own found-and-fixed gap exists here. Created last in Sub-Phase F, closing out Migration Phase 2 in its entirety.
+
 ## Cross-Cutting Rules (apply to every agent, not just one)
 
 These rules aren't restated in full in every file, but every agent above is bound by them:
