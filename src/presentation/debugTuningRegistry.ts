@@ -139,6 +139,13 @@ export const TUNING_SECTIONS: TuningSection[] = [
         1,
       ),
       row("Elapsed time cap (h)", () => crew.ELAPSED_TIME_CAP_HOURS, crew.setElapsedTimeCapHours, 1),
+      row(
+        "Background idle output rate/h",
+        () => crew.BACKGROUND_IDLE_OUTPUT_RATE ?? 0,
+        crew.setBackgroundIdleOutputRate,
+        0.05,
+        2,
+      ),
       ...perTierRows(
         "Crew hire cost",
         (tier) => crew.CREW_HIRE_COST_BY_TIER.find((e) => e.tier === tier)?.cost ?? 0,

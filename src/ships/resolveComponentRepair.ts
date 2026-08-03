@@ -10,6 +10,7 @@ import { QUALITY_MIN, QUALITY_MAX } from "../data/constants/quality.ts";
 import {
   SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER,
   CRAFTER_REPAIR_RATE_BY_TIER,
+  CITADEL_LEVEL_2_REPAIR_RATE,
   CITADEL_LEVEL_3_REPAIR_RATE,
   REPAIR_ELAPSED_TIME_CAP_HOURS,
 } from "../data/constants/shipsAndTravelConfig.ts";
@@ -85,12 +86,13 @@ export function resolveComponentRepair(
     throw new Error("resolveComponentRepair: activeVoyage and dockedPlanet cannot both be non-null");
   }
 
-  const citadelActive =
-    activeVoyage === null &&
-    dockedPlanet !== null &&
-    (dockedPlanet.citadelLevel ?? 0) >= 3 &&
-    dockedPlanet.ownedByPlayerId === ship.ownerId;
-  const citadelRate = citadelActive ? CITADEL_LEVEL_3_REPAIR_RATE : 0;
+  // Citadel repair scales by investment depth (Level 2: reduced rate,
+  // Level 3: full rate) rather than a Level-3-only on/off flag --
+  // repurposed from the original "Level 2 = cargo storage" benefit, see
+  // planetOwnership.ts's own comment for why.
+  const dockedAtOwnedCitadel = activeVoyage === null && dockedPlanet !== null && dockedPlanet.ownedByPlayerId === ship.ownerId;
+  const citadelLevel = dockedAtOwnedCitadel ? (dockedPlanet.citadelLevel ?? 0) : 0;
+  const citadelRate = citadelLevel >= 3 ? CITADEL_LEVEL_3_REPAIR_RATE : citadelLevel >= 2 ? CITADEL_LEVEL_2_REPAIR_RATE : 0;
 
   // "While traveling" (design entry's literal wording) -- never resolved
   // at all while docked, regardless of profession/tier.

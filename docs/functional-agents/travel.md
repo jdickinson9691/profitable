@@ -1,6 +1,6 @@
 # Functional Agent: Travel
 
-**Status: existing system, documented as-built; Ship Fuel/Cargo Hold Capacity/Pilot amendment now built too.** Consolidates the travel slice of Agent 20 (core) + its Scanner amendment, Agent 22 (presentation) + its Scanner amendment, and Agent 23 (content). Cross-references `ship.md` for the fuel/cargo-capacity gates on `initiateVoyage()` (built) and `encounters-combat.md` for what happens once a voyage is under way.
+**Status: existing system, documented as-built; Ship Fuel/Cargo Hold Capacity/Pilot amendment now built too.** Consolidates the travel slice of Agent 20 (core) + its Scanner amendment, Agent 22 (presentation) + its Scanner amendment, and Agent 23 (content). Cross-references `ship.md` for the fuel/cargo-capacity gates on `initiateVoyage()` (built) and `encounters-combat.md` for what happens once a voyage is under way. **Real doc/code drift found and fixed this pass:** this file already claimed the shipyard/scanner pools "refresh" on their documented intervals, but `getShipyardPool()`/`getScannerPool()` (`src/presentation/shipsState.ts`) generated a pool once and cached it forever — the interval constants existed and were tunable, but nothing ever compared elapsed time against them (the same gap `crew.md` found and fixed for `getCrewPool()`). Both getters now correctly re-roll once their own interval has elapsed since the stored pool's `lastRefreshedAt`; the "refreshed every N hours" language below is accurate as of this fix, not before it.
 
 ## Responsibility
 

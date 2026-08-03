@@ -3,7 +3,7 @@ import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { ScrollableContent, STATUS_TEXT_Y } from "./scrollableContent.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
 import { getCurrentPlanet } from "../currentPlanet.ts";
-import { consume, addBatch } from "../inventory.ts";
+import { consume, addBatch, totalQuantity } from "../inventory.ts";
 import { getWallet, setWallet, PLAYER_ID } from "../tradingState.ts";
 import {
   getCrewCapacity,
@@ -33,6 +33,7 @@ import type { HireSucceeded } from "../../data/types/hireResult.ts";
 import type { AssignSucceeded } from "../../data/types/assignResult.ts";
 import type { PurchaseCapacitySucceeded } from "../../data/types/purchaseCapacityResult.ts";
 import type { Planet } from "../../data/types/planet.ts";
+import type { Recipe } from "../../data/types/recipe.ts";
 
 // Agent 18 (Crew Presentation). Every number shown is sourced directly
 // from Agent 16's actual function outputs -- this scene formats and
@@ -81,6 +82,23 @@ export class CrewScene extends Phaser.Scene {
         .reduce((sum, batch) => sum + batch.quantity, 0);
       return total >= slot.quantity;
     });
+  }
+
+  // How many complete units of this recipe the player's real, current
+  // inventory can support right now -- read-only, no consumption. Used to
+  // cap background production (resolveBackgroundCrafting()'s maxUnits
+  // parameter) so a crew member idle long enough to time-compute more
+  // units than the player's actual stockpile can never produce output
+  // from materials that don't exist.
+  private maxAffordableUnits(recipe: Recipe): number {
+    const inventory = getInventory();
+    let max = Infinity;
+    for (const slot of recipe.inputs) {
+      const resource = this.resolveSlotResource(slot.category);
+      if (!resource) return 0;
+      max = Math.min(max, Math.floor(totalQuantity(inventory, resource.id) / slot.quantity));
+    }
+    return max;
   }
 
   private buildCraftAction(id: string): CraftAction | null {
@@ -317,26 +335,91 @@ export class CrewScene extends Phaser.Scene {
   }
 
   private onCheckBackground(member: CrewMember): void {
-    // BACKGROUND_IDLE_OUTPUT_RATE is currently unset (Phase 4 GDD §2.1a,
-    // still an open design question) -- resolveBackgroundCrafting() always
-    // hits its "not yet available" path with no override supplied, so the
-    // craftAction's actual contents don't matter yet. Once a real rate
-    // exists, this needs to build a real action the same way onAssign()
-    // does (consuming real inventory per completed unit).
-    const placeholderAction: CraftAction = {
-      id: member.assignedCraftId ?? `background-${member.id}`,
-      inputs: [],
-      recipe: content.recipes[0]!,
-      schematicTier: "Grey",
-    };
-    const result = resolveBackgroundCrafting(member, placeholderAction, Date.now());
+    // BACKGROUND_IDLE_OUTPUT_RATE is now resolved (crewConfig.ts, 0.5/
+    // hour) -- this consumes real inventory per completed unit, the
+    // follow-up this method's own prior comment flagged as necessary
+    // "once a real rate exists."
+    //
+    // Ordering: resolveBackgroundCrafting() needs one real, quality-
+    // bearing CraftAction up front (for craft()'s own quality formula),
+    // but doesn't know how many units will actually complete until it
+    // resolves elapsed time internally -- and if that turns out to be
+    // zero (checked too recently), the one-unit "sample" consumed below
+    // must be refunded rather than wasted. maxAffordableUnits() (read-
+    // only) caps production at whatever the player's real stockpile can
+    // support, passed in as resolveBackgroundCrafting()'s maxUnits.
+    const recipe = content.recipes[0];
+    if (!recipe) {
+      this.setStatus("No recipe content loaded.");
+      return;
+    }
+
+    const maxUnits = this.maxAffordableUnits(recipe);
+    if (maxUnits === 0) {
+      const placeholderAction: CraftAction = {
+        id: member.assignedCraftId ?? `background-${member.id}`,
+        inputs: [],
+        recipe,
+        schematicTier: "Grey",
+      };
+      const result = resolveBackgroundCrafting(member, placeholderAction, Date.now(), undefined, undefined, 0);
+      replaceCrewMember(result.updatedCrewMember);
+      this.setStatus("Background check: not enough materials gathered/refined for any production right now.");
+      this.redraw();
+      return;
+    }
+
+    const beforeSample = getInventory();
+    const action = this.buildCraftAction(member.assignedCraftId ?? `background-${member.id}-${Date.now()}`);
+    if (!action) {
+      this.setStatus("Not enough materials gathered/refined yet for background production.");
+      return;
+    }
+
+    const result = resolveBackgroundCrafting(member, action, Date.now(), undefined, undefined, maxUnits);
     replaceCrewMember(result.updatedCrewMember);
 
     if (!result.resolved) {
+      setInventory(beforeSample); // refund the sample -- nothing to apply it to
       this.setStatus(`Background check: ${result.reason}`);
-    } else {
-      this.setStatus(`Background production: ${result.unitsCompleted} unit(s) completed.`);
+      this.redraw();
+      return;
     }
+
+    if (result.unitsCompleted === 0) {
+      setInventory(beforeSample); // no time-based production this check -- refund the sample
+      this.setStatus("Background check: not enough time has passed for any production yet.");
+      this.redraw();
+      return;
+    }
+
+    // The sample above already consumed 1 unit's worth of inputs -- consume
+    // the remaining (unitsCompleted - 1) units' worth for real.
+    const remainingUnits = result.unitsCompleted - 1;
+    if (remainingUnits > 0) {
+      let inventory = getInventory();
+      for (const slot of recipe.inputs) {
+        const resource = this.resolveSlotResource(slot.category);
+        if (!resource) continue;
+        inventory = consume(inventory, resource.id, slot.quantity * remainingUnits).inventory;
+      }
+      setInventory(inventory);
+    }
+
+    let accepted = 0;
+    let inventory = getInventory();
+    for (const unit of result.results) {
+      if (unit.accepted) {
+        inventory = addBatch(inventory, { resourceId: recipe.outputResourceId, quantity: recipe.outputQuantity, qualities: unit.qualities });
+        accepted++;
+      }
+    }
+    setInventory(inventory);
+
+    const outputResource = content.resources.find((r) => r.id === recipe.outputResourceId);
+    this.setStatus(
+      `Background production: ${result.unitsCompleted} unit(s) resolved, ${accepted} accepted (${outputResource?.name ?? recipe.outputResourceId}).`,
+    );
     this.redraw();
   }
 

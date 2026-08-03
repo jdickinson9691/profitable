@@ -37,14 +37,28 @@ const action: CraftAction = {
   schematicTier: "Blue",
 };
 
-test("resolveBackgroundCrafting() returns not-yet-available when the background rate is unset (the real default)", () => {
-  const result = resolveBackgroundCrafting(idleCrewMember(), action, 10 * MS_PER_HOUR);
+test("resolveBackgroundCrafting() returns not-yet-available when the background rate is explicitly overridden to null", () => {
+  const result = resolveBackgroundCrafting(idleCrewMember(), action, 10 * MS_PER_HOUR, null);
   assert.equal(result.resolved, false);
 });
 
 test("resolveBackgroundCrafting() still advances lastCheckedAt even when the rate is unavailable", () => {
-  const result = resolveBackgroundCrafting(idleCrewMember({ lastCheckedAt: 0 }), action, 10 * MS_PER_HOUR);
+  const result = resolveBackgroundCrafting(idleCrewMember({ lastCheckedAt: 0 }), action, 10 * MS_PER_HOUR, null);
   assert.equal(result.updatedCrewMember.lastCheckedAt, 10 * MS_PER_HOUR);
+});
+
+test("resolveBackgroundCrafting() resolves real production using the real default rate (0.5/hour) when no override is supplied", () => {
+  const result = resolveBackgroundCrafting(
+    idleCrewMember({ lastCheckedAt: 0 }),
+    action,
+    10 * MS_PER_HOUR,
+    undefined,
+    queueRandom(Array(5).fill(0)),
+  ) as BackgroundResolved;
+
+  assert.equal(result.resolved, true);
+  assert.equal(result.unitsCompleted, 5); // 10h * 0.5/h
+  assert.equal(result.results.length, 5);
 });
 
 test("resolveBackgroundCrafting() computes unitsCompleted from elapsed hours * rate when a rate is supplied", () => {
@@ -98,6 +112,32 @@ test("resolveBackgroundCrafting() caps elapsed time at ELAPSED_TIME_CAP_HOURS, n
 
   assert.equal(result.resolved, true);
   assert.equal(result.unitsCompleted, 48); // ELAPSED_TIME_CAP_HOURS, not 168
+});
+
+test("resolveBackgroundCrafting() caps unitsCompleted at maxUnits, not just the elapsed-time-derived count", () => {
+  const result = resolveBackgroundCrafting(
+    idleCrewMember({ lastCheckedAt: 0 }),
+    action,
+    10 * MS_PER_HOUR,
+    1, // 1 unit/hour -> uncapped would be 10 units
+    queueRandom([0, 0, 0]),
+    3, // materials on hand only support 3
+  ) as BackgroundResolved;
+
+  assert.equal(result.resolved, true);
+  assert.equal(result.unitsCompleted, 3);
+  assert.equal(result.results.length, 3);
+});
+
+test("resolveBackgroundCrafting() maxUnits defaults to unbounded when omitted", () => {
+  const result = resolveBackgroundCrafting(
+    idleCrewMember({ lastCheckedAt: 0 }),
+    action,
+    3 * MS_PER_HOUR,
+    1,
+    queueRandom([0, 0, 0]),
+  ) as BackgroundResolved;
+  assert.equal(result.unitsCompleted, 3);
 });
 
 test("resolveBackgroundCrafting() does not mutate the input crew member", () => {

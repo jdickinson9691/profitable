@@ -104,12 +104,27 @@ export function setElapsedTimeCapHours(value: number): void {
   ELAPSED_TIME_CAP_HOURS = value;
 }
 
-// §2.1a / Agent 1's own Must-NOT-Do: the exact background/idle output
-// rate (relative to active output for the same crafter) is an explicitly
-// open design question, not yet decided -- do not invent a number here.
-// Agent 16 must treat this as "not yet available" rather than defaulting
-// to some guessed fraction.
-export const BACKGROUND_IDLE_OUTPUT_RATE: number | null = null;
+// §2.1a -- resolved (profitable-design-questions.md's Crew Crafters
+// section: "Background/idle crafting rate: flat 50%, not tier-scaled...
+// half the rate/yield they would if actively assigned"). Honest
+// translation note: active crafting has no continuous per-hour
+// throughput of its own to literally halve -- craft() is a single
+// player/crew-triggered action, never time-gated, so there is no
+// existing "active units/hour" figure anywhere in this codebase to
+// derive 50% *of*. 0.5 units/hour is the concrete number that decision
+// resolves to: at ELAPSED_TIME_CAP_HOURS (48h), a fully-idle crew member
+// completes 24 units -- a real, noticeable trickle (per the design
+// entry's own "real, noticeable penalty... without making idle crafting
+// pointless" framing) without approaching what an attentive player could
+// produce by actively re-triggering craft() themselves. Flat across every
+// tier and recipe, matching the decision's own "not tier-scaled" (tier
+// still affects output *quality* via craft()'s existing variance table,
+// never this rate) -- and, by the same reasoning, not recipe-scaled
+// either, since the design entry draws no such distinction.
+export let BACKGROUND_IDLE_OUTPUT_RATE: number | null = 0.5;
+export function setBackgroundIdleOutputRate(value: number | null): void {
+  BACKGROUND_IDLE_OUTPUT_RATE = value;
+}
 
 // Alpha content roster (docs/profitable-alpha-content-roster.md §6) --
 // closes the tier 6-7 profession taxonomy that profession.ts's own

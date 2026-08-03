@@ -34,7 +34,7 @@ For each functional area named in `profitable-unity-migration-gdd.md` §2's Phas
 | Galaxy generation | `galaxy.md` | Fully as-built | **Yes** |
 | Planet generation | `planet.md` | **Now fully as-built** — Planet Resource Generation (fixed quality, reset cycle, tutorial guarantee) shipped; only the colonist gate (Planet Ownership, below) reaches into it, and that's additive, not a blocker on its own scope | **Yes** |
 | Mining | `mining.md` | **Now fully as-built** — `GatherScene` reads the deterministic `getCurrentPlanetResources()` path | **Yes** |
-| Planet Ownership | `planet-ownership.md` | Mixed — Colonist-Driven Production and Citadels' claim/build actions built; the three Level 2/3 benefits (refuel discount, cargo storage, repair) not yet wired, blocked on `ship.md` | **Partially** — port the built portion, defer the three benefit-wiring hooks to whichever phase ships alongside `ship.md` |
+| Planet Ownership | `planet-ownership.md` | **Now fully as-built** — Colonist-Driven Production, Citadels' claim/build, refuel discount, and depth-scaled repair (Level 2 reduced rate, Level 3 full rate) all wired and tested. Level 2's original "cargo storage" benefit was repurposed into the repair tier, not left as a gap (`planet-ownership.md`'s own status note) | **Yes** |
 | Refining | `refining.md` | Fully as-built | **Yes** |
 | Crafting | `crafting.md` | Fully as-built | **Yes** |
 | Recipes/Schematics | `recipes-schematics.md` | Fully as-built | **Yes** |
@@ -46,7 +46,7 @@ For each functional area named in `profitable-unity-migration-gdd.md` §2's Phas
 | Universe | `universe.md` | Entirely new scope, explicitly "deliberately unscheduled" (`functional-agents/README.md`) | **No**, and not a Migration Phase 2+ candidate at all — excluded, not just blocked |
 
 **Migration Phase 2 is now larger than originally computed** — Galaxy, Planet (in full), Mining, Planetary Markets, and Galactic Market are all ready simultaneously, not just Galaxy/Planet's original scope. Still mirrors the original TypeScript Creation Order (Phase 2 Galaxy/Planet before Phase 3 Trading before Phase 4 Crew...), so whether to bundle Trading's now-ready areas into the same migration phase as Galaxy/Planet or keep them as a separate phase closer to the original order is an implementation-time call for whoever actually runs this agent — not resolved here.
-| Crew (core hire/wage/upkeep/attrition) | no `docs/functional-agents/crew.md` yet (`ship.md`'s own flagged gap) | As-built per `docs/agents/agent-16-crew-core.md`, but this file's own precondition (read `docs/functional-agents/` first) can't be satisfied for Crew until that gap is filled | **Blocked on a documentation gap, not a code gap** — flag for `crew.md` to be written before Crew's own migration phase, don't port from `docs/agents/` directly as a workaround |
+| Crew (core hire/wage/upkeep/attrition) | `crew.md` — **now exists, documentation gap closed** | Fully as-built — `BACKGROUND_IDLE_OUTPUT_RATE` resolved (0.5/hour, real inventory wiring); `CREW_POOL_REFRESH_INTERVAL_HOURS` now correctly re-rolls a stale pool. No known gaps remain | **Yes** |
 
 ### "Port what's built, not what's designed" — the rule for partially-blocked areas
 
@@ -85,7 +85,7 @@ Runs phases in the order the readiness computation produces (mirroring the origi
 ## Testing Requirements
 
 - **Readiness computation:** given the current, real state of `docs/functional-agents/`, correctly classifies every area in the table above as ready/partially-blocked/blocked/excluded, matching the reasoning shown — a regression test that must be re-run (not just re-read) whenever any functional-agent file's Status line changes, since this agent's entire value is staying correct as the TypeScript side keeps moving.
-- **Mixed-area handling:** for a partially-blocked area (currently: Planet Ownership, Travel), correctly scopes the generated roster to the as-built portion only, and correctly defers the pending portion to a later amendment-phase rather than either skipping the whole area or attempting to port the pending portion anyway.
+- **Mixed-area handling:** for a partially-blocked area, correctly scopes the generated roster to the as-built portion only, and correctly defers the pending portion to a later amendment-phase rather than either skipping the whole area or attempting to port the pending portion anyway. **No area in the table above is currently mixed** — Planet Ownership and Travel, this rule's original worked examples, are both now fully as-built; re-verify this test case against whichever area is mixed next time one exists, don't assume these two stay the standing example.
 - **Roster generation:** the generated agent numbers never collide with an existing `docs/agents/*.md` file; role dependencies (Schema before Simulation Core, etc.) are encoded correctly for every generated phase, not just copied from the Phase 1 example without adaptation.
 - **Dispatch ordering:** a phase's Phase Integration agent never runs before that phase's Parity Validation agent has reported success; a later phase never starts before the current phase's Phase Integration has reported success.
 - Regression: no test anywhere asserts this agent modifies `src/`/`content/` — a passing suite here should not accidentally validate a violation of the "web/Electron build is never touched" rule.

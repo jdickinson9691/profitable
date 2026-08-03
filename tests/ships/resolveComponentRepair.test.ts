@@ -4,6 +4,7 @@ import { resolveComponentRepair } from "../../src/ships/resolveComponentRepair.t
 import {
   SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER,
   CRAFTER_REPAIR_RATE_BY_TIER,
+  CITADEL_LEVEL_2_REPAIR_RATE,
   CITADEL_LEVEL_3_REPAIR_RATE,
   REPAIR_ELAPSED_TIME_CAP_HOURS,
 } from "../../src/data/constants/shipsAndTravelConfig.ts";
@@ -124,11 +125,20 @@ test("resolveComponentRepair() Citadel Level 3 repairs only while docked at an o
   assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + CITADEL_LEVEL_3_REPAIR_RATE * 4));
 });
 
-test("resolveComponentRepair() Citadel benefit does not apply below Level 3", () => {
+test("resolveComponentRepair() Citadel Level 2 repairs at the reduced rate while docked at an owned Level 2 planet", () => {
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
   const owned = planet({ citadelLevel: 2, ownedByPlayerId: "player-1" });
   const result = resolveComponentRepair(startShip, [], null, owned, NOW);
-  assert.equal(result.components.weapon!.qualities.durability, 50);
+  assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + CITADEL_LEVEL_2_REPAIR_RATE * 4));
+  assert.ok(CITADEL_LEVEL_2_REPAIR_RATE < CITADEL_LEVEL_3_REPAIR_RATE, "Level 2 rate must be weaker than Level 3's");
+});
+
+test("resolveComponentRepair() Citadel benefit does not apply at Level 0 or 1", () => {
+  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
+  const noCitadel = resolveComponentRepair(startShip, [], null, planet({ citadelLevel: 0, ownedByPlayerId: "player-1" }), NOW);
+  assert.equal(noCitadel.components.weapon!.qualities.durability, 50);
+  const level1 = resolveComponentRepair(startShip, [], null, planet({ citadelLevel: 1, ownedByPlayerId: "player-1" }), NOW);
+  assert.equal(level1.components.weapon!.qualities.durability, 50);
 });
 
 test("resolveComponentRepair() Citadel benefit does not apply to a planet owned by someone else", () => {

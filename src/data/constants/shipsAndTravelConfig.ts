@@ -606,9 +606,18 @@ export function setCrafterRepairRateForTier(tier: TierColor, rate: number): void
   if (entry) entry.rate = rate;
 }
 
-// A single flat rate, not tier-keyed -- a Citadel has levels, not a
-// crew/ship tier. Only accrues while docked (activeVoyage === null) at an
-// owned Level 3 Citadel.
+// Flat rates, not tier-keyed -- a Citadel has levels, not a crew/ship
+// tier. Only accrue while docked (activeVoyage === null) at an owned
+// Citadel of the matching level or higher. Repurposed from the original
+// "Level 2 = cargo storage, Level 3 = repair" split (see
+// planetOwnership.ts's own comment for why) into a single repair benefit
+// that scales by investment depth instead -- Level 2 gets a reduced rate,
+// Level 3 doubles it, the same halving relationship
+// SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER's own tier curve already uses.
+export let CITADEL_LEVEL_2_REPAIR_RATE = 0.5;
+export function setCitadelLevel2RepairRate(value: number): void {
+  CITADEL_LEVEL_2_REPAIR_RATE = value;
+}
 export let CITADEL_LEVEL_3_REPAIR_RATE = 1;
 export function setCitadelLevel3RepairRate(value: number): void {
   CITADEL_LEVEL_3_REPAIR_RATE = value;

@@ -122,16 +122,22 @@ test("full extended loop: hire -> assign (simultaneous with player's own craft) 
   }
 
   // Step 5: crew member B stays idle; later, the player checks on their
-  // background production. BACKGROUND_IDLE_OUTPUT_RATE is currently null
-  // (Phase 4 GDD §2.1a is still an open design question at integration
-  // time), so the real default correctly reports "not yet available" --
-  // this is not a gap, it's the documented, expected state; see the
-  // dedicated hand-verified example below for what happens once a rate
-  // does exist.
+  // background production. BACKGROUND_IDLE_OUTPUT_RATE is now resolved
+  // (0.5 units/hour, crewConfig.ts's own comment has the full "flat 50%"
+  // design-decision reasoning) -- the real default now produces real
+  // output, no explicit rate override needed. 10 elapsed hours * 0.5/hour
+  // = 5 completed units.
   const backgroundNow = 10 * MS_PER_HOUR;
-  const backgroundResult = resolveBackgroundCrafting(hireB.crewMember, craftAction("crew-b-craft"), backgroundNow);
-  assert.equal(backgroundResult.resolved, false);
-  assert.equal(BACKGROUND_IDLE_OUTPUT_RATE, null);
+  const backgroundResult = resolveBackgroundCrafting(
+    hireB.crewMember,
+    craftAction("crew-b-craft"),
+    backgroundNow,
+    undefined,
+    queueRandom(Array(5).fill(0.5)),
+  ) as BackgroundResolved;
+  assert.equal(backgroundResult.resolved, true);
+  assert.equal(BACKGROUND_IDLE_OUTPUT_RATE, 0.5);
+  assert.equal(backgroundResult.unitsCompleted, 5);
   assert.equal(backgroundResult.updatedCrewMember.lastCheckedAt, backgroundNow);
 
   // Step 6: upkeep, paid correctly once a full interval has elapsed.
@@ -156,18 +162,14 @@ test("full extended loop: hire -> assign (simultaneous with player's own craft) 
   assert.equal(dismissal.dismissed, true);
 });
 
-test("hand-verified background-production example: a known lastCheckedAt, a known elapsed time, matching the hand-calculated expected output exactly (using an explicit rate, since BACKGROUND_IDLE_OUTPUT_RATE is still a placeholder per Agent 1's amendment)", () => {
-  // FLAGGED PER THIS AGENT'S OWN CONTRACT: Phase 4 GDD §2.1a's exact
-  // background/idle output rate is still an open design question at
-  // integration time -- BACKGROUND_IDLE_OUTPUT_RATE is null, not a real
-  // tunable value yet (confirmed above and in
-  // tests/data/phase4Constants.test.ts). This example therefore supplies
-  // an explicit rate override (the same injectable parameter Agent 17's
-  // own unit tests use) purely to prove the *mechanism* -- elapsed-time
-  // derivation, capping, and unit computation -- is correct and ready for
-  // whatever real number the design doc eventually locks in. It is not a
-  // claim that 1 unit/hour is the final balanced rate.
-  assert.equal(BACKGROUND_IDLE_OUTPUT_RATE, null);
+test("hand-verified background-production example: a known lastCheckedAt, a known elapsed time, matching the hand-calculated expected output exactly (using an explicit round rate for easy hand-verification, distinct from the real 0.5/hour default)", () => {
+  // BACKGROUND_IDLE_OUTPUT_RATE is resolved (0.5/hour, see crewConfig.ts
+  // and the Step 5 case above for that real default exercised end-to-end).
+  // This example still supplies its own explicit rate override -- not
+  // because the rate is unresolved, but because 1 unit/hour hand-
+  // calculates more legibly than 0.5 for this specific mechanism-proof
+  // (elapsed-time derivation, capping, unit computation), the same
+  // injectable-parameter technique the unit tests use.
 
   const crewMember = {
     id: "crew-hand-verify",

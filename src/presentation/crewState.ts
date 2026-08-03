@@ -4,7 +4,9 @@ import { refreshCrewPool } from "../crew/refreshCrewPool.ts";
 import type { CrewCapacity } from "../data/types/crewCapacity.ts";
 import type { CrewMember } from "../data/types/crewMember.ts";
 import type { PlanetCrewPool } from "../data/types/planetCrewPool.ts";
-import { BASE_CREW_CAPACITY } from "../data/constants/crewConfig.ts";
+import { BASE_CREW_CAPACITY, CREW_POOL_REFRESH_INTERVAL_HOURS } from "../data/constants/crewConfig.ts";
+
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 // Agent 18's own cross-scene state, same pattern tradingState.ts already
 // established. The crew pool is keyed per planet (below) -- planet-aware
@@ -65,10 +67,18 @@ export function removeCrewMember(id: string): void {
 // Generates a planet's pool on first request and persists it, the same
 // "load or create, then cache" behavior the old single-pool getCrewPool()
 // had -- just keyed per planet now instead of assuming startingPlanet.
-export function getCrewPool(planetId: string): PlanetCrewPool {
+// Re-rolls a fresh pool once CREW_POOL_REFRESH_INTERVAL_HOURS has elapsed
+// since the stored pool's own lastRefreshedAt -- a real, previously-
+// missing check (the constant existed and was tunable, but nothing ever
+// compared elapsed time against it, so a planet's pool never refreshed
+// for the rest of a session once generated). `now` is injectable, same
+// default-parameter pattern every other time-aware function here uses.
+export function getCrewPool(planetId: string, now: number = Date.now()): PlanetCrewPool {
   const stored = crewPoolsByPlanet[planetId];
-  if (stored) return stored;
-  const pool = refreshCrewPool(planetId);
+  if (stored && (now - stored.lastRefreshedAt) / MS_PER_HOUR < CREW_POOL_REFRESH_INTERVAL_HOURS) {
+    return stored;
+  }
+  const pool = refreshCrewPool(planetId, undefined, now);
   setCrewPool(planetId, pool);
   return pool;
 }

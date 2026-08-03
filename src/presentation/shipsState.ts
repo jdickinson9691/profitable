@@ -9,7 +9,10 @@ import type { Voyage } from "../data/types/voyage.ts";
 import type { ScannerPool } from "../data/types/scannerPool.ts";
 import type { Scanner } from "../data/types/scanner.ts";
 import type { CombatEncounter } from "../data/types/combatEncounter.ts";
+import { SHIPYARD_POOL_REFRESH_INTERVAL_HOURS, SCANNER_POOL_REFRESH_INTERVAL_HOURS } from "../data/constants/shipsAndTravelConfig.ts";
 import componentRecipes from "../../content/componentRecipes.json" with { type: "json" };
+
+const MS_PER_HOUR = 60 * 60 * 1000;
 
 // Agent 22's own cross-scene state, same pattern crewState.ts/tradingState.ts
 // already established. The shipyard pool is keyed per planet (below) --
@@ -46,11 +49,20 @@ let voyages: Voyage[] = (saveSystem.load(VOYAGES_SAVE_KEY) as Voyage[] | null) ?
 // Generates a planet's pool on first request and persists it, the same
 // "load or create, then cache" behavior the old single-pool
 // getShipyardPool() had -- just keyed per planet now instead of assuming
-// startingPlanet.
-export function getShipyardPool(planetId: string): ShipyardPool {
+// startingPlanet. Re-rolls a fresh pool once
+// SHIPYARD_POOL_REFRESH_INTERVAL_HOURS has elapsed since the stored
+// pool's own lastRefreshedAt -- a real, previously-missing check (the
+// constant existed and was tunable, but nothing ever compared elapsed
+// time against it, so a planet's pool never refreshed for the rest of a
+// session once generated, despite travel.md's own documentation claiming
+// it did). `now` is injectable, same pattern every other time-aware
+// function here uses.
+export function getShipyardPool(planetId: string, now: number = Date.now()): ShipyardPool {
   const stored = shipyardPoolsByPlanet[planetId];
-  if (stored) return stored;
-  const pool = refreshShipyardPool(planetId);
+  if (stored && (now - stored.lastRefreshedAt) / MS_PER_HOUR < SHIPYARD_POOL_REFRESH_INTERVAL_HOURS) {
+    return stored;
+  }
+  const pool = refreshShipyardPool(planetId, undefined, now);
   setShipyardPool(planetId, pool);
   return pool;
 }
@@ -115,11 +127,16 @@ let ownedScanners: Scanner[] = (saveSystem.load(SCANNER_ROSTER_SAVE_KEY) as Scan
 // Generates a planet's pool on first request and persists it, the same
 // "load or create, then cache" behavior the old single-pool
 // getScannerPool() had -- just keyed per planet now instead of assuming
-// startingPlanet.
-export function getScannerPool(planetId: string): ScannerPool {
+// startingPlanet. Re-rolls a fresh pool once
+// SCANNER_POOL_REFRESH_INTERVAL_HOURS has elapsed since the stored
+// pool's own lastRefreshedAt -- same previously-missing check the
+// shipyard/crew pools also lacked; see getShipyardPool()'s own comment.
+export function getScannerPool(planetId: string, now: number = Date.now()): ScannerPool {
   const stored = scannerPoolsByPlanet[planetId];
-  if (stored) return stored;
-  const pool = refreshScannerPool(planetId);
+  if (stored && (now - stored.lastRefreshedAt) / MS_PER_HOUR < SCANNER_POOL_REFRESH_INTERVAL_HOURS) {
+    return stored;
+  }
+  const pool = refreshScannerPool(planetId, undefined, now);
   setScannerPool(planetId, pool);
   return pool;
 }

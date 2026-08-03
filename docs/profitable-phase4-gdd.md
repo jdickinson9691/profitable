@@ -34,11 +34,12 @@ Chosen over true real-time ticking (nothing to keep alive in a browser tab with 
 
 **Multiplayer-forward reasoning (re-examined per the standing single-player-first decision, same treatment as the generation seed / planet position / discovered-flag / trade-attribution fields):** a client-computed elapsed duration would be a real exploit vector under a shared economy — a player could manipulate their local clock or the value itself to claim inflated background production, directly affecting a market other players trade in. Storing a timestamp and deriving elapsed time at resolution time keeps the same pure function portable to a future server-authoritative caller with zero formula rewrite — only *where* elapsed time gets computed changes, not the function itself.
 
-**Still open (tracked, not decided):**
+**Still open (tracked, not decided) — multiplayer-forward only, everything single-player-relevant is resolved:**
 - Should `lastCheckedAt` be stored now regardless, even though single-player has no immediate tamper-resistance need?
 - Does a future persistent shared world need genuine server-side ticking rather than catch-up-on-check-in, since other players might want to observe a crew's production without the owner triggering resolution?
 - Does a hired crew member remain strictly private to the hiring player under any future multiplayer model, or could crew members eventually be shared/tradeable/poachable — affecting whether crew data needs a `createdByPlayerId`-style field now, same pattern as trade attribution.
-- Exact reduced rate/capacity for background vs. active crafting (see Section 2.2).
+
+**Resolved (was previously listed here as still open):** the exact reduced rate for background vs. active crafting — flat 50%, not tier-scaled (`profitable-design-questions.md`'s "Crew Crafters" section), translated to `BACKGROUND_IDLE_OUTPUT_RATE = 0.5` units/hour in code. See `docs/functional-agents/crew.md` for the full reasoning, including the honest note that "active" crafting has no continuous per-hour throughput of its own to literally halve.
 
 ### 2.2 NPC Crafter Skill Representation
 **Decided.** Hired NPC crafters use the **same 7-tier color scale** already used for refiner tier, crafter tier, schematic tier, and planet tier — no separate system. A hired NPC's **profession is locked at hire time, not freely reassignable**, for tiers 6-7 (the tier band where profession specialization already exists per the general crafting design; tiers 3-5 remain general/unspecialized, same as the existing player-crafter rule).
@@ -129,7 +130,7 @@ PlanetCrewPool {
 - **Upkeep grace period** before unpaid-upkeep attrition triggers (2.7) — tunable.
 - **Elapsed-time cap** for background/idle crafting resolution (2.1a, e.g. 24-48 hours max credited) — tunable.
 - **Crew pool refresh interval and pool size per planet** (2.3) — tunable.
-- **Background/idle output rate**, relative to active output for the same crafter (still open — see Section 2's open questions) — placeholder until resolved.
+- **Background/idle output rate** (2.1a) — **resolved**: flat 50% of active output, not tier-scaled (Section 2's own "Decided" list). Translated to `BACKGROUND_IDLE_OUTPUT_RATE = 0.5` (units/hour) in code, since active crafting has no continuous per-hour throughput of its own to literally halve — see `docs/functional-agents/crew.md` and `crewConfig.ts`'s own comment for the full honest-translation reasoning.
 
 `Resource`/`Recipe`/`Schematic`/`Planet`/`Listing`/`PlanetMarketState`/`Wallet` types from prior phases are unchanged; Phase 4 does not touch them.
 

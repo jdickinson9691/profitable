@@ -73,6 +73,6 @@ test("ELAPSED_TIME_CAP_HOURS falls within the documented 24-48 hour example rang
   assert.ok(ELAPSED_TIME_CAP_HOURS >= 24 && ELAPSED_TIME_CAP_HOURS <= 48);
 });
 
-test("BACKGROUND_IDLE_OUTPUT_RATE is explicitly pending (null), not a guessed number", () => {
-  assert.equal(BACKGROUND_IDLE_OUTPUT_RATE, null);
+test("BACKGROUND_IDLE_OUTPUT_RATE is resolved to a real, positive rate (the design doc's 'flat 50%' decision, translated to units/hour)", () => {
+  assert.equal(BACKGROUND_IDLE_OUTPUT_RATE, 0.5);
 });
