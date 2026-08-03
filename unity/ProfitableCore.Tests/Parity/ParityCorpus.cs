@@ -24,6 +24,15 @@ public class ParityCorpus
 
     [JsonPropertyName("craftCases")]
     public List<CraftCase> CraftCases { get; set; } = new();
+
+    [JsonPropertyName("galaxyCases")]
+    public List<GalaxyCase> GalaxyCases { get; set; } = new();
+
+    [JsonPropertyName("planetResourceCycleCases")]
+    public List<PlanetResourceCycleCase> PlanetResourceCycleCases { get; set; } = new();
+
+    [JsonPropertyName("gcprCases")]
+    public List<GcprCase> GcprCases { get; set; } = new();
 }
 
 public class TierColorCase
@@ -120,4 +129,115 @@ public class ExpectedCraftResult
 
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }
+}
+
+public class SerializedPosition
+{
+    [JsonPropertyName("x")]
+    public int X { get; set; }
+
+    [JsonPropertyName("y")]
+    public int Y { get; set; }
+}
+
+public class SerializedPlanet
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("planetType")]
+    public string? PlanetType { get; set; }
+
+    [JsonPropertyName("tier")]
+    public string? Tier { get; set; }
+
+    [JsonPropertyName("position")]
+    public SerializedPosition? Position { get; set; }
+
+    [JsonPropertyName("producibleResourceIds")]
+    public List<string> ProducibleResourceIds { get; set; } = new();
+
+    [JsonPropertyName("specialtyResourceId")]
+    public string? SpecialtyResourceId { get; set; }
+
+    [JsonPropertyName("resourceQualities")]
+    public Dictionary<string, Dictionary<string, int?>> ResourceQualities { get; set; } = new();
+
+    [JsonPropertyName("discovered")]
+    public bool? Discovered { get; set; }
+
+    [JsonPropertyName("colonistCount")]
+    public int? ColonistCount { get; set; }
+}
+
+public class ExpectedGalaxy
+{
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("planets")]
+    public List<SerializedPlanet> Planets { get; set; } = new();
+}
+
+public class GalaxyCase
+{
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("planetCount")]
+    public int PlanetCount { get; set; }
+
+    [JsonPropertyName("expectedGalaxy")]
+    public ExpectedGalaxy ExpectedGalaxy { get; set; } = new();
+}
+
+public class ExpectedResourcesForCycle
+{
+    [JsonPropertyName("producibleResourceIds")]
+    public List<string> ProducibleResourceIds { get; set; } = new();
+
+    [JsonPropertyName("specialtyResourceId")]
+    public string? SpecialtyResourceId { get; set; }
+
+    [JsonPropertyName("resourceQualities")]
+    public Dictionary<string, Dictionary<string, int?>> ResourceQualities { get; set; } = new();
+}
+
+public class PlanetResourceCycleCase
+{
+    [JsonPropertyName("seed")]
+    public string Seed { get; set; } = string.Empty;
+
+    [JsonPropertyName("tier")]
+    public string Tier { get; set; } = string.Empty;
+
+    [JsonPropertyName("planetType")]
+    public string PlanetType { get; set; } = string.Empty;
+
+    [JsonPropertyName("cycleIndex")]
+    public int CycleIndex { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public ExpectedResourcesForCycle ExpectedResult { get; set; } = new();
+}
+
+public class GcprCase
+{
+    [JsonPropertyName("label")]
+    public string Label { get; set; } = string.Empty;
+
+    [JsonPropertyName("planet")]
+    public SerializedPlanet Planet { get; set; } = new();
+
+    [JsonPropertyName("nowMs")]
+    public long NowMs { get; set; }
+
+    [JsonPropertyName("isStartingPlanet")]
+    public bool IsStartingPlanet { get; set; }
+
+    [JsonPropertyName("expectedResult")]
+    public ExpectedResourcesForCycle ExpectedResult { get; set; } = new();
 }

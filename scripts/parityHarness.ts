@@ -14,7 +14,7 @@
 // instead of call-count-exact.
 //
 // Run: npm run parity (or: node scripts/parityHarness.ts)
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -26,6 +26,9 @@ import { igneousOre, hydrogenGas, autuniteCrystal, radiantAlloyBar } from "../te
 import { makeInstance } from "../tests/fixtures/instances.ts";
 import { ionForgedHullPlateRecipe } from "../tests/fixtures/recipes.ts";
 import { QUALITIES } from "../src/data/types/quality.ts";
+import { loadContent } from "../src/simulation/loadContent.ts";
+import { generateGalaxy } from "../src/galaxy/generateGalaxy.ts";
+import { generateResourcesForCycle, getCurrentPlanetResources } from "../src/galaxy/planetResourceCycle.ts";
 
 import type { Resource } from "../src/data/types/resource.ts";
 import type { ResourceInstance } from "../src/data/types/resourceInstance.ts";
@@ -33,6 +36,8 @@ import type { Recipe } from "../src/data/types/recipe.ts";
 import type { TierColor } from "../src/data/types/tierColor.ts";
 import type { QualityRoll } from "../src/data/types/quality.ts";
 import type { RandomFn } from "../src/data/types/random.ts";
+import type { Planet } from "../src/data/types/planet.ts";
+import type { PlanetType } from "../src/data/types/planetType.ts";
 
 const TIERS: TierColor[] = ["Grey", "White", "Green", "Blue", "Purple", "Orange", "Gold"];
 
@@ -251,12 +256,140 @@ const craftCases = craftScenarios.flatMap((scenario) =>
   ),
 );
 
+// ---- Galaxy/Planet generation cases (Migration Phase 2, Sub-Phase A) ----
+// Uses the REAL content/*.json catalog (via loadContent()), not the small
+// hand-picked fixture set above -- this is the exact input the live game
+// itself calls generateGalaxy() with, so ItemTier-based eligibility
+// filtering (ResourceSubsetSelector's real bug-fix case) gets genuine
+// coverage, not just a synthetic 4-resource catalog too small to exercise
+// it. Seeded, so C# reproducing the same seed against the same content
+// must produce a byte-identical Galaxy -- this is what actually proves
+// SeededRandom/PlanetGenerator/ResourceSubsetSelector/PlanetQualityRoller
+// agree with the TypeScript source end-to-end, not just per-function.
+const contentDir = join(dirname(fileURLToPath(import.meta.url)), "..", "content");
+function readContentJson(filename: string): unknown {
+  return JSON.parse(readFileSync(join(contentDir, filename), "utf8"));
+}
+const realContent = loadContent({
+  resources: readContentJson("resources.json"),
+  recipes: readContentJson("recipes.json"),
+  refiningRecipes: readContentJson("refiningRecipes.json"),
+  schematics: readContentJson("schematics.json"),
+  planets: readContentJson("planets.json"),
+});
+const realResources = realContent.resources;
+
+function serializePlanet(planet: Planet): Record<string, unknown> {
+  return {
+    id: planet.id,
+    name: planet.name,
+    planetType: planet.planetType,
+    tier: planet.tier,
+    position: planet.position,
+    producibleResourceIds: planet.producibleResourceIds,
+    specialtyResourceId: planet.specialtyResourceId,
+    resourceQualities: Object.fromEntries(
+      Object.entries(planet.resourceQualities ?? {}).map(([id, roll]) => [id, serializeQualityRoll(roll)]),
+    ),
+    discovered: planet.discovered,
+  };
+}
+
+const galaxySeeds = ["parity-seed-alpha", "parity-seed-beta", "parity-seed-gamma"];
+const galaxyCases = galaxySeeds.flatMap((seed) =>
+  [5, 50].map((planetCount) => {
+    const galaxy = generateGalaxy(planetCount, realResources, seed);
+    return {
+      seed,
+      planetCount,
+      expectedGalaxy: {
+        seed: galaxy.seed,
+        planets: galaxy.planets.map(serializePlanet),
+      },
+    };
+  }),
+);
+
+// ---- Planet resource cycle cases: same (seed, tier, planetType) across
+// several cycle indices, proving determinism within a cycle and real
+// divergence across cycles -- exactly what getCurrentPlanetResources()'s
+// live-reset-cycle guarantee depends on. ----
+const cycleTestSubjects: Array<{ seed: string; tier: TierColor; planetType: PlanetType }> = [
+  { seed: "cycle-test-1", tier: "Grey", planetType: "Terrestrial" },
+  { seed: "cycle-test-2", tier: "Gold", planetType: "GasGiant" },
+  { seed: "cycle-test-3", tier: "Blue", planetType: "SuperEarth" },
+];
+const planetResourceCycleCases = cycleTestSubjects.flatMap((subject) =>
+  [0, 1, 2, 41].map((cycleIndex) => {
+    const result = generateResourcesForCycle(subject.seed, subject.tier, subject.planetType, realResources, cycleIndex);
+    return {
+      seed: subject.seed,
+      tier: subject.tier,
+      planetType: subject.planetType,
+      cycleIndex,
+      expectedResult: {
+        producibleResourceIds: result.producibleResourceIds,
+        specialtyResourceId: result.specialtyResourceId,
+        resourceQualities: Object.fromEntries(
+          Object.entries(result.resourceQualities).map(([id, roll]) => [id, serializeQualityRoll(roll)]),
+        ),
+      },
+    };
+  }),
+);
+
+// ---- getCurrentPlanetResources cases: the colonist gate, and the
+// starting-planet tutorial guarantee across several cycles (not just
+// cycle 0 -- planet.md's own flagged testing requirement that this
+// idempotency claim needs a real multi-cycle test). ----
+function planetFixture(overrides: Partial<Planet>): Planet {
+  return {
+    id: "gcpr-test-planet",
+    name: "GCPR Test Planet",
+    producibleResourceIds: [],
+    planetType: "Terrestrial",
+    tier: "Grey",
+    ...overrides,
+  };
+}
+const nowMs = 1_000_000_000_000;
+const gcprCases = [
+  { label: "below-colonist-threshold", planet: planetFixture({ colonistCount: 2 }), now: nowMs, isStartingPlanet: false },
+  { label: "at-colonist-threshold", planet: planetFixture({ colonistCount: 5 }), now: nowMs, isStartingPlanet: false },
+  { label: "above-colonist-threshold-not-starting", planet: planetFixture({ colonistCount: 20 }), now: nowMs, isStartingPlanet: false },
+  { label: "starting-planet-cycle-0", planet: planetFixture({ colonistCount: 20 }), now: nowMs, isStartingPlanet: true },
+  {
+    label: "starting-planet-cycle-3",
+    planet: planetFixture({ colonistCount: 20 }),
+    now: nowMs + 3 * 168 * 60 * 60 * 1000,
+    isStartingPlanet: true,
+  },
+].map((testCase) => {
+  const result = getCurrentPlanetResources(testCase.planet, realResources, testCase.now, testCase.isStartingPlanet);
+  return {
+    label: testCase.label,
+    planet: { ...testCase.planet, resourceQualities: undefined },
+    nowMs: testCase.now,
+    isStartingPlanet: testCase.isStartingPlanet,
+    expectedResult: {
+      producibleResourceIds: result.producibleResourceIds,
+      specialtyResourceId: result.specialtyResourceId,
+      resourceQualities: Object.fromEntries(
+        Object.entries(result.resourceQualities).map(([id, roll]) => [id, serializeQualityRoll(roll)]),
+      ),
+    },
+  };
+});
+
 const output = {
   generatedAt: new Date().toISOString(),
   tierColorCases,
   rollQualityCases,
   refineCases,
   craftCases,
+  galaxyCases,
+  planetResourceCycleCases,
+  gcprCases,
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -266,5 +399,6 @@ writeFileSync(outPath, JSON.stringify(output, null, 2));
 console.log(`Wrote ${outPath}`);
 console.log(
   `  tierColor: ${tierColorCases.length}, rollQuality: ${rollQualityCases.length}, ` +
-    `refine: ${refineCases.length}, craft: ${craftCases.length}`,
+    `refine: ${refineCases.length}, craft: ${craftCases.length}, galaxy: ${galaxyCases.length}, ` +
+    `planetResourceCycle: ${planetResourceCycleCases.length}, gcpr: ${gcprCases.length}`,
 );

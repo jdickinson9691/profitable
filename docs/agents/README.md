@@ -103,18 +103,26 @@ Combat is complete; Multiplayer's design is resolved but deliberately deferred (
 
 The content-only parts of this milestone (60 resources, 39 recipes, 24 schematics, updated trading/market-preference data) are Agent 6/14/23's continued content-authoring role and don't need their own new numbered agent — see `content/README.md`'s "Alpha" section for that detail.
 
-## Unity Migration Phase 1
+## Unity Migration Phase 1 — complete
 
 Running in parallel with the Alpha checklist (`docs/product-alpha.md`), not sequentially after it — see `CLAUDE.md` Section 6 for how the two tracks relate. Full scope: `docs/profitable-unity-migration-gdd.md`. Ports the MVP core loop to C#/Unity; the existing web/Electron build is not modified by this work.
 
 **Numbering note:** originally drafted as Agents 30-35 on the assumption that Agent 29 (Combat Confirmation) was the last number used. That was stale — Agent 30 was already Alpha Content Authoring's confirmation agent (immediately below). Renumbered 31-36.
 
 50. [`agent-31-unity-data-schema.md`](agent-31-unity-data-schema.md) — ports Agent 1's MVP-scope base types and constant tables to C#, plus a `ContentLoader` consuming the existing JSON content files as-is. No Unity Editor dependency — builds and tests via `dotnet build`/`dotnet test` alone. Created first.
-51. `agent-32-unity-simulation-core.md` — ports `rollQuality`, `getTierColor`, `refine`, `craft`, `loadContent` to C#, exactly, including the already-fixed integer-boundary-vs-fractional-input logic. Depends on Agent 31. Not yet written.
-52. `agent-33-unity-parity-validation.md` — proves the C# port numerically agrees with the existing TypeScript implementation for the same inputs. Created alongside Agent 32, runs continuously. Not yet written.
-53. `agent-34-unity-infrastructure-adapters.md` — ports `SaveSystem`/`AudioManager` interfaces to Unity-specific implementations. Independent of 32/33. Not yet written.
-54. `agent-35-unity-mvp-presentation.md` — builds minimal Unity scenes for gather/refine/craft, calling Agent 32's ported functions only. Depends on Agent 32 and Agent 34. Not yet written.
-55. `agent-36-unity-migration-phase1-integration.md` — wires everything together and verifies the full gather→refine→craft loop in Unity, confirming Agent 33's parity proof holds end-to-end. Created last. Not yet written.
+51. [`agent-32-unity-simulation-core.md`](agent-32-unity-simulation-core.md) — ports `rollQuality`, `getTierColor`, `refine`, `craft` to C#, exactly, including the already-fixed integer-boundary-vs-fractional-input logic (`loadContent` excluded — Agent 31's own `ContentLoader` already covers it). Depends on Agent 31.
+52. [`agent-33-unity-parity-validation.md`](agent-33-unity-parity-validation.md) — proves the C# port numerically agrees with the existing TypeScript implementation for the same inputs. Created alongside Agent 32, runs continuously.
+53. [`agent-34-unity-infrastructure-adapters.md`](agent-34-unity-infrastructure-adapters.md) — ports `SaveSystem`/`AudioManager` interfaces to Unity-specific implementations. Independent of 32/33.
+54. [`agent-35-unity-mvp-presentation.md`](agent-35-unity-mvp-presentation.md) — builds minimal Unity scenes for gather/refine/craft, calling Agent 32's ported functions only. Depends on Agent 32 and Agent 34.
+55. [`agent-36-unity-migration-phase1-integration.md`](agent-36-unity-migration-phase1-integration.md) — wires everything together and verifies the full gather→refine→craft loop in Unity, confirming Agent 33's parity proof holds end-to-end. Created last.
+
+## Unity Migration Phase 2 — Sub-Phase A (Galaxy, Planet, Mining) in progress
+
+Full scope/readiness computation: `docs/functional-agents/build.md`; the followable task list: `docs/unity-migration-phase2-checklist.md`. Sub-Phase A's Schema/Simulation Core/Parity Validation roles are done; Presentation/Phase Integration remain (need the Unity Editor, confirmed installed — 6000.5.6f1).
+
+56. [`agent-38-unity-galaxy-planet-schema.md`](agent-38-unity-galaxy-planet-schema.md) — extends Agent 31's `Planet` with the Phase 2+ fields (`PlanetType`, `Tier`, `Position`, etc.) and the galaxy/planet-generation constant tables. Depends on Agent 31. Created first in Sub-Phase A.
+57. [`agent-39-unity-galaxy-planet-simulation-core.md`](agent-39-unity-galaxy-planet-simulation-core.md) — ports `SeededRandom`, `GalaxyGenerator`, `PlanetGenerator`, `ResourceSubsetSelector`, `PlanetQualityRoller`, `PlanetResourceCycle` to C#, exactly. Depends on Agent 38.
+58. [`agent-40-unity-galaxy-planet-parity-validation.md`](agent-40-unity-galaxy-planet-parity-validation.md) — proves the C# port agrees with the real TypeScript output end-to-end (real 60-resource content catalog, not synthetic fixtures), including real 50-planet-scale galaxy generation. Created alongside Agent 39, runs continuously.
 
 ## Cross-Cutting Rules (apply to every agent, not just one)
 

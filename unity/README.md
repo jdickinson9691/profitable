@@ -41,4 +41,6 @@ Unity.exe -batchmode -nographics -projectPath unity/ProfitableUnity -runTests -t
 
 ## Agent roster
 
-**Migration Phase 1 is complete** — all six agents (31-36) done. Full roster and sequencing: `docs/profitable-unity-migration-gdd.md` Section 5.1. Contracts live in `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`; Agent 36's own Integration report is the closing confirmation. Migration Phase 2+ (Galaxy/Planets → Trading → Crew → Ships/Travel → the four deferred gaps) is not yet started.
+**Migration Phase 1 is complete** — all six agents (31-36) done. Full roster and sequencing: `docs/profitable-unity-migration-gdd.md` Section 5.1. Contracts live in `docs/agents/agent-31-unity-data-schema.md` through `agent-36-unity-migration-phase1-integration.md`; Agent 36's own Integration report is the closing confirmation.
+
+**Migration Phase 2 is underway** — followable task list: `docs/unity-migration-phase2-checklist.md`; readiness computation: `docs/functional-agents/build.md`. Sub-Phase A (Galaxy, Planet, Mining)'s Schema/Simulation Core/Parity Validation roles are done (agents 38-40, `docs/agents/agent-38-unity-galaxy-planet-schema.md` through `agent-40-unity-galaxy-planet-parity-validation.md`) — 541/541 `dotnet test` passing (504 Phase 1 + 37 Sub-Phase A). Presentation and Phase Integration remain, and are where the Unity Editor dependency actually begins for this sub-phase (same as Phase 1's own Agent 35). Sub-Phases B-F (Trading → Crew → Ships/Travel → Planet Ownership → Combat) are not yet started.
