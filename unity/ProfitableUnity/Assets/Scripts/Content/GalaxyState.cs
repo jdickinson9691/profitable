@@ -1,4 +1,5 @@
 #nullable enable
+using System.Linq;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 
@@ -64,6 +65,22 @@ namespace Profitable.Unity.Content
         // destination, not a second gatherable location (that would be
         // Sub-Phase E's own colonization scope to extend).
         public static Planet SecondaryDestinationPlanet => Galaxy.Planets[1];
+
+        // Scanner UI gap closed (2026-08-04): performScan()'s own real
+        // NewlyDiscovered planets are fresh copies, not the live objects
+        // this class's own Planets list holds -- mirrors
+        // galaxyState.ts's own markPlanetDiscovered() job of writing a
+        // scan's real result back to the actual tracked state, except
+        // Unity's Galaxy.Planets already holds real, mutable Planet
+        // objects directly (the same convention Generate() itself
+        // already uses for the starting/secondary planets below), so
+        // this sets the flag in place rather than through a separate
+        // discovered-ids side-table.
+        public static void MarkDiscovered(string planetId)
+        {
+            var planet = Galaxy.Planets.First(p => p.Id == planetId);
+            planet.Discovered = true;
+        }
 
         private static Galaxy Generate()
         {

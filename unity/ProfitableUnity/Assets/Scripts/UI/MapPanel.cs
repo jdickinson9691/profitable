@@ -1,6 +1,8 @@
 #nullable enable
+using System;
 using System.Linq;
 using Profitable.Core.Schema;
+using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
 using UnityEngine;
 
@@ -15,35 +17,42 @@ namespace Profitable.Unity.UI
     // travel lived entirely in ShipsPanel, hardcoded to one fixed
     // StartingPlanet<->SecondaryDestinationPlanet route. Now mirrors
     // src/presentation/scenes/TradeMapScene.ts's own real
-    // destination-selection flow: every planet in the real generated
-    // galaxy (GalaxyState.Galaxy.Planets, all 50) other than wherever
-    // "the active ship" (OwnedShips[0], the same single-player
-    // convention TradeMapScene.renderTravel() itself uses via
-    // getShipRoster()[0] -- there is no separate concept of "the ship
-    // currently selected on the map" anywhere else in this codebase to
-    // hang this off of instead) is currently docked gets a real,
-    // clickable Travel button, delegating to ShipsPanel's own
-    // InitiateVoyageTo -- no voyage-initiation logic duplicated here.
+    // destination-selection flow: every DISCOVERED planet in the real
+    // generated galaxy other than wherever "the active ship"
+    // (OwnedShips[0], the same single-player convention
+    // TradeMapScene.renderTravel() itself uses via getShipRoster()[0] --
+    // there is no separate concept of "the ship currently selected on
+    // the map" anywhere else in this codebase to hang this off of
+    // instead) is currently docked gets a real, clickable Travel button,
+    // delegating to ShipsPanel's own InitiateVoyageTo -- no
+    // voyage-initiation logic duplicated here.
     //
-    // Deliberate divergence from TradeMapScene.ts, stated plainly rather
-    // than left implicit: TS gates travel destinations to only
-    // getDiscoveredPlanets() (Scanner-revealed). This Unity build has no
-    // Scanner UI at all (a separate, already-documented scope gap --
-    // ShipsPanel's own Sub-Phase D scope note), so gating on Discovered
-    // here would leave travel permanently stuck at the same 2 planets
-    // this fix is meant to open up. Every planet is treated as a valid
-    // destination instead -- an honest, presentation-layer simplification
-    // this comment names explicitly, not a silent behavior change.
+    // Scanner gap closed (2026-08-04): this panel also now renders a
+    // real Scan action (docked-ship-only, mirrors
+    // TradeMapScene.renderScan()/onScan() exactly -- ScanPerformer's own
+    // real NewlyDiscovered planets get written back via
+    // GalaxyState.MarkDiscovered, no formula reimplemented here). This
+    // closes the discovery-gate follow-up tracked in
+    // docs/unity-migration-phase2-checklist.md: the whole planet list
+    // (not just the travel destination sub-list, matching
+    // TradeMapScene.ts's own getDiscoveredPlanets()-scoped display
+    // exactly) is filtered to Discovered planets only again, now that a
+    // real way to discover a planet exists in this Unity build too --
+    // the "every planet is a valid destination" stopgap this comment
+    // used to describe is gone.
     public class MapPanel
     {
         public GameObject Root { get; }
 
         private readonly ShipsPanel _shipsPanel;
+        private readonly Action<string> _log;
+        private readonly RectTransform _scanGroup;
         private readonly RectTransform _planetGroup;
 
-        public MapPanel(Transform parent, ShipsPanel shipsPanel)
+        public MapPanel(Transform parent, ShipsPanel shipsPanel, Action<string> log)
         {
             _shipsPanel = shipsPanel;
+            _log = log;
 
             var group = UiFactory.CreateVerticalGroup(parent, "MapPanel");
             Root = group.gameObject;
@@ -52,7 +61,9 @@ namespace Profitable.Unity.UI
             var galaxy = GalaxyState.Galaxy;
             UiFactory.CreateText(group, $"Galaxy: {galaxy.Planets.Count} planets generated (seed {galaxy.Seed})", 12);
 
-            UiFactory.CreateText(group, "Planets:", 14);
+            _scanGroup = UiFactory.CreateHorizontalGroup(group, "Scan");
+
+            UiFactory.CreateText(group, "Discovered planets:", 14);
             _planetGroup = UiFactory.CreateVerticalGroup(group, "Planets");
 
             Refresh();
@@ -60,20 +71,36 @@ namespace Profitable.Unity.UI
 
         public void Refresh()
         {
-            UiFactory.ClearChildren(_planetGroup);
-
             var galaxy = GalaxyState.Galaxy;
             var activeShip = ShipsState.OwnedShips.FirstOrDefault();
             var originPlanetId = activeShip?.CurrentPlanetId ?? GalaxyState.StartingPlanet.Id;
-            var canInitiateTravel = activeShip is not null && ShipsState.ActiveVoyage is null;
+            var shipIsDockedAndFree = activeShip is not null && ShipsState.ActiveVoyage is null;
 
-            foreach (var planet in galaxy.Planets)
+            UiFactory.ClearChildren(_scanGroup);
+            // Docked-ship-only, same "not en route" gate ShipsAndTravel's
+            // own renderScan() call site (renderTravel()) restricts to --
+            // never shown while a voyage is in progress.
+            if (shipIsDockedAndFree)
+            {
+                var owned = ShipsState.OwnedScanners;
+                var label = owned.Count == 0
+                    ? "no scanner owned -- purchase one at the Shipyard to scan for nearby planets"
+                    : $"Scanners owned: {string.Join(", ", owned.Select(s => s.Tier))}";
+                UiFactory.CreateText(_scanGroup, label, 12);
+                if (owned.Count > 0)
+                {
+                    UiFactory.CreateButton(_scanGroup, "Scan", () => Scan());
+                }
+            }
+
+            UiFactory.ClearChildren(_planetGroup);
+            foreach (var planet in galaxy.Planets.Where(p => p.Discovered == true))
             {
                 var row = UiFactory.CreateHorizontalGroup(_planetGroup, $"Planet_{planet.Id}");
                 var marker = planet.Id == originPlanetId ? "*" : "-";
                 UiFactory.CreateText(row, $"{marker} {planet.Name} [{planet.Tier}, {planet.PlanetType}] @ ({planet.Position!.X}, {planet.Position!.Y})", 11);
 
-                if (canInitiateTravel && planet.Id != originPlanetId)
+                if (shipIsDockedAndFree && planet.Id != originPlanetId)
                 {
                     UiFactory.CreateButton(row, $"Travel {planet.Name}", () => TravelTo(planet.Id));
                 }
@@ -92,6 +119,40 @@ namespace Profitable.Unity.UI
             if (activeShip is null) return null;
 
             var result = _shipsPanel.InitiateVoyageTo(activeShip.Id, destinationPlanetId);
+            Refresh();
+            return result;
+        }
+
+        // Ports TradeMapScene.ts's onScan() -- real ScanPerformer call,
+        // real discovery written back via GalaxyState.MarkDiscovered
+        // (the presentation-layer's job per performScan()'s own
+        // contract, same division of responsibility ArrivalResult's own
+        // doc comment already draws for delivered cargo/encounters).
+        public PerformScanResult? Scan()
+        {
+            var activeShip = ShipsState.OwnedShips.FirstOrDefault();
+            if (activeShip is null) return null;
+
+            var dockedPlanet = GalaxyState.Galaxy.Planets.FirstOrDefault(p => p.Id == activeShip.CurrentPlanetId);
+            if (dockedPlanet is null) return null;
+
+            var result = ScanPerformer.PerformScan(activeShip, dockedPlanet, ShipsState.OwnedScanners, GalaxyState.Galaxy.Planets);
+            if (result is ScanRejected rejected)
+            {
+                _log($"Scan failed: {rejected.Reason}");
+                return result;
+            }
+
+            var succeeded = (ScanSucceeded)result;
+            foreach (var planet in succeeded.NewlyDiscovered)
+            {
+                GalaxyState.MarkDiscovered(planet.Id);
+            }
+
+            _log(succeeded.NewlyDiscovered.Count > 0
+                ? $"Scan complete -- newly discovered: {string.Join(", ", succeeded.NewlyDiscovered.Select(p => p.Name))}"
+                : "Scan complete -- no new planets found within range.");
+
             Refresh();
             return result;
         }

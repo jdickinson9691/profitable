@@ -143,6 +143,76 @@ namespace Profitable.Unity.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ScannerPurchaseAndScanDiscoverRealPlanetsAndGateTravelCorrectly()
+        {
+            // Same reasoning as MapPanelInitiatesARealVoyageToAClickedPlanet's
+            // own comment -- covers a ship purchase of any real rolled tier.
+            MarketState.SetWallet(new Wallet { PlayerId = "player-1", Credits = 1_000_000 });
+
+            SceneManager.LoadScene("MvpLoop");
+            yield return null;
+            yield return null;
+
+            var bootstrap = Object.FindFirstObjectByType<MvpLoopBootstrap>();
+            Assert.IsNotNull(bootstrap);
+
+            Click("Button_Ships"); // nav -> Ships panel
+            ClickButtonStartingWith("Button_Purchase ship-candidate-");
+            yield return null;
+            StringAssert.Contains("Purchased", bootstrap.LogText);
+
+            // Real click on a real scanner-pool button (id prefix mirrors
+            // ScannerPoolRefresher's own real "scanner-candidate-" id
+            // convention, same disambiguation reasoning as the ship
+            // purchase click above).
+            ClickButtonStartingWith("Button_Purchase Scanner scanner-candidate-");
+            yield return null;
+            StringAssert.Contains("Purchased a", bootstrap.LogText);
+
+            // The scanner pool's rolled tier is genuinely random (no
+            // fixed seed) -- Grey/White/Green tiers empirically find
+            // nothing at all from the real starting planet in this
+            // fixed-seed galaxy (measured directly against
+            // DistanceCalculator/ScannerBaseScanRadius before writing
+            // this test), so a real click-through that must demonstrate
+            // an actual discovery overrides the purchased scanner's own
+            // tier to Gold afterward -- the purchase click itself was
+            // still real; only the tier-roll luck is removed, same
+            // technique ShipsPanelTests.cs's own PurchaseShipWithAmpleFuel
+            // already uses for fuel capacity.
+            var scanner = ShipsState.OwnedScanners[0];
+            ShipsState.OwnedScanners[0] = new Scanner { Id = scanner.Id, Tier = TierColor.Gold, OwnerId = scanner.OwnerId };
+
+            Click("Button_Map"); // nav -> Map panel
+            // Global count, not scoped to MapPanel.Root -- ShipsPanel's
+            // own "Button_Travel {ship.Id}" button (its Travel-this-ship
+            // action, unrelated to MapPanel's destination list) also
+            // matches this prefix, same collision
+            // MapPanelTests.cs's own EditMode tests document. Harmless
+            // here since it's a constant present in both the before and
+            // after count, so the delta below still isolates exactly the
+            // scan's own real effect.
+            var travelButtonsBefore = Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Count(b => b.gameObject.name.StartsWith("Button_Travel "));
+
+            ClickButtonStartingWith("Button_Scan");
+            yield return null;
+
+            StringAssert.Contains("newly discovered", bootstrap.LogText, "expected a real Gold-tier scan to have found real nearby planets");
+
+            var travelButtonsAfter = Object.FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Count(b => b.gameObject.name.StartsWith("Button_Travel "));
+            // Real, empirically-measured result for this exact
+            // fixed-seed galaxy: Gold-tier finds exactly 4 planets from
+            // the starting planet -- MapPanelTests.cs's own
+            // Scan_DiscoversRealNearbyPlanetsAndTheyBecomeTravelable
+            // asserts the same 4 ids directly against ScanPerformer.
+            Assert.AreEqual(travelButtonsBefore + 4, travelButtonsAfter, "expected exactly the 4 real newly-discovered planets to gain a real Travel button");
+
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [UnityTest]
         public IEnumerator MarketPanelBuysFromARealSeedListing()
         {
             SceneManager.LoadScene("MvpLoop");

@@ -40,9 +40,12 @@ namespace Profitable.Unity.Content
         private static ShipyardPool? _shipyardPool;
         private static Voyage? _activeVoyage;
         private static List<PendingCombatEntry>? _pendingCombats;
+        private static ScannerPool? _scannerPool;
+        private static List<Scanner>? _ownedScanners;
 
         public static List<Ship> OwnedShips => _ownedShips ??= new List<Ship>();
         public static List<PendingCombatEntry> PendingCombats => _pendingCombats ??= new List<PendingCombatEntry>();
+        public static List<Scanner> OwnedScanners => _ownedScanners ??= new List<Scanner>();
 
         public static void ReplaceShip(Ship updated)
         {
@@ -66,6 +69,21 @@ namespace Profitable.Unity.Content
 
         public static void SetShipyardPool(ShipyardPool pool) => _shipyardPool = pool;
 
+        // Scanner UI gap closed (2026-08-04) -- mirrors
+        // GetOrRefreshShipyardPool's own stale-pool-refresh pattern
+        // exactly, for the scanner pool this Unity build never surfaced
+        // before now.
+        public static ScannerPool GetOrRefreshScannerPool(long nowMs)
+        {
+            if (_scannerPool is null || IsStale(_scannerPool.LastRefreshedAt, nowMs, ShipsAndTravelConfig.ScannerPoolRefreshIntervalHours))
+            {
+                _scannerPool = ScannerPoolRefresher.RefreshScannerPool(GalaxyState.StartingPlanet.Id, seed: null, nowMs);
+            }
+            return _scannerPool;
+        }
+
+        public static void SetScannerPool(ScannerPool pool) => _scannerPool = pool;
+
         public static Voyage? ActiveVoyage => _activeVoyage;
         public static void SetActiveVoyage(Voyage? voyage) => _activeVoyage = voyage;
 
@@ -82,6 +100,8 @@ namespace Profitable.Unity.Content
             _shipyardPool = null;
             _activeVoyage = null;
             _pendingCombats = null;
+            _scannerPool = null;
+            _ownedScanners = null;
         }
     }
 }

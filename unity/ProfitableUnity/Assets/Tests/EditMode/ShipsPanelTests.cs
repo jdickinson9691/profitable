@@ -306,5 +306,34 @@ namespace Profitable.Unity.Tests.EditMode
 
             Assert.IsNull(result);
         }
+
+        // Scanner UI gap closed (2026-08-04): mirrors PurchaseShip's own
+        // test coverage exactly -- same real ScannerPurchaser call, same
+        // pool/wallet update pattern.
+
+        private static string FirstScannerCandidateId() =>
+            ShipsState.GetOrRefreshScannerPool(System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()).AvailableScanners[0].Id;
+
+        [Test]
+        public void PurchaseScanner_AddsToOwnedScannersAndDeductsWallet()
+        {
+            var candidateId = FirstScannerCandidateId();
+            var creditsBefore = MarketState.Wallet.Credits;
+
+            var result = _panel.PurchaseScanner(candidateId);
+
+            Assert.IsTrue(result.Purchased);
+            Assert.AreEqual(1, ShipsState.OwnedScanners.Count);
+            Assert.Less(MarketState.Wallet.Credits, creditsBefore);
+        }
+
+        [Test]
+        public void PurchaseScanner_FailsForUnknownCandidateId()
+        {
+            var result = _panel.PurchaseScanner("no-such-candidate");
+
+            Assert.IsFalse(result.Purchased);
+            Assert.IsEmpty(ShipsState.OwnedScanners);
+        }
     }
 }

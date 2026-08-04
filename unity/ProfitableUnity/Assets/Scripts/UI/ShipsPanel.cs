@@ -14,13 +14,17 @@ namespace Profitable.Unity.UI
     // docs/agents/agent-56-unity-ships-travel-presentation.md.
     //
     // Scoped to purchase -> refuel -> check-repair -> travel -> resolve
-    // -arrival, the real core loop `ship.md`/`travel.md` describe, using
-    // GalaxyState's two reachable planets (starting + secondary
-    // destination). Deliberately does NOT include ship-crew-role
-    // assignment UI (Pilot/Combat Engineer/etc. -- CrewPanel already
-    // covers hiring/upkeep/dismiss without touching ship roles) or
-    // scanner purchase/scan UI -- both real, separate presentation
-    // surfaces of their own scope this panel doesn't claim.
+    // -arrival, the real core loop `ship.md`/`travel.md` describe.
+    // Deliberately does NOT include ship-crew-role assignment UI (Pilot/
+    // Combat Engineer/etc. -- CrewPanel already covers hiring/upkeep/
+    // dismiss without touching ship roles), a real, separate
+    // presentation surface this panel doesn't claim.
+    //
+    // Scanner purchase gap closed (2026-08-04): scanner purchase lives
+    // here (mirrors ShipyardScene.ts's own "scanners for sale alongside
+    // ships" placement); the actual scan action lives in MapPanel
+    // instead (mirrors TradeMapScene.ts's own placement) -- purchase and
+    // scan were never the same screen on the TypeScript side either.
     //
     // Migration Phase 2 Sub-Phase F addition (agent-63-unity-encounters
     // -combat-presentation.md): ResolveArrival now opts into real
@@ -44,6 +48,8 @@ namespace Profitable.Unity.UI
         private readonly RectTransform _shipyardGroup;
         private readonly RectTransform _shipsGroup;
         private readonly RectTransform _pendingCombatsGroup;
+        private readonly RectTransform _scannerShopGroup;
+        private readonly RectTransform _ownedScannersGroup;
 
         private static readonly System.Random SharedRandom = new();
         private static double DefaultRandom() => SharedRandom.NextDouble();
@@ -71,6 +77,12 @@ namespace Profitable.Unity.UI
 
             UiFactory.CreateText(group, "Owned ships:", 14);
             _shipsGroup = UiFactory.CreateVerticalGroup(group, "OwnedShips");
+
+            UiFactory.CreateText(group, "Scanners for sale:", 14);
+            _scannerShopGroup = UiFactory.CreateVerticalGroup(group, "ScannerShop");
+
+            UiFactory.CreateText(group, "Owned scanners:", 14);
+            _ownedScannersGroup = UiFactory.CreateVerticalGroup(group, "OwnedScanners");
 
             UiFactory.CreateText(group, "Pending combat:", 14);
             _pendingCombatsGroup = UiFactory.CreateVerticalGroup(group, "PendingCombats");
@@ -126,6 +138,29 @@ namespace Profitable.Unity.UI
                 }
             }
 
+            UiFactory.ClearChildren(_scannerShopGroup);
+            var scannerPool = ShipsState.GetOrRefreshScannerPool(NowMs());
+            foreach (var candidate in scannerPool.AvailableScanners)
+            {
+                var row = UiFactory.CreateHorizontalGroup(_scannerShopGroup, $"ScannerCandidate_{candidate.Id}");
+                UiFactory.CreateText(row, $"{candidate.Tier} tier scanner", 12);
+                UiFactory.CreateButton(row, $"Purchase Scanner {candidate.Id}", () => PurchaseScanner(candidate.Id));
+            }
+
+            UiFactory.ClearChildren(_ownedScannersGroup);
+            // "In use" mirrors ShipyardScene.ts's own renderScannerRoster()
+            // display -- highest tier only, never summed (ScanPerformer's
+            // own rule), shown here for legibility, never recomputed.
+            var highestOwnedTier = ShipsState.OwnedScanners.Count == 0
+                ? (TierColor?)null
+                : ShipsState.OwnedScanners.Max(s => s.Tier);
+            foreach (var scanner in ShipsState.OwnedScanners)
+            {
+                var row = UiFactory.CreateHorizontalGroup(_ownedScannersGroup, $"Scanner_{scanner.Id}");
+                var inUse = scanner.Tier == highestOwnedTier ? " (in use for scanning)" : "";
+                UiFactory.CreateText(row, $"{scanner.Tier} tier scanner{inUse}", 12);
+            }
+
             UiFactory.ClearChildren(_pendingCombatsGroup);
             foreach (var pending in ShipsState.PendingCombats)
             {
@@ -160,6 +195,37 @@ namespace Profitable.Unity.UI
             else
             {
                 _log($"Purchase failed: {((PurchaseShipRejected)result).Reason}");
+            }
+
+            Refresh();
+            return result;
+        }
+
+        // Ports ShipyardScene.ts's onPurchaseScanner() -- mirrors
+        // PurchaseShip exactly, same real Core call, same pool/wallet
+        // update pattern.
+        public PurchaseScannerResult PurchaseScanner(string candidateId)
+        {
+            var pool = ShipsState.GetOrRefreshScannerPool(NowMs());
+            var candidate = pool.AvailableScanners.FirstOrDefault(c => c.Id == candidateId);
+            if (candidate is null)
+            {
+                var rejected = new PurchaseScannerRejected { Reason = $"'{candidateId}' is not in this planet's scanner pool" };
+                _log($"Purchase failed: {rejected.Reason}");
+                return rejected;
+            }
+
+            var result = ScannerPurchaser.PurchaseScanner(candidate, pool, MarketState.Wallet, MarketState.Wallet.PlayerId);
+            if (result is PurchaseScannerSucceeded succeeded)
+            {
+                ShipsState.OwnedScanners.Add(succeeded.Scanner);
+                ShipsState.SetScannerPool(succeeded.UpdatedPool);
+                MarketState.SetWallet(succeeded.UpdatedWallet);
+                _log($"Purchased a {succeeded.Scanner.Tier} tier scanner.");
+            }
+            else
+            {
+                _log($"Purchase failed: {((PurchaseScannerRejected)result).Reason}");
             }
 
             Refresh();

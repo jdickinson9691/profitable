@@ -63,7 +63,7 @@ namespace Profitable.Unity.UI
             // first. Nav button order below is unaffected -- Map still
             // shows/opens first, only construction order changed.
             _shipsPanel = new ShipsPanel(content, _inventory, Log);
-            _mapPanel = new MapPanel(content, _shipsPanel);
+            _mapPanel = new MapPanel(content, _shipsPanel, Log);
             _gatherPanel = new GatherPanel(content, _inventory, Log);
             _refinePanel = new RefinePanel(content, _inventory, Log);
             _craftPanel = new CraftPanel(content, _inventory, Log);
