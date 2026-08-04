@@ -23,7 +23,15 @@ namespace Profitable.Unity.Content
     {
         // Session-only Wallet -- no persisted credits, matching Inventory
         // .cs's own "persistence is a later agent's job" scope limit.
-        private const double StartingCredits = 100;
+        //
+        // Parity fix (2026-08-04): was 100, a genuine "port, don't
+        // redesign" violation -- src/presentation/tradingState.ts's own
+        // real STARTING_CREDITS is 500, and nothing in this migration's
+        // own GDD authorizes inventing a different number during the
+        // port. Corrected to match the real TS source exactly; see
+        // docs/profitable-alpha-tuning-values.md for this value's own
+        // (newly recorded) provenance note.
+        private const double StartingCredits = 500;
         private const string PlayerId = "player-1";
 
         // Gap closed (2026-08-04): mirrors

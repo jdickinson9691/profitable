@@ -20,6 +20,9 @@ Already had reasonable example values proposed during design — recommend locki
 | Global market discount (sell) | -10% |
 | Transaction fee | 5% |
 | Listing expiry | 72 hours |
+| Starting Credits | 500 |
+
+**Starting Credits (2026-08-04):** never previously documented or tuned here — discovered as an undocumented implementation artifact during Unity migration parity work. `STARTING_CREDITS = 500` has lived in `src/presentation/tradingState.ts` since Agent 13's own original Trading Presentation implementation (commit `c1f078b`, 2026-07-26), untouched since, but was never entered into this doc alongside the rest of Trading's starting values above. Unity's own port had drifted to 100 — a genuine "port, don't redesign" violation, not a deliberate divergence — corrected to match the real TS source exactly. 500 is accepted as the working value without further tuning here, since it was implicitly validated by the already-completed and accepted feel-tuning playtest pass: no playtester ever flagged ship affordability as an issue while this value was live in the TS/Electron build.
 
 ## Crew
 

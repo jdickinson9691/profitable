@@ -78,18 +78,17 @@ namespace Profitable.Unity.Tests.PlayMode
         [UnityTest]
         public IEnumerator MapPanelInitiatesARealVoyageToAClickedPlanet()
         {
-            // Real finding from making this test actually pass: the
-            // MVP's real starting wallet is 100 credits
-            // (MarketState.StartingCredits), but the cheapest real ship
-            // tier (Grey) costs 300 (ShipsAndTravelConfig
-            // .ShipPurchaseCostByTier) -- a fresh session can never
-            // afford any ship at all without a large gather/refine/craft
-            // /sell grind first, through no fault of this fix. Reusing
-            // the same test-only wallet-inflation seam ShipsPanelTests.cs
-            // already established for this exact reason -- this test's
-            // job is proving the real Map click reaches real voyage
-            // initiation, not proving the starting economy can afford a
-            // ship, which is a separate, real gap worth its own report.
+            // MarketState.StartingCredits (500, matching the real TS
+            // source -- see that field's own parity-fix comment)
+            // comfortably covers the cheapest ship tier (Grey, 300cr,
+            // ShipsAndTravelConfig.ShipPurchaseCostByTier), but not
+            // necessarily whatever tier this test's own unseeded
+            // shipyard-pool roll happens to produce (up to Gold, 9000cr).
+            // Reusing the same test-only wallet-inflation seam
+            // ShipsPanelTests.cs already established so this test isn't
+            // coupled to that roll -- this test's job is proving the real
+            // Map click reaches real voyage initiation, not exercising
+            // the starting economy itself.
             MarketState.SetWallet(new Wallet { PlayerId = "player-1", Credits = 1_000_000 });
 
             SceneManager.LoadScene("MvpLoop");

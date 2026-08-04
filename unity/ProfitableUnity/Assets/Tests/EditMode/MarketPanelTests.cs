@@ -1,5 +1,6 @@
 using System.Linq;
 using NUnit.Framework;
+using Profitable.Core.Constants;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
@@ -173,6 +174,26 @@ namespace Profitable.Unity.Tests.EditMode
         {
             var result = _panel.ListForSale("autunite-crystal");
             Assert.IsNull(result);
+        }
+
+        // Parity fix (2026-08-04): MarketState.StartingCredits was 100, a
+        // genuine porting divergence from the real TS source's own
+        // STARTING_CREDITS (src/presentation/tradingState.ts) -- corrected
+        // to 500 to match exactly. See
+        // docs/profitable-alpha-tuning-values.md for this value's newly
+        // recorded provenance note. The second assertion is the direct
+        // proof the fix actually closes the affordability gap the
+        // 100-credit value left open: 500 covers even the cheapest real
+        // ship tier with no gather/refine/craft/sell grind required
+        // first, matching the real TS build's own behavior (a fresh TS
+        // player can afford a Grey-tier ship immediately).
+        [Test]
+        public void FreshWalletStartsAt500CreditsMatchingTsAndCanAffordTheCheapestShipWithNoGrind()
+        {
+            Assert.AreEqual(500, MarketState.Wallet.Credits);
+
+            var cheapestShipCost = ShipsAndTravelConfig.ShipPurchaseCostByTier[TierColor.Grey];
+            Assert.GreaterOrEqual(MarketState.Wallet.Credits, cheapestShipCost);
         }
     }
 }
