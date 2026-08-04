@@ -60,8 +60,7 @@ public static class EncounterResolver
         }
 
         var pointsBelow = ShipsAndTravelConfig.HazardPassThreshold - effectiveRoll;
-        var band = ShipsAndTravelConfig.HazardFailureCostCurve.FirstOrDefault(
-            entry => pointsBelow >= entry.MinPointsBelow && (entry.MaxPointsBelow is null || pointsBelow <= entry.MaxPointsBelow));
+        var band = FindHazardFailureCostBand(pointsBelow);
         if (band is null)
         {
             throw new InvalidOperationException($"no hazard failure cost band defined for {pointsBelow} points below threshold");
@@ -69,6 +68,50 @@ public static class EncounterResolver
 
         var creditsLost = Math.Round(ShipsAndTravelConfig.HazardBaseFailureCost * band.CostMultiplier);
         return new HazardEncounterResult { WindowIndex = windowIndex, Passed = false, CreditsLost = creditsLost };
+    }
+
+    // Bug fix (same shape as TierColorResolver.GetTierColor()'s/
+    // PenaltyCurveLookup.GetPenaltyMultiplier()'s boundary fix), ported
+    // verbatim from the matching src/ships/resolveEncounters.ts fix:
+    // HazardFailureCostCurve's Min/MaxPointsBelow are integers (band
+    // {1,10} then {11,20}, etc.), but pointsBelow is only an integer when
+    // HazardShipTierModifier's bonus for the ship's tier happens to be a
+    // whole number -- every tier's bonus is currently whole (0/5/10/15/
+    // 20/25/30), but the dictionary is typed double, not int, so nothing
+    // stops a future tuning pass from setting a fractional bonus. A value
+    // like 10.2 points below satisfied neither `<= 10` nor `>= 11` under
+    // the old `pointsBelow <= max` check and would throw, even though
+    // it's a real, in-range effective value.
+    //
+    // Unlike PenaltyCurveLookup, there is no zero-width "no violation"
+    // band to protect here -- ResolveHazard's own `passed` check above
+    // already guarantees pointsBelow is strictly positive whenever this
+    // lookup runs, so the first band has no previous band to inherit a
+    // lower bound from and needs its own explicit floor of "greater than
+    // 0" (not its declared integer MinPointsBelow) to close the same
+    // below-band-0 fractional gap every other adjacent pair closes from
+    // the high side via `< max + 1`.
+    private static HazardFailureCostBand? FindHazardFailureCostBand(double pointsBelow)
+    {
+        var bands = ShipsAndTravelConfig.HazardFailureCostCurve;
+        for (var index = 0; index < bands.Count; index++)
+        {
+            var entry = bands[index];
+            bool matches;
+            if (index == 0)
+            {
+                matches = pointsBelow > 0 && pointsBelow < entry.MaxPointsBelow!.Value + 1;
+            }
+            else
+            {
+                var previousBand = bands[index - 1];
+                matches = pointsBelow > previousBand.MaxPointsBelow!.Value &&
+                    (entry.MaxPointsBelow is null || pointsBelow < entry.MaxPointsBelow.Value + 1);
+            }
+
+            if (matches) return entry;
+        }
+        return null;
     }
 
     public static EncounterResolution ResolveEncounters(

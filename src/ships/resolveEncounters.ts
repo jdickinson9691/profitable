@@ -76,9 +76,36 @@ function resolveHazard(windowIndex: number, ship: Ship, random: RandomFn): Encou
   }
 
   const pointsBelow = HAZARD_PASS_THRESHOLD - effectiveRoll;
-  const band = HAZARD_FAILURE_COST_CURVE.find(
-    (entry) => pointsBelow >= entry.minPointsBelow && (entry.maxPointsBelow === null || pointsBelow <= entry.maxPointsBelow),
-  );
+
+  // Bug fix (same shape as getTierColor()'s/getPenaltyMultiplier()'s
+  // boundary fix): HAZARD_FAILURE_COST_CURVE's min/maxPointsBelow are
+  // integers (band {1,10} then {11,20}, etc.), but pointsBelow is only an
+  // integer when HAZARD_SHIP_TIER_MODIFIER's rollBonus for the ship's
+  // tier happens to be a whole number -- every tier's rollBonus is
+  // currently whole (0/5/10/15/20/25/30), but the constant is typed
+  // `number`, not an integer, so nothing stops a future tuning pass from
+  // setting a fractional bonus. A value like 10.2 points below satisfied
+  // neither `<= 10` nor `>= 11` under the old `pointsBelow <= max` check
+  // and would throw, even though it's a real, in-range effective value.
+  //
+  // Unlike PENALTY_CURVE, there is no zero-width "no violation" band to
+  // protect here -- resolveHazard's own `passed` check above already
+  // guarantees pointsBelow is strictly positive whenever this lookup
+  // runs, so the first band has no previous band to inherit a lower
+  // bound from and needs its own explicit floor of "greater than 0"
+  // (not its declared integer minPointsBelow) to close the same
+  // below-band-0 fractional gap every other adjacent pair closes from
+  // the high side via `< max + 1`.
+  const band = HAZARD_FAILURE_COST_CURVE.find((entry, index) => {
+    if (index === 0) {
+      return pointsBelow > 0 && pointsBelow < entry.maxPointsBelow! + 1;
+    }
+    const previousBand = HAZARD_FAILURE_COST_CURVE[index - 1]!;
+    return (
+      pointsBelow > previousBand.maxPointsBelow! &&
+      (entry.maxPointsBelow === null || pointsBelow < entry.maxPointsBelow + 1)
+    );
+  });
   if (!band) {
     throw new RangeError(`no hazard failure cost band defined for ${pointsBelow} points below threshold`);
   }

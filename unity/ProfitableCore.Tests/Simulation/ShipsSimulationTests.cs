@@ -372,4 +372,51 @@ public class ShipsSimulationTests
         Assert.Null(result.UpdatedCrewMember);
         Assert.Null(result.RetreatVoyage);
     }
+
+    // Bug fix regression (same shape as PenaltyCurveLookupTests'
+    // HandlesFractionalGapCases), mirroring
+    // tests/ships/resolveEncounters.test.ts's own new fractional-gap
+    // test case-for-case: HazardFailureCostCurve's bands are integer
+    // {Min,Max} pairs, but pointsBelow = HazardPassThreshold -
+    // effectiveRoll is only guaranteed an integer when
+    // HazardShipTierModifier's bonus for the ship's tier is whole --
+    // every configured tier's bonus is currently whole, but the
+    // dictionary is typed double, so a future tuning pass could
+    // reintroduce the exact TierColorResolver/PenaltyCurveLookup gap
+    // here. Temporarily overrides one tier's bonus to a fractional
+    // value (restored in `finally`, since it's shared mutable static
+    // state) to reproduce that scenario directly.
+    [Theory]
+    [InlineData(TierColor.White, 0.5, 49, 0.5, 1.0)]
+    [InlineData(TierColor.Gold, 30.8, 9, 10.2, 1.0)]
+    [InlineData(TierColor.Green, 10.5, 19, 20.5, 2.0)]
+    [InlineData(TierColor.Blue, 15.5, 4, 30.5, 4.0)]
+    [InlineData(TierColor.Purple, 8.5, 1, 40.5, 7.0)]
+    public void ResolveEncounters_HazardFailureCostCurveHasNoFractionalGap(
+        TierColor tier, double rollBonus, int rawRoll, double expectedPointsBelow, double expectedMultiplier)
+    {
+        var original = ShipsAndTravelConfig.HazardShipTierModifier[tier];
+        ShipsAndTravelConfig.HazardShipTierModifier[tier] = rollBonus;
+        try
+        {
+            var ship = ShipFixture(tier: tier);
+            var voyage = new Voyage { Id = "v1", ShipId = ship.Id, DepartedAt = 0, ArrivesAt = 60 * 60 * 1000, Cargo = new List<VoyageCargoItem>() };
+            var destinationPlanet = PlanetFixture("dest", 0, 0);
+            var x = (rawRoll - 1) / 100.0;
+            var random = TestFixtures.QueueRandom(0.1, 0.9, x);
+
+            var resolution = EncounterResolver.ResolveEncounters(voyage, ship, destinationPlanet, new List<Resource>(), random);
+
+            var hazard = Assert.IsType<HazardEncounterResult>(Assert.Single(resolution.Encounters));
+            Assert.False(hazard.Passed);
+            Assert.True(
+                Math.Abs(ShipsAndTravelConfig.HazardPassThreshold - (rawRoll + rollBonus) - expectedPointsBelow) < 1e-9,
+                "test setup arithmetic itself is wrong");
+            Assert.Equal(Math.Round(ShipsAndTravelConfig.HazardBaseFailureCost * expectedMultiplier), hazard.CreditsLost);
+        }
+        finally
+        {
+            ShipsAndTravelConfig.HazardShipTierModifier[tier] = original;
+        }
+    }
 }

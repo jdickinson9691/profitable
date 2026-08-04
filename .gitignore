@@ -14,6 +14,14 @@ unity/**/bin/
 unity/**/obj/
 *.user
 
+# Guards against a real recurrence (2026-08-03): a full nested clone of
+# this repo (its own .git, 2.3GB, checked out at a stale commit) ended up
+# at this exact path, apparently via Unity Hub's project list pointing
+# "Add project from disk" at the wrong folder. Untracked either way, but
+# explicit here so it can never silently get staged, and so `git status`
+# stays quiet if it recurs rather than needing to be rediscovered cold.
+unity/ProfitableUnity/profitable/
+
 # OS/editor cruft
 .DS_Store
 Thumbs.db

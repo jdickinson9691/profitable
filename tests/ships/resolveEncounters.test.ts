@@ -11,6 +11,8 @@ import {
   ENCOUNTER_TRADE_OPPORTUNITY_MAX_CREDITS,
   HAZARD_PASS_THRESHOLD,
   HAZARD_BASE_FAILURE_COST,
+  HAZARD_SHIP_TIER_MODIFIER,
+  setHazardShipTierModifierForTier,
 } from "../../src/data/constants/shipsAndTravelConfig.ts";
 import type { Voyage } from "../../src/data/types/voyage.ts";
 import type { Ship } from "../../src/data/types/ship.ts";
@@ -221,6 +223,69 @@ test("hazard: failure cost curve matches the escalating shape exactly at several
     const hazard = result as HazardEncounterResult;
     assert.equal(hazard.outcome.passed, false);
     assert.equal(hazard.outcome.creditsLost, Math.round(HAZARD_BASE_FAILURE_COST * expectedMultiplier));
+  }
+});
+
+// Bug fix regression (same shape as tests/simulation/penaltyCurve.test.ts's
+// own fractionalGapCases): HAZARD_FAILURE_COST_CURVE's bands are integer
+// {min,max} pairs, but pointsBelow = HAZARD_PASS_THRESHOLD - effectiveRoll
+// is only guaranteed an integer when HAZARD_SHIP_TIER_MODIFIER's rollBonus
+// for the ship's tier is whole -- every configured tier's rollBonus is
+// currently whole, but the field is typed `number`, not an integer, so a
+// future tuning pass could reintroduce the exact getTierColor()/
+// getPenaltyMultiplier() gap here. Temporarily overrides one tier's
+// rollBonus to a fractional value via the real setter (restored in
+// `finally`, since it's shared mutable module state) to reproduce that
+// scenario without waiting for a real tuning pass to do it accidentally.
+test("hazard: failure cost curve has no fractional gap when a tier's rollBonus is non-integer", () => {
+  // Each case's rawRoll/rollBonus land pointsBelow exactly on the old
+  // integer gap just above a band's previous upper bound (mirroring
+  // penaltyCurve's own "gap just above N" cases) -- the fixed lookup
+  // resolves each to the LOWER of the two adjacent bands, same
+  // round-down-into-the-milder-band direction the penaltyCurve fix uses.
+  const cases: Array<{ tier: Ship["tier"]; rollBonus: number; rawRoll: number; expectedPointsBelow: number; expectedMultiplier: number }> = [
+    // Just below band 0's declared floor of 1 -- a gap only reachable
+    // here (unlike penaltyCurve.ts, there is no zero-width "no
+    // violation" band shielding this side, since resolveHazard's own
+    // `passed` check already guarantees pointsBelow > 0 by the time this
+    // lookup runs).
+    { tier: "White", rollBonus: 0.5, rawRoll: 49, expectedPointsBelow: 0.5, expectedMultiplier: 1.0 },
+    // The exact "10.2" landmark value already established by
+    // penaltyCurve's own regression test, reproduced here via a
+    // deliberately unrealistic Gold rollBonus (30.8, vs. the real 30) --
+    // the point is the boundary math, not a plausible tuning value.
+    { tier: "Gold", rollBonus: 30.8, rawRoll: 9, expectedPointsBelow: 10.2, expectedMultiplier: 1.0 },
+    { tier: "Green", rollBonus: 10.5, rawRoll: 19, expectedPointsBelow: 20.5, expectedMultiplier: 2.0 },
+    { tier: "Blue", rollBonus: 15.5, rawRoll: 4, expectedPointsBelow: 30.5, expectedMultiplier: 4.0 },
+    { tier: "Purple", rollBonus: 8.5, rawRoll: 1, expectedPointsBelow: 40.5, expectedMultiplier: 7.0 },
+  ];
+
+  for (const { tier, rollBonus, rawRoll, expectedPointsBelow, expectedMultiplier } of cases) {
+    const original = HAZARD_SHIP_TIER_MODIFIER.find((e) => e.tier === tier)!.rollBonus;
+    setHazardShipTierModifierForTier(tier, rollBonus);
+    try {
+      const x = (rawRoll - 1) / 100;
+      const random = queueRandom([0, 0.9, x]);
+      const {
+        encounters: [result],
+      } = resolveEncounters(voyage(1), ship(tier), planet(), resources, random);
+      const hazard = result as HazardEncounterResult;
+      assert.equal(hazard.outcome.passed, false, `${tier} rollBonus=${rollBonus}: expected a failed roll`);
+      assert.ok(
+        Math.abs(HAZARD_PASS_THRESHOLD - (rawRoll + rollBonus) - expectedPointsBelow) < 1e-9,
+        `${tier}: test setup arithmetic itself is wrong`,
+      );
+      assert.equal(
+        hazard.outcome.creditsLost,
+        Math.round(HAZARD_BASE_FAILURE_COST * expectedMultiplier),
+        `${tier} rollBonus=${rollBonus} (pointsBelow=${expectedPointsBelow}): wrong band`,
+      );
+    } finally {
+      // Restore the real, documented tier bonus -- this dictionary is
+      // shared module state other tests in this file (and
+      // resolveArrival.test.ts) depend on.
+      setHazardShipTierModifierForTier(tier, original);
+    }
   }
 });
 
