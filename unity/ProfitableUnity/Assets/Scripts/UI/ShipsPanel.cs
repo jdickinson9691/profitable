@@ -80,21 +80,24 @@ namespace Profitable.Unity.UI
 
         private static long NowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-        // The only two planets this MVP's travel loop ever moves between
-        // -- resolves whichever one a Voyage's own DestinationPlanetId
-        // names, so ResolveArrival works correctly for both the outbound
-        // leg and an automatic retreat voyage's return leg.
+        // Gap closed (2026-08-04): originally special-cased to only the
+        // two planets this MVP's travel loop used to ever move between.
+        // Now resolves any real planet from the generated galaxy
+        // (GalaxyState.Galaxy.Planets, all 50) through the same
+        // ownership-merge every other planet lookup already goes
+        // through -- PlanetOwnershipState.WithOwnership gracefully
+        // defaults for a planet with no ownership entry, so this is
+        // correct for both the two originally-special-cased planets and
+        // every newly-reachable one alike.
         private static Planet ResolveKnownPlanet(string planetId) =>
-            planetId == GalaxyState.StartingPlanet.Id
-                ? PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet)
-                : GalaxyState.SecondaryDestinationPlanet;
+            PlanetOwnershipState.WithOwnership(GalaxyState.Galaxy.Planets.First(p => p.Id == planetId));
 
         public void Refresh()
         {
             var voyage = ShipsState.ActiveVoyage;
             var voyageStatus = voyage is null
                 ? "no active voyage"
-                : $"voyage to {(voyage.DestinationPlanetId == GalaxyState.SecondaryDestinationPlanet.Id ? GalaxyState.SecondaryDestinationPlanet.Name : voyage.DestinationPlanetId)}, arrives at {voyage.ArrivesAt:F0}ms (now {NowMs()}ms)";
+                : $"voyage to {ResolveKnownPlanet(voyage.DestinationPlanetId).Name}, arrives at {voyage.ArrivesAt:F0}ms (now {NowMs()}ms)";
             _statusText.text = $"Wallet: {MarketState.Wallet.Credits:F2} credits | {voyageStatus}";
 
             UiFactory.ClearChildren(_shipyardGroup);
@@ -219,18 +222,30 @@ namespace Profitable.Unity.UI
             return repaired;
         }
 
-        // The only planet ownership currently exists for is the starting
-        // planet (Sub-Phase E's own scope) -- returns its real,
-        // ownership-merged Planet when the ship is docked there, or null
-        // otherwise (a ship docked at GalaxyState.SecondaryDestinationPlanet,
-        // which has no ownership side-table entry, correctly gets no
-        // Citadel benefit).
-        private static Planet? DockedPlanetFor(Ship ship) =>
-            ship.CurrentPlanetId == GalaxyState.StartingPlanet.Id
-                ? PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet)
-                : null;
+        // Gap closed (2026-08-04): Citadel benefit lookups used to only
+        // ever resolve for a ship docked at the starting planet -- the
+        // only planet ownership could ever apply to before map-based
+        // travel existed. PlanetOwnershipState.WithOwnership (via
+        // ResolveKnownPlanet) already defaults gracefully for a planet
+        // with no ownership entry, so this now correctly resolves for a
+        // ship docked anywhere in the real galaxy, not just the two
+        // originally-special-cased planets.
+        private static Planet DockedPlanetFor(Ship ship) => ResolveKnownPlanet(ship.CurrentPlanetId);
 
-        public InitiateVoyageResult? InitiateVoyageToSecondaryDestination(string shipId)
+        // Gap closed (2026-08-04): generalizes what was
+        // InitiateVoyageToSecondaryDestination's own hardcoded
+        // StartingPlanet -> SecondaryDestinationPlanet route into a real
+        // "travel from wherever this ship is docked to any other real
+        // galaxy planet" entry point -- mirrors
+        // src/presentation/scenes/TradeMapScene.ts's own
+        // initiateVoyage() call site exactly (real origin/destination
+        // Planet objects, no formula reimplemented here). The "already
+        // has an active voyage" guard is new: the old method relied
+        // entirely on Refresh()'s own button-visibility gating to
+        // prevent a second voyage, which was sufficient when Travel had
+        // exactly one entry point (this panel's own button) but is not
+        // once MapPanel gained a second, independent one.
+        public InitiateVoyageResult? InitiateVoyageTo(string shipId, string destinationPlanetId)
         {
             var ship = ShipsState.OwnedShips.FirstOrDefault(s => s.Id == shipId);
             if (ship is null)
@@ -238,9 +253,14 @@ namespace Profitable.Unity.UI
                 _log($"Travel failed: no owned ship '{shipId}'.");
                 return null;
             }
+            if (ShipsState.ActiveVoyage is not null)
+            {
+                _log("Travel failed: a voyage is already in progress.");
+                return null;
+            }
 
-            var origin = GalaxyState.StartingPlanet;
-            var destination = GalaxyState.SecondaryDestinationPlanet;
+            var origin = ResolveKnownPlanet(ship.CurrentPlanetId);
+            var destination = ResolveKnownPlanet(destinationPlanetId);
 
             InitiateVoyageResult result;
             try
@@ -259,6 +279,12 @@ namespace Profitable.Unity.UI
             Refresh();
             return result;
         }
+
+        // Kept as a thin wrapper -- this panel's own "Travel {ship.Id}"
+        // button (Refresh(), below) and every existing test still call
+        // this exact name/signature.
+        public InitiateVoyageResult? InitiateVoyageToSecondaryDestination(string shipId) =>
+            InitiateVoyageTo(shipId, GalaxyState.SecondaryDestinationPlanet.Id);
 
         public ArrivalResult? ResolveArrival(string shipId)
         {

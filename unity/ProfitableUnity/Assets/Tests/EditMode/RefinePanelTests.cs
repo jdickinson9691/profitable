@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Profitable.Core.Schema;
 using Profitable.Unity.Content;
@@ -114,6 +115,44 @@ namespace Profitable.Unity.Tests.EditMode
 
             Assert.IsNull(result);
             Assert.AreEqual(1, _inventory.TotalQuantity("igneous-ore"));
+        }
+
+        // Gap closed (2026-08-04): the recipe selector, previously
+        // hardcoded to Radiant Alloy Bar only.
+
+        [Test]
+        public void ExposesTheRealFullRefiningRecipeRoster()
+        {
+            Assert.GreaterOrEqual(GameContent.Loaded.RefiningRecipes.Count, 10);
+            Assert.IsTrue(GameContent.Loaded.RefiningRecipes.Any(r => r.Id == "iron-ingot"));
+        }
+
+        [Test]
+        public void CanRefineANonDefaultRecipeByIdConsumingItsOwnRealInputs()
+        {
+            // Iron Ingot: 3x Ferrite Ore -> 1x Iron Ingot -- a completely
+            // different resource from the default recipe's own inputs.
+            var ferriteOre = GameContent.Loaded.Resources.First(r => r.Id == "ferrite-ore");
+            _inventory.Add(new ResourceInstance { Resource = ferriteOre, Quantity = 3, Qualities = ToQualityMap(FullQualities(50)) });
+
+            var result = _panel.TryRefine("iron-ingot");
+
+            Assert.IsNotNull(result);
+            Assert.AreEqual(0, _inventory.TotalQuantity("ferrite-ore"));
+            Assert.Greater(_inventory.TotalQuantity("iron-ingot"), 0);
+            // The default recipe's own inputs must be untouched -- proves
+            // the selector actually switched recipes rather than always
+            // consuming Igneous Ore/Autunite Crystal regardless of id.
+            Assert.AreEqual(0, _inventory.TotalQuantity("igneous-ore"));
+        }
+
+        [Test]
+        public void NonDefaultRecipeFailsCleanlyAndNamesItsOwnRealInputWhenInsufficient()
+        {
+            var result = _panel.TryRefine("iron-ingot");
+
+            Assert.IsNull(result);
+            StringAssert.Contains("ferrite-ore", _logs[^1]);
         }
     }
 }

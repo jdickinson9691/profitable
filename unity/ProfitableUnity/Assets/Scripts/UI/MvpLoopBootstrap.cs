@@ -57,13 +57,18 @@ namespace Profitable.Unity.UI
             var nav = UiFactory.CreateHorizontalGroup(root, "Nav");
             var content = UiFactory.CreateVerticalGroup(root, "Content");
 
-            _mapPanel = new MapPanel(content);
+            // ShipsPanel is constructed before MapPanel -- MapPanel's own
+            // real destination-selection (2026-08-04) delegates voyage
+            // initiation to it, so it needs the real instance to exist
+            // first. Nav button order below is unaffected -- Map still
+            // shows/opens first, only construction order changed.
+            _shipsPanel = new ShipsPanel(content, _inventory, Log);
+            _mapPanel = new MapPanel(content, _shipsPanel);
             _gatherPanel = new GatherPanel(content, _inventory, Log);
             _refinePanel = new RefinePanel(content, _inventory, Log);
             _craftPanel = new CraftPanel(content, _inventory, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
             _crewPanel = new CrewPanel(content, _inventory, Log);
-            _shipsPanel = new ShipsPanel(content, _inventory, Log);
 
             UiFactory.CreateButton(nav, "Map", () => ShowOnly(_mapPanel.Root));
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));
@@ -96,6 +101,7 @@ namespace Profitable.Unity.UI
         private void Log(string message)
         {
             _logText.text = $"{_logText.text}\n{message}".TrimStart('\n');
+            _mapPanel.Refresh();
             _gatherPanel.RefreshOwnership();
             _refinePanel.Refresh();
             _craftPanel.Refresh();

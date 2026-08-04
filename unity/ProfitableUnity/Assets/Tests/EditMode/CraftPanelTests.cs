@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Profitable.Core.Schema;
 using Profitable.Unity.Content;
@@ -105,6 +106,49 @@ namespace Profitable.Unity.Tests.EditMode
 
             Assert.AreEqual(1, _inventory.TotalQuantity("radiant-alloy-bar"));
             Assert.AreEqual(1, _inventory.TotalQuantity("hydrogen-gas"));
+        }
+
+        // Gap closed (2026-08-04): the recipe selector, previously
+        // hardcoded to Ion-Forged Hull Plate only.
+
+        [Test]
+        public void ExposesTheRealGeneralCraftingRosterExcludingShipComponents()
+        {
+            // 29 total recipes in content/recipes.json, 16 of them ship
+            // components (content/componentRecipes.json) -- 13 general.
+            Assert.AreEqual(13, GameContent.GeneralCraftingRecipes.Count);
+            Assert.IsTrue(GameContent.GeneralCraftingRecipes.Any(r => r.Id == "iron-hull-plate"));
+            Assert.IsFalse(GameContent.GeneralCraftingRecipes.Any(r => r.Id == "pulse-cannon"), "pulse-cannon is a ship weapon component recipe -- must stay excluded");
+        }
+
+        [Test]
+        public void CanCraftANonDefaultRecipeByIdConsumingItsOwnRealCategoryInputs()
+        {
+            // Iron Hull Plate: 2x (category "iron-ingot", durability 40+)
+            // -> 1x Iron Hull Plate -- resolved by category, not a
+            // hardcoded resource id, and a completely different resource
+            // from the default recipe's own inputs.
+            var ironIngot = GameContent.Loaded.Resources.First(r => r.Id == "iron-ingot");
+            var qualities = FullQualities(70);
+            _inventory.Add(new ResourceInstance { Resource = ironIngot, Quantity = 2, Qualities = qualities });
+
+            var result = _panel.TryCraft("iron-hull-plate");
+
+            Assert.IsInstanceOf<CraftAccepted>(result);
+            Assert.AreEqual(0, _inventory.TotalQuantity("iron-ingot"));
+            // The default recipe's own inputs must be untouched -- proves
+            // the selector actually switched recipes rather than always
+            // consuming Radiant Alloy Bar/Hydrogen Gas regardless of id.
+            Assert.AreEqual(0, _inventory.TotalQuantity("radiant-alloy-bar"));
+        }
+
+        [Test]
+        public void NonDefaultRecipeFailsCleanlyWhenInsufficient()
+        {
+            var result = _panel.TryCraft("iron-hull-plate");
+
+            Assert.IsNull(result);
+            StringAssert.Contains("Craft failed", _logs[^1]);
         }
     }
 }

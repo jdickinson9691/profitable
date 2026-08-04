@@ -1,5 +1,7 @@
 #nullable enable
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Profitable.Core.Content;
 using Profitable.Core.Schema;
 using UnityEngine;
@@ -16,6 +18,7 @@ namespace Profitable.Unity.Content
     public static class GameContent
     {
         private static LoadedContent? _loaded;
+        private static HashSet<string>? _componentRecipeIds;
 
         public static LoadedContent Loaded => _loaded ??= Load();
 
@@ -30,6 +33,20 @@ namespace Profitable.Unity.Content
 
         public static RefiningRecipe RadiantAlloyBarRecipe => FindRefiningRecipe("radiant-alloy-bar");
         public static Recipe IonForgedHullPlateRecipe => FindRecipe("ion-forged-hull-plate");
+
+        // Ship component recipes (the 16 linked via
+        // content/componentRecipes.json, ShipAssemblyScene's exclusive
+        // domain on the TypeScript side -- no Unity equivalent exists
+        // yet, per this migration's own documented scope limit) are
+        // excluded from the general crafting roster below, mirroring
+        // src/presentation/scenes/CraftScene.ts's own generalRecipes()
+        // exactly -- same reasoning, same exclusion set, just read from
+        // the real content file via the already-ported ShipsContentLoader
+        // instead of re-declaring the 16 ids by hand.
+        public static IReadOnlyList<Recipe> GeneralCraftingRecipes =>
+            Loaded.Recipes.Where(r => !ComponentRecipeIds.Contains(r.Id)).ToList();
+
+        private static HashSet<string> ComponentRecipeIds => _componentRecipeIds ??= LoadComponentRecipeIds();
 
         private static Resource FindResource(string id)
         {
@@ -69,11 +86,22 @@ namespace Profitable.Unity.Content
                 Path.Combine(contentDir, "planets.json"));
         }
 
+        private static HashSet<string> LoadComponentRecipeIds()
+        {
+            var contentDir = Path.Combine(Application.streamingAssetsPath, "Content");
+            var loaded = ShipsContentLoader.LoadFromFile(Path.Combine(contentDir, "componentRecipes.json"));
+            return loaded.ComponentRecipes.Select(c => c.RecipeId).ToHashSet();
+        }
+
         // EditMode tests run outside Play mode, where Application
         // .streamingAssetsPath still resolves correctly (it's a project
         // -relative path in the Editor either way) -- but a test that
         // wants a fresh load (e.g. after asserting on a static cache)
         // can force one via this reset hook.
-        public static void ResetForTests() => _loaded = null;
+        public static void ResetForTests()
+        {
+            _loaded = null;
+            _componentRecipeIds = null;
+        }
     }
 }

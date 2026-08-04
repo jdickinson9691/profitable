@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
@@ -9,17 +10,21 @@ using UnityEngine.UI;
 
 namespace Profitable.Unity.UI
 {
-    // Agent 35 -- consumes the real Ion-Forged Hull Plate recipe's exact
-    // quantities (1x Radiant Alloy Bar in the "refined-metal" slot, 1x
-    // Hydrogen Gas in the "gas" slot) from Inventory, calls
-    // Crafter.Craft(), and logs the result -- including the rejection
-    // path, not just the happy path. The slot-to-resource mapping is
-    // hardcoded (slot 0 -> Radiant Alloy Bar, slot 1 -> Hydrogen Gas)
-    // rather than generic category matching, consistent with this
-    // agent's fixed-MVP-content-set scope (see agent-35-unity-mvp
-    // -presentation.md's Design decisions) -- craft() itself matches
-    // recipe.Inputs positionally against whatever ResourceInstance[] is
-    // passed, so this mapping only needs to get the order right.
+    // Agent 35 -- consumes a chosen Recipe's category-based inputs from
+    // Inventory, calls Crafter.Craft(), and logs the result -- including
+    // the rejection path, not just the happy path.
+    //
+    // Gap closed (2026-08-04): originally hardcoded to
+    // GameContent.IonForgedHullPlateRecipe only, reachable through no
+    // other recipe -- mirrors src/presentation/scenes/CraftScene.ts's own
+    // "Fix RefineScene/CraftScene recipe lock" correction exactly (commit
+    // 658d967). Ship component recipes (the 16 linked via
+    // content/componentRecipes.json) stay out of this list -- they'd be
+    // ShipAssemblyScene's exclusive domain on the TypeScript side, and
+    // this Unity build has no equivalent ship-assembly UI yet (a
+    // documented scope limit, not an oversight) -- see
+    // GameContent.GeneralCraftingRecipes' own comment for the exact same
+    // exclusion CraftScene.generalRecipes() applies.
     public class CraftPanel
     {
         public GameObject Root { get; }
@@ -28,7 +33,7 @@ namespace Profitable.Unity.UI
         private readonly Action<string> _log;
         private readonly TierPicker _schematicTierPicker;
         private readonly TierPicker _crafterTierPicker;
-        private readonly Text _statusText;
+        private readonly RectTransform _recipeGroup;
 
         public CraftPanel(Transform parent, Inventory inventory, Action<string> log)
         {
@@ -39,54 +44,69 @@ namespace Profitable.Unity.UI
             Root = group.gameObject;
 
             UiFactory.CreateText(group, "Craft", 20);
-            _statusText = UiFactory.CreateText(group, "", 13);
             _schematicTierPicker = new TierPicker(group, "Schematic tier:");
             _crafterTierPicker = new TierPicker(group, "Crafter tier:");
-            UiFactory.CreateButton(group, "Craft Ion-Forged Hull Plate", () => TryCraft());
+
+            UiFactory.CreateText(group, "Recipes:", 14);
+            _recipeGroup = UiFactory.CreateVerticalGroup(group, "Recipes");
 
             Refresh();
         }
 
         public void Refresh()
         {
-            var alloyBarId = GameContent.RadiantAlloyBar.Id;
-            var gasId = GameContent.HydrogenGas.Id;
-            _statusText.text =
-                $"{alloyBarId}: {_inventory.TotalQuantity(alloyBarId)}/1 available\n" +
-                $"{gasId}: {_inventory.TotalQuantity(gasId)}/1 available";
+            UiFactory.ClearChildren(_recipeGroup);
+            foreach (var recipe in GameContent.GeneralCraftingRecipes)
+            {
+                var row = UiFactory.CreateHorizontalGroup(_recipeGroup, $"Recipe_{recipe.Id}");
+                var requirementText = string.Join(", ", recipe.Inputs.Select(input =>
+                {
+                    var resource = ResolveSlotResource(input.Category);
+                    var have = resource is null ? 0 : _inventory.TotalQuantity(resource.Id);
+                    return $"{have}/{input.Quantity}x {resource?.Name ?? input.Category}";
+                }));
+                UiFactory.CreateText(row, $"{recipe.Name} (needs {requirementText})", 12);
+                UiFactory.CreateButton(row, $"Craft {recipe.Name}", () => TryCraft(recipe.Id));
+            }
         }
 
         // Public entry point -- exercised directly by EditMode tests
-        // rather than simulating a real Button click.
-        public CraftResult? TryCraft()
+        // rather than simulating a real Button click. `recipeId` null
+        // defaults to the general roster's first recipe (Ion-Forged Hull
+        // Plate), matching this panel's own previous hardcoded-only
+        // behavior -- every caller that never knew about the selector
+        // keeps working unchanged.
+        public CraftResult? TryCraft(string? recipeId = null)
         {
-            var recipe = GameContent.IonForgedHullPlateRecipe;
-            var alloyBarId = GameContent.RadiantAlloyBar.Id;
-            var gasId = GameContent.HydrogenGas.Id;
+            var recipe = recipeId is null
+                ? GameContent.GeneralCraftingRecipes[0]
+                : GameContent.GeneralCraftingRecipes.First(r => r.Id == recipeId);
 
-            var alloyBarSlotQuantity = recipe.Inputs[0].Quantity;
-            var gasSlotQuantity = recipe.Inputs[1].Quantity;
-
-            if (_inventory.TotalQuantity(alloyBarId) < alloyBarSlotQuantity ||
-                _inventory.TotalQuantity(gasId) < gasSlotQuantity)
+            var slotResources = recipe.Inputs.Select(input => (input, resource: ResolveSlotResource(input.Category))).ToList();
+            if (slotResources.Any(s => s.resource is null || _inventory.TotalQuantity(s.resource.Id) < s.input.Quantity))
             {
-                _log($"Craft failed: need {alloyBarSlotQuantity}x {alloyBarId} and {gasSlotQuantity}x {gasId}, " +
-                     $"have {_inventory.TotalQuantity(alloyBarId)} and {_inventory.TotalQuantity(gasId)}.");
+                var need = string.Join(", ", slotResources.Select(s => $"{s.input.Quantity}x {s.resource?.Name ?? s.input.Category}"));
+                _log($"Craft failed: need {need}.");
                 return null;
             }
 
-            var alloyBarInstances = _inventory.Take(alloyBarId, alloyBarSlotQuantity);
-            var gasInstances = _inventory.Take(gasId, gasSlotQuantity);
             var inputs = new List<ResourceInstance>();
-            inputs.AddRange(alloyBarInstances);
-            inputs.AddRange(gasInstances);
+            foreach (var (input, resource) in slotResources)
+            {
+                inputs.AddRange(_inventory.Take(resource!.Id, input.Quantity));
+            }
 
-            var result = Crafter.Craft(inputs, recipe, _schematicTierPicker.SelectedTier, _crafterTierPicker.SelectedTier);
+            var schematic = GameContent.Loaded.Schematics.FirstOrDefault(s => s.RecipeId == recipe.Id);
+            var schematicTier = schematic?.Tier ?? TierColor.Grey;
+
+            var result = Crafter.Craft(inputs, recipe, schematicTier, _crafterTierPicker.SelectedTier);
 
             if (result is CraftAccepted accepted)
             {
-                _log($"Crafted {recipe.OutputQuantity}x Ion-Forged Hull Plate " +
-                     $"(schematic {_schematicTierPicker.SelectedTier}, crafter {_crafterTierPicker.SelectedTier}): " +
+                var outputResource = FindResource(recipe.OutputResourceId);
+                _inventory.Add(new ResourceInstance { Resource = outputResource, Quantity = recipe.OutputQuantity, Qualities = accepted.Qualities });
+                _log($"Crafted {recipe.OutputQuantity}x {outputResource.Name} " +
+                     $"(schematic {schematicTier}, crafter {_crafterTierPicker.SelectedTier}): " +
                      $"{GatherPanel.DescribeQualities(accepted.Qualities)}");
             }
             else if (result is CraftRejected rejected)
@@ -105,5 +125,18 @@ namespace Profitable.Unity.UI
             Refresh();
             return result;
         }
+
+        // Crafting recipes are category-based, not resource-id-based (GDD:
+        // "not fixed to specific materials"). The MVP content only ever
+        // has one resource per relevant category, so resolving the first
+        // match is a reasonable presentation-layer simplification for
+        // this content -- it's inventory/UI bookkeeping, not part of
+        // Crafter.Craft()'s own formula. Ports
+        // CraftScene.resolveSlotResource() exactly.
+        private static Resource? ResolveSlotResource(string category) =>
+            GameContent.Loaded.Resources.FirstOrDefault(r => r.Category == category);
+
+        private static Resource FindResource(string resourceId) =>
+            GameContent.Loaded.Resources.First(r => r.Id == resourceId);
     }
 }
