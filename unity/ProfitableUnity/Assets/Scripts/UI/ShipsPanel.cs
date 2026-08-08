@@ -5,6 +5,7 @@ using System.Linq;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
+using Profitable.Unity.DebugTools;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -365,7 +366,19 @@ namespace Profitable.Unity.UI
             }
 
             var destinationPlanet = ResolveKnownPlanet(voyage.DestinationPlanetId);
-            var result = ArrivalResolver.ResolveArrival(voyage, ship, NowMs(), destinationPlanet, GameContent.Loaded.Resources, _random);
+
+            // Alpha Section 4 debug panel "force encounter" shortcut: a
+            // one-shot request (DebugState) consumed here, on the very
+            // next resolution, then cleared -- never affects a second
+            // arrival by accident. Falls through to the panel's own
+            // real, default-random _random field when no request is
+            // pending -- identical to every non-debug call. Mirrors
+            // TradeMapScene.ts's onResolveArrival() exactly (see
+            // debugState.ts/debugForcedRandom.ts).
+            var forcedType = DebugState.ConsumeForcedEncounterType();
+            var random = forcedType.HasValue ? ForcedEncounterRandom.Build(forcedType.Value) : _random;
+
+            var result = ArrivalResolver.ResolveArrival(voyage, ship, NowMs(), destinationPlanet, GameContent.Loaded.Resources, random);
             if (result is ArrivalResolved resolved)
             {
                 ShipsState.ReplaceShip(resolved.UpdatedShip);

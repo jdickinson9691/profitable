@@ -11,7 +11,7 @@ namespace Profitable.Core.Constants;
 // ColonistTransportCost are unaffected.
 public static class PlanetOwnershipConstants
 {
-    public const int MinimumColonistsToProduce = 5;
+    public static int MinimumColonistsToProduce { get; set; } = 5;
 
     public static double ColonistTransportCost { get; set; } = 15;
 }

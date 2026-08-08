@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Profitable.Core.Schema;
+using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
 using Profitable.Unity.UI;
 using UnityEngine;
@@ -23,6 +24,9 @@ namespace Profitable.Unity.Tests.EditMode
         public void SetUp()
         {
             GameContent.ResetForTests();
+            GalaxyState.ResetForTests();
+            ShipsState.ResetForTests();
+            CrewState.ResetForTests();
             _parent = new GameObject("TestParent", typeof(RectTransform));
             _inventory = new Inventory();
             _logs.Clear();
@@ -149,6 +153,79 @@ namespace Profitable.Unity.Tests.EditMode
 
             Assert.IsNull(result);
             StringAssert.Contains("Craft failed", _logs[^1]);
+        }
+
+        // --- Ship Crew Roles wiring: Crafter/Artisan material discount ---
+
+        private static void AssignArtisanToActiveShip(TierColor artisanTier)
+        {
+            var ship = new Ship
+            {
+                Id = "active-ship", Name = "Active Ship", OwnerId = "player-1", Tier = TierColor.Grey,
+                CurrentPlanetId = GalaxyState.StartingPlanet.Id, FuelCapacity = 100, CurrentFuel = 100,
+                Components = new ShipComponentSlots(),
+            };
+            ShipsState.OwnedShips.Add(ship);
+
+            var artisan = new CrewMember
+            {
+                Id = "artisan-1", HiredByPlayerId = "player-1", Tier = artisanTier, Profession = "Artisan",
+                Status = CrewStatus.Idle, HiredAt = 0, LastCheckedAt = 0, WageAmount = 1, LastPaidAt = 0,
+            };
+            CrewState.Crew.Add(artisan);
+
+            var result = (AssignShipRoleSucceeded)ShipRoleAssigner.AssignToShipRole(artisan, ship, ShipCrewRole.Crafter, CrewState.Crew);
+            CrewState.Crew[CrewState.Crew.FindIndex(m => m.Id == artisan.Id)] = result.UpdatedCrewMember;
+        }
+
+        [Test]
+        public void ArtisanAssignedAsActiveShipsCrafter_DiscountsGeneralRecipeInputQuantity()
+        {
+            // Iron Hull Plate needs 2x iron-ingot with no Artisan. Grey
+            // tier's ArtisanMaterialDiscountByTier is 5%:
+            // floor(2 * 0.95) = 1 -- ports CraftScene.effectiveSlotQuantity()
+            // exactly.
+            AssignArtisanToActiveShip(TierColor.Grey);
+            var ironIngot = GameContent.Loaded.Resources.First(r => r.Id == "iron-ingot");
+            _inventory.Add(new ResourceInstance { Resource = ironIngot, Quantity = 1, Qualities = FullQualities(70) });
+
+            var result = _panel.TryCraft("iron-hull-plate");
+
+            Assert.IsInstanceOf<CraftAccepted>(result, "1x iron-ingot should be enough with a Grey Artisan's 5% discount");
+            Assert.AreEqual(0, _inventory.TotalQuantity("iron-ingot"));
+        }
+
+        [Test]
+        public void WithoutAnArtisanAssigned_FullBaseQuantityIsStillRequired()
+        {
+            var ironIngot = GameContent.Loaded.Resources.First(r => r.Id == "iron-ingot");
+            _inventory.Add(new ResourceInstance { Resource = ironIngot, Quantity = 1, Qualities = FullQualities(70) });
+
+            var result = _panel.TryCraft("iron-hull-plate");
+
+            Assert.IsNull(result, "no Artisan assigned -- the full 2x base quantity is still required");
+            StringAssert.Contains("Craft failed", _logs[^1]);
+        }
+
+        [Test]
+        public void CraftAcceptedResultQualitiesAreStillInRangeWithADiscountApplied()
+        {
+            // Crafter.Craft() itself must remain provably crew-agnostic
+            // (crafting.md's own contract) -- the discount only ever
+            // changes how much is consumed before Crafter.Craft() is
+            // called, never anything about the call or its output.
+            AssignArtisanToActiveShip(TierColor.Gold); // 35%: floor(2*0.65)=1
+            var ironIngot = GameContent.Loaded.Resources.First(r => r.Id == "iron-ingot");
+            _inventory.Add(new ResourceInstance { Resource = ironIngot, Quantity = 1, Qualities = FullQualities(70) });
+
+            var result = (CraftAccepted)_panel.TryCraft("iron-hull-plate")!;
+
+            foreach (var quality in Qualities.All)
+            {
+                var value = result.Qualities[quality];
+                if (value is null) continue;
+                Assert.IsTrue(value is >= 1 and <= 100, $"{quality} was {value}");
+            }
         }
     }
 }

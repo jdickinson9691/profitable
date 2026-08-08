@@ -10,8 +10,12 @@
 import * as trading from "../data/constants/tradingConfig.ts";
 import * as crew from "../data/constants/crewConfig.ts";
 import * as ships from "../data/constants/shipsAndTravelConfig.ts";
+import * as planetOwnership from "../data/constants/planetOwnership.ts";
+import * as planetResourceCycle from "../data/constants/planetResourceCycle.ts";
+import * as resourceQuantityCap from "../data/constants/resourceQuantityCap.ts";
 import { TIER_COLOR_BREAKPOINTS } from "../data/constants/tierColor.ts";
 import type { TierColor } from "../data/types/tierColor.ts";
+import type { CrewSlotsByTierEntry } from "../data/constants/shipsAndTravelConfig.ts";
 
 export interface TuningRow {
   label: string;
@@ -49,6 +53,36 @@ function perTierRows(
 
 function row(label: string, get: () => number, set: (value: number) => void, step: number, decimals = 0): TuningRow {
   return { label, get, set, step, decimals };
+}
+
+// CREW_SLOTS_BY_TIER's setter (setCrewSlotsForTier) takes the whole
+// per-tier entry, not one field at a time (shipsAndTravelConfig.ts's own
+// Omit<CrewSlotsByTierEntry, "tier"> signature) -- each of the 4 role
+// -capacity fields still needs its own row/stepper, so this reads the
+// current entry, patches just the one field the row owns, and writes the
+// whole entry back, same "read-patch-write the real table" shape every
+// other per-tier row already uses via perTierRows()'s own get/set pair,
+// just with one extra step per call since there's no single-field setter
+// to call directly.
+function crewSlotRows(): TuningRow[] {
+  const fields: ReadonlyArray<{ key: keyof Omit<CrewSlotsByTierEntry, "tier">; label: string }> = [
+    { key: "pilot", label: "Crew slots — Pilot" },
+    { key: "combatEngineerOrScienceOfficer", label: "Crew slots — Combat Eng./Sci. Officer (combined pool)" },
+    { key: "systemsEngineer", label: "Crew slots — Systems Engineer" },
+    { key: "crafter", label: "Crew slots — Crafter" },
+  ];
+  return fields.flatMap(({ key, label }) =>
+    perTierRows(
+      label,
+      (tier) => ships.CREW_SLOTS_BY_TIER.find((e) => e.tier === tier)?.[key] ?? 0,
+      (tier, value) => {
+        const entry = ships.CREW_SLOTS_BY_TIER.find((e) => e.tier === tier);
+        if (!entry) return;
+        ships.setCrewSlotsForTier(tier, { ...entry, [key]: value });
+      },
+      1,
+    ),
+  );
 }
 
 export const TUNING_SECTIONS: TuningSection[] = [
@@ -194,6 +228,121 @@ export const TUNING_SECTIONS: TuningSection[] = [
         (tier) => ships.SHIP_PURCHASE_COST_BY_TIER.find((e) => e.tier === tier)?.cost ?? 0,
         ships.setShipPurchaseCostForTier,
         50,
+      ),
+      // Ship Fuel (previously missing from this panel entirely).
+      ...perTierRows(
+        "Fuel capacity",
+        (tier) => ships.FUEL_CAPACITY_BY_TIER.find((e) => e.tier === tier)?.capacity ?? 0,
+        ships.setFuelCapacityForTier,
+        5,
+      ),
+      row(
+        "Fuel cost / distance unit",
+        () => ships.FUEL_COST_PER_DISTANCE_UNIT,
+        ships.setFuelCostPerDistanceUnit,
+        0.005,
+        3,
+      ),
+      row("Refuel cost / unit", () => ships.REFUEL_COST_PER_UNIT, ships.setRefuelCostPerUnit, 0.5, 1),
+      // Cargo Hold Capacity (previously missing).
+      ...perTierRows(
+        "Cargo hold capacity",
+        (tier) => ships.CARGO_HOLD_CAPACITY_BY_TIER.find((e) => e.tier === tier)?.capacity ?? 0,
+        ships.setCargoHoldCapacityForTier,
+        1,
+      ),
+      // resolveComponentRepair()'s own elapsed-time cap (previously
+      // missing) -- the two per-tier repair-rate tables live in the new
+      // "Ship Crew Roles" section below, alongside the role-effect tables
+      // they're part of, not here.
+      row(
+        "Repair elapsed-time cap (h)",
+        () => ships.REPAIR_ELAPSED_TIME_CAP_HOURS,
+        ships.setRepairElapsedTimeCapHours,
+        1,
+      ),
+    ],
+  },
+  {
+    // Ship Crew Roles (previously entirely absent from this panel) -- all
+    // 5 role-effect magnitude tables, plus the per-tier slot-capacity
+    // table itself. Grouped as its own section rather than folded into
+    // "Ships & Travel"/"Crew" above, matching how ship.md's own Ship Crew
+    // Roles section is a distinct concern from both.
+    title: "Ship Crew Roles",
+    rows: [
+      ...crewSlotRows(),
+      ...perTierRows(
+        "Pilot speed multiplier",
+        (tier) => ships.PILOT_SPEED_BONUS_BY_TIER.find((e) => e.tier === tier)?.travelTimeMultiplier ?? 0,
+        ships.setPilotSpeedBonusForTier,
+        0.01,
+        2,
+      ),
+      ...perTierRows(
+        "Combat Engineer mitigation %",
+        (tier) => ships.COMBAT_ENGINEER_MITIGATION_BY_TIER.find((e) => e.tier === tier)?.mitigationPercent ?? 0,
+        ships.setCombatEngineerMitigationForTier,
+        0.05,
+        2,
+      ),
+      ...perTierRows(
+        "Science Officer radius bonus",
+        (tier) => ships.SCIENCE_OFFICER_RADIUS_BONUS_BY_TIER.find((e) => e.tier === tier)?.radiusBonus ?? 0,
+        ships.setScienceOfficerRadiusBonusForTier,
+        5,
+      ),
+      ...perTierRows(
+        "Artisan material discount %",
+        (tier) => ships.ARTISAN_MATERIAL_DISCOUNT_BY_TIER.find((e) => e.tier === tier)?.discountPercent ?? 0,
+        ships.setArtisanMaterialDiscountForTier,
+        0.05,
+        2,
+      ),
+      ...perTierRows(
+        "Systems Engineer repair rate/h",
+        (tier) => ships.SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === tier)?.rate ?? 0,
+        ships.setSystemsEngineerRepairRateForTier,
+        0.25,
+        2,
+      ),
+      ...perTierRows(
+        "Crafter repair rate/h",
+        (tier) => ships.CRAFTER_REPAIR_RATE_BY_TIER.find((e) => e.tier === tier)?.rate ?? 0,
+        ships.setCrafterRepairRateForTier,
+        0.25,
+        2,
+      ),
+    ],
+  },
+  {
+    // Colonist-Driven Production + Planet Resource Generation's
+    // Per-Resource Quantity Caps (both previously missing entirely).
+    title: "Planet & Colonists",
+    rows: [
+      row(
+        "Colonist transport cost",
+        () => planetOwnership.COLONIST_TRANSPORT_COST,
+        planetOwnership.setColonistTransportCost,
+        5,
+      ),
+      row(
+        "Minimum colonists to produce",
+        () => planetOwnership.MINIMUM_COLONISTS_TO_PRODUCE,
+        planetOwnership.setMinimumColonistsToProduce,
+        1,
+      ),
+      row(
+        "Planet resource reset interval (h)",
+        () => planetResourceCycle.PLANET_RESOURCE_RESET_INTERVAL_HOURS,
+        planetResourceCycle.setPlanetResourceResetIntervalHours,
+        12,
+      ),
+      ...perTierRows(
+        "Resource quantity cap / cycle",
+        (tier) => resourceQuantityCap.RESOURCE_QUANTITY_CAP_BY_TIER.find((e) => e.tier === tier)?.cap ?? 0,
+        resourceQuantityCap.setResourceQuantityCapForTier,
+        5,
       ),
     ],
   },

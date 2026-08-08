@@ -5,10 +5,8 @@ public static class PlanetResourceCycleConstants
 {
     // A planet's producible resources/specialty/qualities re-roll once per
     // this many hours, phase-offset per planet so planets don't all reset
-    // in lockstep. Originated default, tunable in the TypeScript source --
-    // this port takes the current value as a plain constant, not
-    // independently re-tunable in C# yet (no debug panel exists here).
-    public const int PlanetResourceResetIntervalHours = 168;
+    // in lockstep. Originated default, tunable in the TypeScript source.
+    public static int PlanetResourceResetIntervalHours { get; set; } = 168;
 
     // The starting-planet tutorial guarantee's 3 fixed resources -- the
     // exact MVP tutorial chain needs, named directly rather than derived

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Profitable.Core.Constants;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 using Profitable.Unity.Content;
@@ -25,6 +26,13 @@ namespace Profitable.Unity.UI
     // documented scope limit, not an oversight) -- see
     // GameContent.GeneralCraftingRecipes' own comment for the exact same
     // exclusion CraftScene.generalRecipes() applies.
+    //
+    // Ship Crew Roles wiring (Crafter/Artisan only): an Artisan assigned
+    // as the active ship's Crafter discounts general-recipe input
+    // quantities, applied entirely upstream of Crafter.Craft() --
+    // Crafter.Craft() itself is never touched, ports
+    // CraftScene.getArtisanDiscountPercent()/effectiveSlotQuantity()
+    // exactly (crafting.md's crew-agnostic contract holds here too).
     public class CraftPanel
     {
         public GameObject Root { get; }
@@ -63,7 +71,7 @@ namespace Profitable.Unity.UI
                 {
                     var resource = ResolveSlotResource(input.Category);
                     var have = resource is null ? 0 : _inventory.TotalQuantity(resource.Id);
-                    return $"{have}/{input.Quantity}x {resource?.Name ?? input.Category}";
+                    return $"{have}/{EffectiveSlotQuantity(input.Quantity)}x {resource?.Name ?? input.Category}";
                 }));
                 UiFactory.CreateText(row, $"{recipe.Name} (needs {requirementText})", 12);
                 UiFactory.CreateButton(row, $"Craft {recipe.Name}", () => TryCraft(recipe.Id));
@@ -83,9 +91,9 @@ namespace Profitable.Unity.UI
                 : GameContent.GeneralCraftingRecipes.First(r => r.Id == recipeId);
 
             var slotResources = recipe.Inputs.Select(input => (input, resource: ResolveSlotResource(input.Category))).ToList();
-            if (slotResources.Any(s => s.resource is null || _inventory.TotalQuantity(s.resource.Id) < s.input.Quantity))
+            if (slotResources.Any(s => s.resource is null || _inventory.TotalQuantity(s.resource.Id) < EffectiveSlotQuantity(s.input.Quantity)))
             {
-                var need = string.Join(", ", slotResources.Select(s => $"{s.input.Quantity}x {s.resource?.Name ?? s.input.Category}"));
+                var need = string.Join(", ", slotResources.Select(s => $"{EffectiveSlotQuantity(s.input.Quantity)}x {s.resource?.Name ?? s.input.Category}"));
                 _log($"Craft failed: need {need}.");
                 return null;
             }
@@ -93,7 +101,7 @@ namespace Profitable.Unity.UI
             var inputs = new List<ResourceInstance>();
             foreach (var (input, resource) in slotResources)
             {
-                inputs.AddRange(_inventory.Take(resource!.Id, input.Quantity));
+                inputs.AddRange(_inventory.Take(resource!.Id, EffectiveSlotQuantity(input.Quantity)));
             }
 
             var schematic = GameContent.Loaded.Schematics.FirstOrDefault(s => s.RecipeId == recipe.Id);
@@ -138,5 +146,30 @@ namespace Profitable.Unity.UI
 
         private static Resource FindResource(string resourceId) =>
             GameContent.Loaded.Resources.First(r => r.Id == resourceId);
+
+        // Ship Crew Roles amendment: "the active ship" reuses MapPanel's
+        // own OwnedShips.FirstOrDefault() convention -- there is no
+        // separate concept of "the ship the player is currently crafting
+        // from" anywhere else in this codebase to hang this off of
+        // instead. Ports CraftScene.getArtisanDiscountPercent() exactly.
+        private static double GetArtisanDiscountPercent()
+        {
+            var ship = ShipsState.OwnedShips.FirstOrDefault();
+            if (ship is null) return 0;
+            var artisan = CrewState.Crew.FirstOrDefault(m =>
+                m.AssignedShipId == ship.Id && m.ShipRole == ShipCrewRole.Crafter && m.Profession == "Artisan");
+            if (artisan is null) return 0;
+            return ShipsAndTravelConfig.ArtisanMaterialDiscountByTier.TryGetValue(artisan.Tier, out var discount) ? discount : 0;
+        }
+
+        // Fraction of a slot's required quantity waived, rounded down,
+        // never below 1 unit required -- ports
+        // CraftScene.effectiveSlotQuantity() exactly.
+        private static int EffectiveSlotQuantity(int baseQuantity)
+        {
+            var discount = GetArtisanDiscountPercent();
+            if (discount <= 0) return baseQuantity;
+            return Math.Max(1, (int)Math.Floor(baseQuantity * (1 - discount)));
+        }
     }
 }

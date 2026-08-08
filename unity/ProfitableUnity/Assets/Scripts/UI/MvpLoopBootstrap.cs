@@ -1,5 +1,7 @@
 using Profitable.Unity.Content;
+using Profitable.Unity.DebugTools;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace Profitable.Unity.UI
@@ -16,9 +18,16 @@ namespace Profitable.Unity.UI
         private RefinePanel _refinePanel = null!;
         private CraftPanel _craftPanel = null!;
         private ShipAssemblyPanel _shipAssemblyPanel = null!;
+        private ShipCrewRolesPanel _shipCrewRolesPanel = null!;
         private MarketPanel _marketPanel = null!;
         private CrewPanel _crewPanel = null!;
         private ShipsPanel _shipsPanel = null!;
+        // Nullable -- only constructed when DebugGate.IsEnabled() at
+        // boot (Application.isEditor, or the persisted standalone flag).
+        // A packaged, non-debug build never constructs this at all, same
+        // reachability guarantee nav.ts's own isDebugModeEnabled() gate
+        // gives the TypeScript nav entry.
+        private DebugPanel? _debugPanel;
         private Text _logText = null!;
 
         // Read-only accessor for the log's current text -- exists for
@@ -46,6 +55,29 @@ namespace Profitable.Unity.UI
         {
             _inventory = new Inventory();
             Build();
+        }
+
+        // Part 5's own required standard: "confirm this is genuinely
+        // absent from a real packaged, non-debug build the same way the
+        // TS panel's code-splitting was verified absent from its
+        // production bundle." C# has no dead-code-elimination
+        // equivalent (DebugPanel's class bytes always ship in the
+        // assembly), so the real, behavioral proof is reachability --
+        // this self-check exists solely to make that externally
+        // observable from a genuine `-batchmode` run of a real
+        // Standalone build, via a single Player.log line, without
+        // requiring interactive clicking against a headless build. Only
+        // active behind an explicit `-selfTestDebugGate` command-line
+        // flag no normal launch (Editor Play mode, a real player double
+        // -clicked by a user) ever passes -- harmless no-op otherwise.
+        private void Start()
+        {
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-selfTestDebugGate") < 0) return;
+
+            Debug.Log($"[SelfTestDebugGate] IsEditor={Application.isEditor} " +
+                      $"DebugGateIsEnabled={DebugGate.IsEnabled()} " +
+                      $"DebugPanelConstructed={_debugPanel is not null}");
+            Application.Quit();
         }
 
         private void Build()
@@ -83,8 +115,13 @@ namespace Profitable.Unity.UI
             _refinePanel = new RefinePanel(content, _inventory, Log);
             _craftPanel = new CraftPanel(content, _inventory, Log);
             _shipAssemblyPanel = new ShipAssemblyPanel(content, _inventory, Log);
+            _shipCrewRolesPanel = new ShipCrewRolesPanel(content, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
             _crewPanel = new CrewPanel(content, _inventory, Log);
+            if (DebugGate.IsEnabled())
+            {
+                _debugPanel = new DebugPanel(content, Log);
+            }
 
             UiFactory.CreateButton(nav, "Map", () => ShowOnly(_mapPanel.Root));
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));
@@ -96,9 +133,22 @@ namespace Profitable.Unity.UI
             // domain" split -- its own nav entry, never folded into the
             // Craft button above.
             UiFactory.CreateButton(nav, "Assembly", () => ShowOnly(_shipAssemblyPanel.Root));
+            // "Ship Roles," not "Ship" -- TS's own ShipStatusScene nav
+            // label is "Ship," but this Unity build already has a "Ships"
+            // (purchase/travel) nav button; a second, single-character-
+            // different "Ship" label would be a real UX ambiguity TS
+            // doesn't have to avoid, so this uses a clearly distinct label
+            // instead. Presentation-layer wording, not a behavior
+            // deviation -- see ShipCrewRolesPanel.cs's own doc comment.
+            UiFactory.CreateButton(nav, "Ship Roles", () => ShowOnly(_shipCrewRolesPanel.Root));
             UiFactory.CreateButton(nav, "Market", () => ShowOnly(_marketPanel.Root));
             UiFactory.CreateButton(nav, "Crew", () => ShowOnly(_crewPanel.Root));
             UiFactory.CreateButton(nav, "Ships", () => ShowOnly(_shipsPanel.Root));
+            if (_debugPanel is not null)
+            {
+                var debugPanel = _debugPanel;
+                UiFactory.CreateButton(nav, "Debug", () => ShowOnly(debugPanel.Root));
+            }
 
             _logText = UiFactory.CreateText(root, "", 12);
 
@@ -112,9 +162,11 @@ namespace Profitable.Unity.UI
             _refinePanel.Root.SetActive(_refinePanel.Root == visible);
             _craftPanel.Root.SetActive(_craftPanel.Root == visible);
             _shipAssemblyPanel.Root.SetActive(_shipAssemblyPanel.Root == visible);
+            _shipCrewRolesPanel.Root.SetActive(_shipCrewRolesPanel.Root == visible);
             _marketPanel.Root.SetActive(_marketPanel.Root == visible);
             _crewPanel.Root.SetActive(_crewPanel.Root == visible);
             _shipsPanel.Root.SetActive(_shipsPanel.Root == visible);
+            if (_debugPanel is not null) _debugPanel.Root.SetActive(_debugPanel.Root == visible);
         }
 
         // Shared log sink passed to every panel -- also refreshes Gather
@@ -129,9 +181,43 @@ namespace Profitable.Unity.UI
             _refinePanel.Refresh();
             _craftPanel.Refresh();
             _shipAssemblyPanel.Refresh();
+            _shipCrewRolesPanel.Refresh();
             _marketPanel.Refresh();
             _crewPanel.Refresh();
             _shipsPanel.Refresh();
+            _debugPanel?.Refresh();
+        }
+
+        // Standalone-build debug-mode toggle -- Editor sessions are
+        // always in debug mode already (DebugGate.IsEnabled()'s
+        // Application.isEditor branch), so this shortcut only matters
+        // for a packaged player, where there is no other way to flip the
+        // persisted flag. Flipping it here does not make the Debug panel
+        // appear this session (see DebugGate.Toggle()'s own comment) --
+        // an actual restart is required, matching TS's own
+        // location.reload() re-check pattern exactly.
+        //
+        // Uses UnityEngine.InputSystem (this project's ProjectSettings
+        // has activeInputHandler set to the new Input System package
+        // only -- the legacy UnityEngine.Input class throws at runtime
+        // here, confirmed by a real PlayMode test run) rather than the
+        // legacy UnityEngine.Input class every other in-scene control in
+        // this codebase avoids needing, since a UI Button's onClick
+        // never touches either Input API directly.
+        private void Update()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard is null) return;
+
+            var ctrl = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed;
+            var shift = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            if (ctrl && shift && keyboard.dKey.wasPressedThisFrame)
+            {
+                var enabled = DebugGate.Toggle();
+                Log(enabled
+                    ? "Debug mode enabled. Restart the game for the Debug panel to become reachable."
+                    : "Debug mode disabled. Restart the game for the Debug panel to stop being reachable.");
+            }
         }
     }
 }
