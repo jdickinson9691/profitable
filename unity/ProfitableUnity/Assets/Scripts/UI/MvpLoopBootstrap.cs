@@ -15,6 +15,7 @@ namespace Profitable.Unity.UI
         private GatherPanel _gatherPanel = null!;
         private RefinePanel _refinePanel = null!;
         private CraftPanel _craftPanel = null!;
+        private ShipAssemblyPanel _shipAssemblyPanel = null!;
         private MarketPanel _marketPanel = null!;
         private CrewPanel _crewPanel = null!;
         private ShipsPanel _shipsPanel = null!;
@@ -26,6 +27,20 @@ namespace Profitable.Unity.UI
         // Text-lookup-by-name logic (see agent-36-unity-migration
         // -phase1-integration.md's Outputs Section 2).
         public string LogText => _logText.text;
+
+        // Read-only accessor for the shared Inventory instance -- exists
+        // for ShipAssemblyPanel's own click-through PlayMode test, which
+        // needs to seed real component-recipe inputs (refined materials no
+        // tutorial guarantee ever produces, unlike FullLoopClickThroughTest
+        // .cs's own igneous-ore/autunite-crystal/hydrogen-gas) directly
+        // into the real, already-constructed Inventory before clicking the
+        // real Craft & Install button -- isolating "does the click
+        // correctly consume/craft/install/overwrite" from "is this exact
+        // refined material reachable via a real gather+refine chain on
+        // this fixed test galaxy," which is GatherPanel's/RefinePanel's own
+        // test surface, not this one's. Same seam shape LogText already
+        // establishes for test-only read access.
+        public Inventory Inventory => _inventory;
 
         private void Awake()
         {
@@ -67,6 +82,7 @@ namespace Profitable.Unity.UI
             _gatherPanel = new GatherPanel(content, _inventory, Log);
             _refinePanel = new RefinePanel(content, _inventory, Log);
             _craftPanel = new CraftPanel(content, _inventory, Log);
+            _shipAssemblyPanel = new ShipAssemblyPanel(content, _inventory, Log);
             _marketPanel = new MarketPanel(content, _inventory, Log);
             _crewPanel = new CrewPanel(content, _inventory, Log);
 
@@ -74,6 +90,12 @@ namespace Profitable.Unity.UI
             UiFactory.CreateButton(nav, "Gather", () => ShowOnly(_gatherPanel.Root));
             UiFactory.CreateButton(nav, "Refine", () => ShowOnly(_refinePanel.Root));
             UiFactory.CreateButton(nav, "Craft", () => ShowOnly(_craftPanel.Root));
+            // Immediately after Craft, mirroring nav.ts's own
+            // Shipyard-Assembly-Ship cluster ordering and CraftScene.ts's
+            // own "component recipes are ShipAssemblyScene's exclusive
+            // domain" split -- its own nav entry, never folded into the
+            // Craft button above.
+            UiFactory.CreateButton(nav, "Assembly", () => ShowOnly(_shipAssemblyPanel.Root));
             UiFactory.CreateButton(nav, "Market", () => ShowOnly(_marketPanel.Root));
             UiFactory.CreateButton(nav, "Crew", () => ShowOnly(_crewPanel.Root));
             UiFactory.CreateButton(nav, "Ships", () => ShowOnly(_shipsPanel.Root));
@@ -89,6 +111,7 @@ namespace Profitable.Unity.UI
             _gatherPanel.Root.SetActive(_gatherPanel.Root == visible);
             _refinePanel.Root.SetActive(_refinePanel.Root == visible);
             _craftPanel.Root.SetActive(_craftPanel.Root == visible);
+            _shipAssemblyPanel.Root.SetActive(_shipAssemblyPanel.Root == visible);
             _marketPanel.Root.SetActive(_marketPanel.Root == visible);
             _crewPanel.Root.SetActive(_crewPanel.Root == visible);
             _shipsPanel.Root.SetActive(_shipsPanel.Root == visible);
@@ -105,6 +128,7 @@ namespace Profitable.Unity.UI
             _gatherPanel.RefreshOwnership();
             _refinePanel.Refresh();
             _craftPanel.Refresh();
+            _shipAssemblyPanel.Refresh();
             _marketPanel.Refresh();
             _crewPanel.Refresh();
             _shipsPanel.Refresh();

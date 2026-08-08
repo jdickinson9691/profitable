@@ -18,6 +18,7 @@ namespace Profitable.Unity.Content
     public static class GameContent
     {
         private static LoadedContent? _loaded;
+        private static List<ComponentRecipe>? _componentRecipeLinks;
         private static HashSet<string>? _componentRecipeIds;
 
         public static LoadedContent Loaded => _loaded ??= Load();
@@ -46,7 +47,19 @@ namespace Profitable.Unity.Content
         public static IReadOnlyList<Recipe> GeneralCraftingRecipes =>
             Loaded.Recipes.Where(r => !ComponentRecipeIds.Contains(r.Id)).ToList();
 
-        private static HashSet<string> ComponentRecipeIds => _componentRecipeIds ??= LoadComponentRecipeIds();
+        // Full recipeId+category links (not just the id set above) --
+        // ShipAssemblyPanel's own domain, ports
+        // getShipsContent().componentRecipes exactly (the same source
+        // ShipAssemblyScene.findRecipesForCategory() reads on the
+        // TypeScript side). Kept as a separate accessor from
+        // ComponentRecipeIds below rather than folding category into that
+        // set, since the two callers need different shapes (an id-only
+        // exclusion set here vs. a category-keyed lookup there).
+        public static IReadOnlyList<ComponentRecipe> ComponentRecipeLinks =>
+            _componentRecipeLinks ??= LoadComponentRecipeLinks();
+
+        private static HashSet<string> ComponentRecipeIds =>
+            _componentRecipeIds ??= ComponentRecipeLinks.Select(c => c.RecipeId).ToHashSet();
 
         private static Resource FindResource(string id)
         {
@@ -86,11 +99,11 @@ namespace Profitable.Unity.Content
                 Path.Combine(contentDir, "planets.json"));
         }
 
-        private static HashSet<string> LoadComponentRecipeIds()
+        private static List<ComponentRecipe> LoadComponentRecipeLinks()
         {
             var contentDir = Path.Combine(Application.streamingAssetsPath, "Content");
             var loaded = ShipsContentLoader.LoadFromFile(Path.Combine(contentDir, "componentRecipes.json"));
-            return loaded.ComponentRecipes.Select(c => c.RecipeId).ToHashSet();
+            return loaded.ComponentRecipes;
         }
 
         // EditMode tests run outside Play mode, where Application
@@ -101,6 +114,7 @@ namespace Profitable.Unity.Content
         public static void ResetForTests()
         {
             _loaded = null;
+            _componentRecipeLinks = null;
             _componentRecipeIds = null;
         }
     }
