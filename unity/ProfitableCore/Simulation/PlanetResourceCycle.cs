@@ -27,6 +27,17 @@ public static class PlanetResourceCycle
         public List<string> ProducibleResourceIds { get; init; } = new();
         public string? SpecialtyResourceId { get; init; }
         public Dictionary<string, QualityMap> ResourceQualities { get; init; } = new();
+
+        // Per-Resource Quantity Caps. Max units of this resource the planet
+        // offers for the current cycle, by planet tier -- null means
+        // uncapped (the starting-planet tutorial guarantee's 3 resources
+        // only, applied by ApplyTutorialGuarantee below). This is the
+        // ceiling only; how much has actually been gathered against it is
+        // tracked separately (ResourceDepletion.cs + the Presentation-layer
+        // side-table), never here -- stays a pure function of
+        // (seed, tier, cycleIndex), same zero-persistence guarantee as the
+        // rest of this file.
+        public Dictionary<string, int?> ResourceQuantityCaps { get; init; } = new();
     }
 
     // Factors the subset-selection logic plus the fixed-quality-rolling
@@ -54,11 +65,14 @@ public static class PlanetResourceCycle
         var selection = ResourceSubsetSelector.SelectResourceSubset(eligibleResources, tier, count, random);
 
         var resourceQualities = new Dictionary<string, QualityMap>();
+        var resourceQuantityCaps = new Dictionary<string, int?>();
+        var tierCap = ResourceQuantityCapTable.ByTier.TryGetValue(tier, out var capValue) ? capValue : (int?)null;
         foreach (var id in selection.ProducibleResourceIds)
         {
             var resource = resources.FirstOrDefault(r => r.Id == id);
             if (resource is null) continue;
             resourceQualities[id] = PlanetQualityRoller.RollQualityOnPlanet(resource, tier, selection.SpecialtyResourceId, random);
+            resourceQuantityCaps[id] = tierCap;
         }
 
         return new ResourcesForCycle
@@ -66,6 +80,7 @@ public static class PlanetResourceCycle
             ProducibleResourceIds = selection.ProducibleResourceIds,
             SpecialtyResourceId = selection.SpecialtyResourceId,
             ResourceQualities = resourceQualities,
+            ResourceQuantityCaps = resourceQuantityCaps,
         };
     }
 
@@ -82,6 +97,7 @@ public static class PlanetResourceCycle
     {
         var producibleResourceIds = new List<string>(baseResources.ProducibleResourceIds);
         var resourceQualities = new Dictionary<string, QualityMap>(baseResources.ResourceQualities);
+        var resourceQuantityCaps = new Dictionary<string, int?>(baseResources.ResourceQuantityCaps);
 
         foreach (var guaranteedId in PlanetResourceCycleConstants.TutorialGuaranteedResourceIds)
         {
@@ -110,6 +126,15 @@ public static class PlanetResourceCycle
                 }
                 resourceQualities[guaranteedId] = clamped;
             }
+
+            // Per-Resource Quantity Caps exemption: the tutorial chain must
+            // never be blockable by depletion, exactly like it must never
+            // be blockable by a below-White quality roll above -- same
+            // guarantee, same reason, applied to a different axis.
+            // Uncapped regardless of what the natural per-tier cap above
+            // assigned (or whether this id even had one, if it was just
+            // added on top of the subset draw).
+            resourceQuantityCaps[guaranteedId] = null;
         }
 
         return new ResourcesForCycle
@@ -117,6 +142,7 @@ public static class PlanetResourceCycle
             ProducibleResourceIds = producibleResourceIds,
             SpecialtyResourceId = baseResources.SpecialtyResourceId,
             ResourceQualities = resourceQualities,
+            ResourceQuantityCaps = resourceQuantityCaps,
         };
     }
 

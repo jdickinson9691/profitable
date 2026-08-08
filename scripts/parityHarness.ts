@@ -393,6 +393,7 @@ const planetResourceCycleCases = cycleTestSubjects.flatMap((subject) =>
         resourceQualities: Object.fromEntries(
           Object.entries(result.resourceQualities).map(([id, roll]) => [id, serializeQualityRoll(roll)]),
         ),
+        resourceQuantityCaps: result.resourceQuantityCaps,
       },
     };
   }),
@@ -437,6 +438,7 @@ const gcprCases = [
       resourceQualities: Object.fromEntries(
         Object.entries(result.resourceQualities).map(([id, roll]) => [id, serializeQualityRoll(roll)]),
       ),
+      resourceQuantityCaps: result.resourceQuantityCaps,
     },
   };
 });

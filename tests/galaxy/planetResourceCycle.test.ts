@@ -11,6 +11,7 @@ import {
   PLANET_RESOURCE_RESET_INTERVAL_HOURS,
   TUTORIAL_GUARANTEED_RESOURCE_IDS,
 } from "../../src/data/constants/planetResourceCycle.ts";
+import { RESOURCE_QUANTITY_CAP_BY_TIER } from "../../src/data/constants/resourceQuantityCap.ts";
 import { MINIMUM_COLONISTS_TO_PRODUCE } from "../../src/data/constants/planetOwnership.ts";
 import { igneousOre, hydrogenGas, autuniteCrystal, radiantAlloyBar } from "../fixtures/resources.ts";
 import type { Resource } from "../../src/data/types/resource.ts";
@@ -152,7 +153,7 @@ test("getCurrentPlanetResources() throws for a planet missing tier/planetType", 
 test("getCurrentPlanetResources() returns empty producibleResourceIds when colonistCount is undefined (unmerged Planet)", () => {
   const planet = makePlanet(); // no colonistCount at all -- the raw generatePlanet() output
   const current = getCurrentPlanetResources(planet, CATALOG, 0);
-  assert.deepEqual(current, { producibleResourceIds: [], specialtyResourceId: null, resourceQualities: {} });
+  assert.deepEqual(current, { producibleResourceIds: [], specialtyResourceId: null, resourceQualities: {}, resourceQuantityCaps: {} });
 });
 
 test("getCurrentPlanetResources() returns empty producibleResourceIds when colonistCount is below the minimum", () => {
@@ -233,4 +234,51 @@ test("tutorial guarantee: does not bypass the colonist gate", () => {
   const planet = makePlanet("uncolonized-starting-planet"); // no colonistCount
   const current = getCurrentPlanetResources(planet, CATALOG, 0, true);
   assert.equal(current.producibleResourceIds.length, 0);
+});
+
+// --- Per-Resource Quantity Caps ---
+
+test("generateResourcesForCycle() assigns the exact tier-scaled cap to every producible resource", () => {
+  for (const { tier, cap } of RESOURCE_QUANTITY_CAP_BY_TIER) {
+    const result = generateResourcesForCycle(`cap-seed-${tier}`, tier, "SuperEarth", CATALOG, 0);
+    assert.ok(result.producibleResourceIds.length > 0, `tier ${tier}: expected at least one producible resource`);
+    for (const id of result.producibleResourceIds) {
+      assert.equal(result.resourceQuantityCaps[id], cap, `tier ${tier}, resource ${id}`);
+    }
+  }
+});
+
+test("generateResourcesForCycle() covers every producible resource id with a cap entry, one-to-one", () => {
+  const result = generateResourcesForCycle("cap-coverage-seed", "Gold", "SuperEarth", CATALOG, 0);
+  assert.equal(Object.keys(result.resourceQuantityCaps).length, result.producibleResourceIds.length);
+  for (const id of result.producibleResourceIds) {
+    assert.ok(id in result.resourceQuantityCaps);
+  }
+});
+
+test("tutorial guarantee: the 3 guaranteed resources are always uncapped, regardless of planet tier", () => {
+  for (const { tier } of RESOURCE_QUANTITY_CAP_BY_TIER) {
+    const planet = { ...makeColonizedPlanet(`tutorial-cap-${tier}`), tier };
+    const current = getCurrentPlanetResources(planet, CATALOG, 0, true);
+    for (const guaranteedId of TUTORIAL_GUARANTEED_RESOURCE_IDS) {
+      assert.equal(current.resourceQuantityCaps[guaranteedId], null, `tier ${tier}, resource ${guaranteedId}`);
+    }
+  }
+});
+
+test("tutorial guarantee: a non-starting planet's guaranteed-resource-id slots (if naturally rolled) are capped normally, not exempted", () => {
+  // The exemption is gated by isStartingPlanet, same as the quality clamp --
+  // a non-starting planet that happens to naturally roll one of the 3
+  // "guaranteed" ids gets the normal tier cap, never the uncapped override.
+  let foundCappedGuaranteedResource = false;
+  for (let seedIndex = 0; seedIndex < 30; seedIndex++) {
+    const current = generateResourcesForCycle(`non-tutorial-cap-seed-${seedIndex}`, "Gold", "SuperEarth", CATALOG, 0);
+    for (const guaranteedId of TUTORIAL_GUARANTEED_RESOURCE_IDS) {
+      if (current.resourceQuantityCaps[guaranteedId] !== undefined) {
+        assert.equal(current.resourceQuantityCaps[guaranteedId], 230); // Gold's cap
+        foundCappedGuaranteedResource = true;
+      }
+    }
+  }
+  assert.ok(foundCappedGuaranteedResource);
 });

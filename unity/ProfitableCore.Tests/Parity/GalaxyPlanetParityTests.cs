@@ -61,6 +61,19 @@ public class GalaxyPlanetParityTests
         }
     }
 
+    // Per-Resource Quantity Caps.
+    private static void AssertResourceQuantityCapsMatch(
+        Dictionary<string, int?> expected,
+        Dictionary<string, int?> actual)
+    {
+        Assert.Equal(expected.Keys.OrderBy(k => k), actual.Keys.OrderBy(k => k));
+        foreach (var (id, expectedCap) in expected)
+        {
+            var actualCap = actual.TryGetValue(id, out var v) ? v : null;
+            Assert.True(expectedCap == actualCap, $"resource '{id}': expected cap {expectedCap?.ToString() ?? "null"}, got {actualCap?.ToString() ?? "null"}");
+        }
+    }
+
     private static void AssertPlanetMatches(SerializedPlanet expected, Planet actual)
     {
         Assert.Equal(expected.Id, actual.Id);
@@ -117,6 +130,7 @@ public class GalaxyPlanetParityTests
         Assert.Equal(testCase.ExpectedResult.ProducibleResourceIds, result.ProducibleResourceIds);
         Assert.Equal(testCase.ExpectedResult.SpecialtyResourceId, result.SpecialtyResourceId);
         AssertResourceQualitiesMatch(testCase.ExpectedResult.ResourceQualities, result.ResourceQualities);
+        AssertResourceQuantityCapsMatch(testCase.ExpectedResult.ResourceQuantityCaps, result.ResourceQuantityCaps);
     }
 
     public static IEnumerable<object[]> GcprCases() =>
@@ -142,5 +156,6 @@ public class GalaxyPlanetParityTests
         Assert.Equal(testCase.ExpectedResult.ProducibleResourceIds, result.ProducibleResourceIds);
         Assert.Equal(testCase.ExpectedResult.SpecialtyResourceId, result.SpecialtyResourceId);
         AssertResourceQualitiesMatch(testCase.ExpectedResult.ResourceQualities, result.ResourceQualities);
+        AssertResourceQuantityCapsMatch(testCase.ExpectedResult.ResourceQuantityCaps, result.ResourceQuantityCaps);
     }
 }

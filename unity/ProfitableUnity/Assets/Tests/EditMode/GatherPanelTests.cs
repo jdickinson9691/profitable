@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using Profitable.Core.Adapters;
 using Profitable.Core.Schema;
@@ -44,8 +45,10 @@ namespace Profitable.Unity.Tests.EditMode
             MarketState.ResetForTests();
             ShipsState.ResetForTests();
             PlanetOwnershipState.ResetForTests();
+            ResourceDepletionState.ResetForTests();
             _tempSaveDir = Path.Combine(Path.GetTempPath(), $"profitable-unity-tests-{Guid.NewGuid():N}");
             PlanetOwnershipState.SetSaveSystem(new FileSaveSystem(_tempSaveDir));
+            ResourceDepletionState.SetSaveSystem(new FileSaveSystem(_tempSaveDir));
             MarketState.SetWallet(new Wallet { PlayerId = "player-1", Credits = 1_000_000 });
 
             _parent = new GameObject("TestParent", typeof(RectTransform));
@@ -119,6 +122,47 @@ namespace Profitable.Unity.Tests.EditMode
             {
                 Assert.AreEqual(first.Qualities[quality], second.Qualities[quality]);
             }
+        }
+
+        // --- Per-Resource Quantity Caps ---
+
+        [Test]
+        public void Gather_UncappedTutorialResourceNeverDepletes()
+        {
+            // Same real behavior RepeatedGatherAccumulatesQuantity already
+            // proves indirectly -- hydrogen-gas is one of the 3 tutorial-
+            // guaranteed resources, always uncapped. Gather it well past any
+            // real tier's cap (Grey's own 20) and confirm it never returns
+            // null.
+            for (var i = 0; i < 25; i++)
+            {
+                Assert.NotNull(_panel.Gather("hydrogen-gas"));
+            }
+            Assert.AreEqual(25, _inventory.TotalQuantity("hydrogen-gas"));
+        }
+
+        [Test]
+        public void Gather_ACappedResourceBecomesUngatherableOnceItsCapIsReached()
+        {
+            var cappedId = _panel.CurrentResources.ProducibleResourceIds
+                .FirstOrDefault(id => _panel.CurrentResources.ResourceQuantityCaps[id] is not null);
+            if (cappedId is null)
+            {
+                Assert.Inconclusive("this real starting planet's cycle produced no capped (non-tutorial-guaranteed) resource this run");
+                return;
+            }
+            var cap = _panel.CurrentResources.ResourceQuantityCaps[cappedId]!.Value;
+
+            for (var i = 0; i < cap; i++)
+            {
+                Assert.NotNull(_panel.Gather(cappedId), $"gather #{i + 1} of {cap} unexpectedly rejected");
+            }
+            Assert.AreEqual(cap, _inventory.TotalQuantity(cappedId));
+
+            // One more, past the cap -- must be rejected (null), not add a
+            // (cap+1)th unit to inventory.
+            Assert.Null(_panel.Gather(cappedId));
+            Assert.AreEqual(cap, _inventory.TotalQuantity(cappedId));
         }
 
         [Test]

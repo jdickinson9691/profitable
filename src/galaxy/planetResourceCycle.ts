@@ -10,6 +10,7 @@ import {
   TUTORIAL_GUARANTEED_RESOURCE_IDS,
   TUTORIAL_GUARANTEE_QUALITY_CLAMP,
 } from "../data/constants/planetResourceCycle.ts";
+import { RESOURCE_QUANTITY_CAP_BY_TIER } from "../data/constants/resourceQuantityCap.ts";
 import { MINIMUM_COLONISTS_TO_PRODUCE } from "../data/constants/planetOwnership.ts";
 import { createSeededRandom } from "./seededRandom.ts";
 import { getEligibleResources, computeSubsetCount, selectResourceSubset } from "./resourceSubset.ts";
@@ -36,6 +37,15 @@ export interface ResourcesForCycle {
   producibleResourceIds: string[];
   specialtyResourceId: string | null;
   resourceQualities: Record<string, QualityRoll>;
+  // Per-Resource Quantity Caps. Max units of this resource the planet
+  // offers for the current cycle, by planet tier -- null means uncapped
+  // (the starting-planet tutorial guarantee's 3 resources only, applied by
+  // applyTutorialGuarantee() below). This is the ceiling only; how much has
+  // actually been gathered against it is tracked separately
+  // (src/galaxy/resourceDepletion.ts + the presentation-layer side-table),
+  // never here -- this stays a pure function of (seed, tier, cycleIndex),
+  // same zero-persistence guarantee as the rest of this file.
+  resourceQuantityCaps: Record<string, number | null>;
 }
 
 // Factors the existing subset-selection logic (generatePlanet.ts) plus the
@@ -67,13 +77,16 @@ export function generateResourcesForCycle(
   );
 
   const resourceQualities: Record<string, QualityRoll> = {};
+  const resourceQuantityCaps: Record<string, number | null> = {};
+  const tierCap = RESOURCE_QUANTITY_CAP_BY_TIER.find((entry) => entry.tier === tier)?.cap ?? null;
   for (const id of producibleResourceIds) {
     const resource = resources.find((entry) => entry.id === id);
     if (!resource) continue;
     resourceQualities[id] = rollQualityOnPlanet(resource, { tier, specialtyResourceId }, random);
+    resourceQuantityCaps[id] = tierCap;
   }
 
-  return { producibleResourceIds, specialtyResourceId, resourceQualities };
+  return { producibleResourceIds, specialtyResourceId, resourceQualities, resourceQuantityCaps };
 }
 
 // Starting-planet tutorial guarantee. Direct, closed-form override -- never
@@ -93,6 +106,7 @@ function applyTutorialGuarantee(
 ): ResourcesForCycle {
   let producibleResourceIds = base.producibleResourceIds;
   const resourceQualities = { ...base.resourceQualities };
+  const resourceQuantityCaps = { ...base.resourceQuantityCaps };
 
   for (const guaranteedId of TUTORIAL_GUARANTEED_RESOURCE_IDS) {
     const resource = resources.find((entry) => entry.id === guaranteedId);
@@ -119,9 +133,17 @@ function applyTutorialGuarantee(
       }
       resourceQualities[guaranteedId] = clamped;
     }
+
+    // Per-Resource Quantity Caps exemption: the tutorial chain must never
+    // be blockable by depletion, exactly like it must never be blockable
+    // by a below-White quality roll above -- same guarantee, same reason,
+    // applied to a different axis. Uncapped regardless of what the natural
+    // per-tier cap above assigned (or whether this id even had one, if it
+    // was just added on top of the subset draw).
+    resourceQuantityCaps[guaranteedId] = null;
   }
 
-  return { producibleResourceIds, specialtyResourceId: base.specialtyResourceId, resourceQualities };
+  return { producibleResourceIds, specialtyResourceId: base.specialtyResourceId, resourceQualities, resourceQuantityCaps };
 }
 
 // The live read path every gameplay caller switches to using INSTEAD OF
@@ -153,7 +175,7 @@ export function getCurrentPlanetResources(
   isStartingPlanet = false,
 ): ResourcesForCycle {
   if ((planet.colonistCount ?? 0) < MINIMUM_COLONISTS_TO_PRODUCE) {
-    return { producibleResourceIds: [], specialtyResourceId: null, resourceQualities: {} };
+    return { producibleResourceIds: [], specialtyResourceId: null, resourceQualities: {}, resourceQuantityCaps: {} };
   }
 
   if (!planet.tier || !planet.planetType) {

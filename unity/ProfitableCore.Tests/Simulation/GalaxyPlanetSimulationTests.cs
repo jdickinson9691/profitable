@@ -1,3 +1,4 @@
+using Profitable.Core.Constants;
 using Profitable.Core.Schema;
 using Profitable.Core.Simulation;
 
@@ -204,5 +205,52 @@ public class GalaxyPlanetSimulationTests
         var resources = new List<Resource> { Resource("hydrogen-gas", "Gas", 1) }; // no Solid/Crystal for Terrestrial
         Assert.Throws<InvalidOperationException>(() =>
             PlanetResourceCycle.GenerateResourcesForCycle("empty-pool-test", TierColor.Grey, PlanetType.Terrestrial, resources, 0));
+    }
+
+    // --- Per-Resource Quantity Caps ---
+
+    private static List<Resource> ManyResources(int count) =>
+        Enumerable.Range(0, count).Select(i => Resource($"cap-resource-{i}", "Solid", 1)).ToList<Resource>();
+
+    [Fact]
+    public void PlanetResourceCycle_GenerateResourcesForCycle_AssignsTheExactTierScaledCapToEveryProducibleResource()
+    {
+        foreach (var (tier, expectedCap) in ResourceQuantityCapTable.ByTier)
+        {
+            var result = PlanetResourceCycle.GenerateResourcesForCycle($"cap-seed-{tier}", tier, PlanetType.Terrestrial, ManyResources(10), 0);
+            Assert.NotEmpty(result.ProducibleResourceIds);
+            foreach (var id in result.ProducibleResourceIds)
+            {
+                Assert.Equal(expectedCap, result.ResourceQuantityCaps[id]);
+            }
+        }
+    }
+
+    [Fact]
+    public void PlanetResourceCycle_TutorialGuarantee_ExemptsGuaranteedResourcesFromTheCapRegardlessOfTier()
+    {
+        var resources = new List<Resource>
+        {
+            Resource("igneous-ore", "Solid", 1),
+            Resource("hydrogen-gas", "Gas", 1),
+            Resource("autunite-crystal", "Crystal", 1),
+        };
+        foreach (var tier in ResourceQuantityCapTable.ByTier.Keys)
+        {
+            var planet = new Planet
+            {
+                Id = $"tutorial-cap-{tier}",
+                Name = "Tutorial Cap Test",
+                ProducibleResourceIds = new List<string>(),
+                Tier = tier,
+                PlanetType = PlanetType.Terrestrial,
+                ColonistCount = 100,
+            };
+            var result = PlanetResourceCycle.GetCurrentPlanetResources(planet, resources, 0, isStartingPlanet: true);
+            foreach (var guaranteedId in PlanetResourceCycleConstants.TutorialGuaranteedResourceIds)
+            {
+                Assert.Null(result.ResourceQuantityCaps[guaranteedId]);
+            }
+        }
     }
 }

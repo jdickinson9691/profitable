@@ -134,6 +134,20 @@ No numbers previously proposed — new starting values, using a doubling-per-tie
 
 **Planet resource reset interval:** 168 hours (7 days) — long enough that a planet's resource identity feels stable across a normal session, short enough that the galaxy's economy genuinely shifts over a longer campaign.
 
+**Per-Resource Quantity Cap by planet tier** (built 2026-08-05, adding a gradient on top of the existing binary colonist gate — max units of a given resource a planet offers per reset cycle; the starting-planet tutorial guarantee's 3 resources are exempt entirely, uncapped, matching their existing quality-clamp treatment):
+
+| Tier | Quantity cap |
+|---|---|
+| Grey | 20 |
+| White | 35 |
+| Green | 50 |
+| Blue | 75 |
+| Purple | 110 |
+| Orange | 160 |
+| Gold | 230 |
+
+Originated default (roughly doubling curve, same shape as this document's other tier tables), starting-value-not-final like every number in this section — not yet exercised by a real feel-tuning playtest pass.
+
 **Crew slots by ship tier** (Pilot / Combat-Engineer-or-Science-Officer / Systems Engineer / Crafter; "both" means the either-or slot becomes two independent slots):
 
 | Tier | Pilot | Combat Eng. / Sci. Officer | Systems Eng. | Crafter | Total |

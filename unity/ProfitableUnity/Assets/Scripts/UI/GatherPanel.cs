@@ -39,11 +39,22 @@ namespace Profitable.Unity.UI
     {
         public GameObject Root { get; }
 
+        // Test-only accessor -- exposes the panel's already-resolved
+        // current-cycle snapshot (including Per-Resource Quantity Caps) so
+        // EditMode tests can discover a real capped resource id without
+        // hardcoding one, since which ids the real starting planet produces
+        // (and at what tier, and therefore what cap) depends on the real
+        // galaxy seed, not something a test should assume.
+        public PlanetResourceCycle.ResourcesForCycle CurrentResources => _currentResources;
+
         private const int ColonistTransportQuantity = 5;
 
         private readonly Inventory _inventory;
         private readonly Action<string> _log;
+        private readonly Planet _planet;
         private readonly PlanetResourceCycle.ResourcesForCycle _currentResources;
+        private readonly int _cycleIndex;
+        private readonly RectTransform _buttonRow;
         private readonly Text _ownershipStatusText;
 
         public GatherPanel(Transform parent, Inventory inventory, Action<string> log)
@@ -51,24 +62,25 @@ namespace Profitable.Unity.UI
             _inventory = inventory;
             _log = log;
 
-            var planet = PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet);
+            _planet = PlanetOwnershipState.WithOwnership(GalaxyState.StartingPlanet);
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             _currentResources = PlanetResourceCycle.GetCurrentPlanetResources(
-                planet,
+                _planet,
                 GameContent.Loaded.Resources,
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                nowMs,
                 isStartingPlanet: true);
+            // Same (planetId, now) pair GetCurrentPlanetResources() itself
+            // derived its cycle from -- computed again here (cheap, pure,
+            // no persisted state either) so depletion lookups below key off
+            // the identical cycle.
+            _cycleIndex = PlanetResourceCycle.GetCycleIndex(_planet.Id, nowMs);
 
             var group = UiFactory.CreateVerticalGroup(parent, "GatherPanel");
             Root = group.gameObject;
 
             UiFactory.CreateText(group, "Gather", 20);
-            var buttonRow = UiFactory.CreateHorizontalGroup(group, "GatherButtons");
-
-            foreach (var resourceId in _currentResources.ProducibleResourceIds)
-            {
-                var resource = FindResource(resourceId);
-                UiFactory.CreateButton(buttonRow, $"Gather {resource.Name}", () => Gather(resourceId));
-            }
+            _buttonRow = UiFactory.CreateHorizontalGroup(group, "GatherButtons");
+            RefreshGatherButtons();
 
             UiFactory.CreateText(group, "Planet Ownership:", 14);
             _ownershipStatusText = UiFactory.CreateText(group, "", 12);
@@ -78,18 +90,66 @@ namespace Profitable.Unity.UI
             RefreshOwnership();
         }
 
+        // Per-Resource Quantity Caps: rebuilds the gather-button row from
+        // scratch (ClearChildren + rebuild, the same convention ShipsPanel
+        // .Refresh() already uses for its own runtime-changing rows) --
+        // called once at construction and again after every Gather() call,
+        // so a resource that just hit zero remaining renders as a plain
+        // "depleted until reset" label instead of a clickable button, never
+        // a button that silently no-ops on click.
+        private void RefreshGatherButtons()
+        {
+            UiFactory.ClearChildren(_buttonRow);
+            foreach (var resourceId in _currentResources.ProducibleResourceIds)
+            {
+                var resource = FindResource(resourceId);
+                var cap = _currentResources.ResourceQuantityCaps.TryGetValue(resourceId, out var c) ? c : null;
+                var entry = ResourceDepletionState.GetEntry(_planet.Id, resourceId);
+                var remaining = ResourceDepletion.GetRemainingQuantity(cap, entry, _cycleIndex);
+
+                if (remaining == 0)
+                {
+                    UiFactory.CreateText(_buttonRow, $"{resource.Name}: depleted until reset", 13);
+                }
+                else
+                {
+                    UiFactory.CreateButton(_buttonRow, $"Gather {resource.Name}", () => Gather(resourceId));
+                }
+            }
+        }
+
         // The public entry point -- exercised directly by EditMode tests
         // (same convention as Agent 35's own version), since Button
         // .onClick invokes this same method. Takes a resource id rather
         // than a Resource: the quality gathered is looked up by id from
         // this panel's already-resolved current-cycle snapshot, never
         // rolled fresh here.
-        public ResourceInstance Gather(string resourceId)
+        public ResourceInstance? Gather(string resourceId)
         {
+            var cap = _currentResources.ResourceQuantityCaps.TryGetValue(resourceId, out var c) ? c : null;
+            var entryBefore = ResourceDepletionState.GetEntry(_planet.Id, resourceId);
+            var remainingBefore = ResourceDepletion.GetRemainingQuantity(cap, entryBefore, _cycleIndex);
+            // Defensive guard only -- unreachable in normal play, since a
+            // depleted resource's row is never rendered as a clickable
+            // button in the first place (RefreshGatherButtons() above).
+            if (remainingBefore == 0)
+            {
+                _log($"Gather failed: {FindResource(resourceId).Name} is depleted until reset.");
+                return null;
+            }
+
             var resource = FindResource(resourceId);
             var qualities = _currentResources.ResourceQualities[resourceId];
             var instance = new ResourceInstance { Resource = resource, Quantity = 1, Qualities = qualities };
             _inventory.Add(instance);
+
+            // Uncapped resources (cap == null) never need a depletion entry --
+            // nothing to track against, so skip persisting one at all.
+            if (cap is not null)
+            {
+                ResourceDepletionState.RecordGather(_planet.Id, resourceId, _cycleIndex, 1);
+                RefreshGatherButtons();
+            }
 
             _log($"Gathered 1x {resource.Name}: {DescribeQualities(qualities)}");
             return instance;

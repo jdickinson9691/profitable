@@ -330,6 +330,10 @@ public class ExpectedResourcesForCycle
 
     [JsonPropertyName("resourceQualities")]
     public Dictionary<string, Dictionary<string, int?>> ResourceQualities { get; set; } = new();
+
+    // Per-Resource Quantity Caps.
+    [JsonPropertyName("resourceQuantityCaps")]
+    public Dictionary<string, int?> ResourceQuantityCaps { get; set; } = new();
 }
 
 public class PlanetResourceCycleCase
