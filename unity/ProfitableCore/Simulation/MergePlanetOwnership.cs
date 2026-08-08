@@ -8,6 +8,10 @@ namespace Profitable.Core.Simulation;
 // regenerated object's own field" pattern already established for
 // Discovered. Pure function: the SaveSystem-backed lookup lives in the
 // caller (Unity's PlanetOwnershipState.cs).
+//
+// Retroactive removal (2026-08-04): CitadelLevel/OwnedByPlayerId merging
+// removed along with Citadels -- see planet-ownership.md's own
+// retroactive note. ColonistCount merging is unaffected.
 public static class PlanetOwnershipMerger
 {
     public static Planet MergePlanetOwnership(Planet planet, PlanetOwnershipEntry? entry)
@@ -25,8 +29,6 @@ public static class PlanetOwnershipMerger
             Discovered = planet.Discovered,
             ResourceQualities = planet.ResourceQualities,
             ColonistCount = resolved.ColonistCount,
-            CitadelLevel = resolved.CitadelLevel,
-            OwnedByPlayerId = resolved.OwnedByPlayerId,
         };
     }
 }

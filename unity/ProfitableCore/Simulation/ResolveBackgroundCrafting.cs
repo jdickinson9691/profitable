@@ -30,10 +30,9 @@ public static class ResolveBackgroundCraftingSimulation
 
     // `maxUnits` is the real-inventory availability cap, pre-resolved by
     // the caller -- same "core function never touches Inventory directly,
-    // caller passes in what's available" boundary this project's own
-    // BuildCitadel-equivalent reasoning already established. Defaults to
-    // unbounded so a caller with no inventory constraint to apply is
-    // unaffected.
+    // caller passes in what's available" boundary this project already
+    // establishes elsewhere. Defaults to unbounded so a caller with no
+    // inventory constraint to apply is unaffected.
     public static BackgroundResult ResolveBackgroundCrafting(
         CrewMember crewMember,
         CraftAction craftAction,

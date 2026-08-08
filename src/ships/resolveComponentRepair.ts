@@ -1,7 +1,6 @@
 import type { Ship } from "../data/types/ship.ts";
 import type { CrewMember } from "../data/types/crewMember.ts";
 import type { Voyage } from "../data/types/voyage.ts";
-import type { Planet } from "../data/types/planet.ts";
 import type { ComponentCategory } from "../data/types/componentCategory.ts";
 import { COMPONENT_CATEGORIES } from "../data/types/componentCategory.ts";
 import { computeAggregateTier } from "../simulation/aggregateTier.ts";
@@ -10,8 +9,6 @@ import { QUALITY_MIN, QUALITY_MAX } from "../data/constants/quality.ts";
 import {
   SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER,
   CRAFTER_REPAIR_RATE_BY_TIER,
-  CITADEL_LEVEL_2_REPAIR_RATE,
-  CITADEL_LEVEL_3_REPAIR_RATE,
   REPAIR_ELAPSED_TIME_CAP_HOURS,
 } from "../data/constants/shipsAndTravelConfig.ts";
 import { deriveShipTier } from "./deriveShipTier.ts";
@@ -35,33 +32,38 @@ function findAssignedCrew(ownedCrew: readonly CrewMember[], ship: Ship, role: No
   return ownedCrew.find((member) => member.assignedShipId === ship.id && member.shipRole === role) ?? null;
 }
 
-// Ship Crew Roles' resolved 3-way repair interaction (profitable-design-
+// Ship Crew Roles' resolved repair interaction (profitable-design-
 // questions.md, `ship.md`'s own cross-reference), task #89. Same "derive
 // from elapsed hours since a stored timestamp, capped, no background job"
 // shape resolveBackgroundCrafting() already established, applied to the
-// new Ship.lastRepairedAt field. `activeVoyage`/`dockedPlanet` are
-// explicit, required parameters -- Ship.currentPlanetId alone can't
-// distinguish "docked here" from "mid-voyage, origin still shown" (ship.ts's
-// own comment), so the caller resolves and passes which state currently
-// applies, same "no hidden lookups in a pure function" convention every
-// other function here follows.
+// new Ship.lastRepairedAt field. `activeVoyage` is an explicit, required
+// parameter -- Ship.currentPlanetId alone can't distinguish "docked here"
+// from "mid-voyage, origin still shown" (ship.ts's own comment), so the
+// caller resolves and passes which state currently applies, same "no
+// hidden lookups in a pure function" convention every other function
+// here follows.
 //
-// Three independent rate sources, summed into one combined per-category
-// rate -- Citadel and Crafter never both apply to the same call (a ship
-// is either traveling or docked, never both, per Ship.currentPlanetId's
-// own documented semantics), but both independently stack additively with
-// Systems Engineer's unconditional rate.
+// Two independent rate sources, summed into one combined per-category
+// rate: Systems Engineer's unconditional rate, and Crafter's
+// traveling-only, category-matched rate.
 //
 // No sub-interval blending: the rate is resolved once, from whichever
 // state is true at the moment this is called, and applied to the entire
 // capped elapsed window -- matching resolveBackgroundCrafting()'s own
 // precedent (a single rate/state resolved once per check, never a
 // historical replay).
+//
+// Retroactive removal (2026-08-04): the `dockedPlanet` parameter and its
+// Citadel-driven repair-rate contribution (citadelRate, Level 2/3
+// benefits) are removed along with Citadels -- see planet-ownership.md's
+// own retroactive note for the full account, including the documented
+// Unity consequence (Unity's Check Repair becomes a no-op until Ship
+// Crew Roles UI exists there, since Unity has no other repair source).
+// Systems Engineer and Crafter repair are both unaffected in TS.
 export function resolveComponentRepair(
   ship: Ship,
   ownedCrew: readonly CrewMember[],
   activeVoyage: Voyage | null,
-  dockedPlanet: Planet | null,
   currentTime: number,
 ): Ship {
   // Missing lastRepairedAt (never repaired before) reads as zero elapsed
@@ -77,22 +79,6 @@ export function resolveComponentRepair(
     if (!entry) throw new RangeError(`no Systems Engineer repair rate defined for tier ${systemsEngineer.tier}`);
     systemsEngineerRate = entry.rate;
   }
-
-  // Docked means "not traveling AND a real docked planet was supplied" --
-  // both conditions, not either. A caller passing both activeVoyage and
-  // dockedPlanet non-null is a contract violation (they're mutually
-  // exclusive states), never silently resolved one way.
-  if (activeVoyage !== null && dockedPlanet !== null) {
-    throw new Error("resolveComponentRepair: activeVoyage and dockedPlanet cannot both be non-null");
-  }
-
-  // Citadel repair scales by investment depth (Level 2: reduced rate,
-  // Level 3: full rate) rather than a Level-3-only on/off flag --
-  // repurposed from the original "Level 2 = cargo storage" benefit, see
-  // planetOwnership.ts's own comment for why.
-  const dockedAtOwnedCitadel = activeVoyage === null && dockedPlanet !== null && dockedPlanet.ownedByPlayerId === ship.ownerId;
-  const citadelLevel = dockedAtOwnedCitadel ? (dockedPlanet.citadelLevel ?? 0) : 0;
-  const citadelRate = citadelLevel >= 3 ? CITADEL_LEVEL_3_REPAIR_RATE : citadelLevel >= 2 ? CITADEL_LEVEL_2_REPAIR_RATE : 0;
 
   // "While traveling" (design entry's literal wording) -- never resolved
   // at all while docked, regardless of profession/tier.
@@ -113,7 +99,7 @@ export function resolveComponentRepair(
     // component with no durability rating.
     if (!component || component.qualities.durability === null) continue;
 
-    const rate = systemsEngineerRate + citadelRate + (category === crafterCategory ? crafterRate : 0);
+    const rate = systemsEngineerRate + (category === crafterCategory ? crafterRate : 0);
     if (rate <= 0) continue;
 
     const repairedDurability = clamp(

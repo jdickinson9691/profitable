@@ -4,8 +4,6 @@ import { resolveComponentRepair } from "../../src/ships/resolveComponentRepair.t
 import {
   SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER,
   CRAFTER_REPAIR_RATE_BY_TIER,
-  CITADEL_LEVEL_2_REPAIR_RATE,
-  CITADEL_LEVEL_3_REPAIR_RATE,
   REPAIR_ELAPSED_TIME_CAP_HOURS,
 } from "../../src/data/constants/shipsAndTravelConfig.ts";
 import { QUALITY_MAX } from "../../src/data/constants/quality.ts";
@@ -13,14 +11,18 @@ import type { Ship } from "../../src/data/types/ship.ts";
 import type { ShipComponent } from "../../src/data/types/shipComponent.ts";
 import type { CrewMember } from "../../src/data/types/crewMember.ts";
 import type { Voyage } from "../../src/data/types/voyage.ts";
-import type { Planet } from "../../src/data/types/planet.ts";
 
-// Ship Crew Roles / Citadels -- task #89's resolved 3-way repair
-// interaction (ship.md's own consolidated contract). Proves the additive
-// stacking rules and the docked/traveling location gates exactly as
-// specified: Systems Engineer is unconditional, Crafter only accrues
-// while traveling and only for its matching component category, Citadel
-// Level 3 only accrues while docked at an owned planet.
+// Ship Crew Roles -- task #89's resolved repair interaction (ship.md's own
+// consolidated contract). Proves the additive stacking rule and the
+// docked/traveling location gate exactly as specified: Systems Engineer is
+// unconditional, Crafter only accrues while traveling and only for its
+// matching component category.
+//
+// Retroactive removal (2026-08-04): this file used to also cover a third
+// source, Citadel Level 2/3 repair (docked + owned only), and the
+// `dockedPlanet` parameter that carried it -- see planet-ownership.md's
+// own retroactive note. Those cases are removed; Systems Engineer and
+// Crafter coverage are both unaffected.
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const NOW = 1_000_000_000_000;
@@ -73,12 +75,8 @@ function voyage(overrides: Partial<Voyage> = {}): Voyage {
   };
 }
 
-function planet(overrides: Partial<Planet> = {}): Planet {
-  return { id: "planet-a", name: "Planet A", producibleResourceIds: [], ...overrides };
-}
-
-test("resolveComponentRepair() with no crew and no citadel leaves durability unchanged but still stamps lastRepairedAt", () => {
-  const result = resolveComponentRepair(ship({ lastRepairedAt: NOW - 10 * MS_PER_HOUR }), [], null, null, NOW);
+test("resolveComponentRepair() with no crew leaves durability unchanged but still stamps lastRepairedAt", () => {
+  const result = resolveComponentRepair(ship({ lastRepairedAt: NOW - 10 * MS_PER_HOUR }), [], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, 50);
   assert.equal(result.lastRepairedAt, NOW);
 });
@@ -87,7 +85,7 @@ test("resolveComponentRepair() Systems Engineer repairs unconditionally while do
   const rate = SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === "Grey")!.rate;
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "ship-1", tier: "Grey" });
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const result = resolveComponentRepair(startShip, [engineer], null, planet(), NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + rate * 4));
 });
 
@@ -95,7 +93,7 @@ test("resolveComponentRepair() Systems Engineer repairs unconditionally while tr
   const rate = SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === "Grey")!.rate;
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "ship-1", tier: "Grey" });
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const result = resolveComponentRepair(startShip, [engineer], voyage(), null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], voyage(), NOW);
   assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + rate * 4));
 });
 
@@ -106,7 +104,7 @@ test("resolveComponentRepair() Crafter repairs only its matching category, only 
     lastRepairedAt: NOW - 4 * MS_PER_HOUR,
     components: { weapon: component(50, "weapon"), engine: component(50, "engine"), shield: null, cargoHold: null },
   });
-  const result = resolveComponentRepair(startShip, [crafter], voyage(), null, NOW);
+  const result = resolveComponentRepair(startShip, [crafter], voyage(), NOW);
   assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + rate * 4));
   assert.equal(result.components.engine!.qualities.durability, 50);
 });
@@ -114,59 +112,25 @@ test("resolveComponentRepair() Crafter repairs only its matching category, only 
 test("resolveComponentRepair() Crafter has no effect while docked", () => {
   const crafter = crew({ id: "crafter", shipRole: "Crafter", assignedShipId: "ship-1", tier: "Grey", profession: "Weaponsmith" });
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const result = resolveComponentRepair(startShip, [crafter], null, planet(), NOW);
+  const result = resolveComponentRepair(startShip, [crafter], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, 50);
 });
 
-test("resolveComponentRepair() Citadel Level 3 repairs only while docked at an owned Level 3 planet", () => {
-  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const owned = planet({ citadelLevel: 3, ownedByPlayerId: "player-1" });
-  const result = resolveComponentRepair(startShip, [], null, owned, NOW);
-  assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + CITADEL_LEVEL_3_REPAIR_RATE * 4));
-});
-
-test("resolveComponentRepair() Citadel Level 2 repairs at the reduced rate while docked at an owned Level 2 planet", () => {
-  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const owned = planet({ citadelLevel: 2, ownedByPlayerId: "player-1" });
-  const result = resolveComponentRepair(startShip, [], null, owned, NOW);
-  assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + CITADEL_LEVEL_2_REPAIR_RATE * 4));
-  assert.ok(CITADEL_LEVEL_2_REPAIR_RATE < CITADEL_LEVEL_3_REPAIR_RATE, "Level 2 rate must be weaker than Level 3's");
-});
-
-test("resolveComponentRepair() Citadel benefit does not apply at Level 0 or 1", () => {
-  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const noCitadel = resolveComponentRepair(startShip, [], null, planet({ citadelLevel: 0, ownedByPlayerId: "player-1" }), NOW);
-  assert.equal(noCitadel.components.weapon!.qualities.durability, 50);
-  const level1 = resolveComponentRepair(startShip, [], null, planet({ citadelLevel: 1, ownedByPlayerId: "player-1" }), NOW);
-  assert.equal(level1.components.weapon!.qualities.durability, 50);
-});
-
-test("resolveComponentRepair() Citadel benefit does not apply to a planet owned by someone else", () => {
-  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const owned = planet({ citadelLevel: 3, ownedByPlayerId: "someone-else" });
-  const result = resolveComponentRepair(startShip, [], null, owned, NOW);
-  assert.equal(result.components.weapon!.qualities.durability, 50);
-});
-
-test("resolveComponentRepair() Citadel benefit does not apply while traveling even if a Level 3 planet is passed as docked (contract violation)", () => {
-  const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  assert.throws(() => resolveComponentRepair(startShip, [], voyage(), planet({ citadelLevel: 3, ownedByPlayerId: "player-1" }), NOW));
-});
-
-test("resolveComponentRepair() Systems Engineer and Citadel Level 3 stack additively while docked", () => {
+test("resolveComponentRepair() Systems Engineer and Crafter stack additively while traveling", () => {
   const engineerRate = SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === "Grey")!.rate;
+  const crafterRate = CRAFTER_REPAIR_RATE_BY_TIER.find((e) => e.tier === "Grey")!.rate;
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "ship-1", tier: "Grey" });
+  const crafter = crew({ id: "crafter", shipRole: "Crafter", assignedShipId: "ship-1", tier: "Grey", profession: "Weaponsmith" });
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const owned = planet({ citadelLevel: 3, ownedByPlayerId: "player-1" });
-  const result = resolveComponentRepair(startShip, [engineer], null, owned, NOW);
-  assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + (engineerRate + CITADEL_LEVEL_3_REPAIR_RATE) * 4));
+  const result = resolveComponentRepair(startShip, [engineer, crafter], voyage(), NOW);
+  assert.equal(result.components.weapon!.qualities.durability, Math.round(50 + (engineerRate + crafterRate) * 4));
 });
 
 test("resolveComponentRepair() caps elapsed hours at REPAIR_ELAPSED_TIME_CAP_HOURS", () => {
   const rate = SYSTEMS_ENGINEER_REPAIR_RATE_BY_TIER.find((e) => e.tier === "Grey")!.rate;
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "ship-1", tier: "Grey" });
   const startShip = ship({ lastRepairedAt: NOW - 10_000 * MS_PER_HOUR });
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   const expected = Math.min(QUALITY_MAX, Math.round(50 + rate * REPAIR_ELAPSED_TIME_CAP_HOURS));
   assert.equal(result.components.weapon!.qualities.durability, expected);
 });
@@ -177,14 +141,14 @@ test("resolveComponentRepair() never exceeds QUALITY_MAX", () => {
     lastRepairedAt: NOW - REPAIR_ELAPSED_TIME_CAP_HOURS * MS_PER_HOUR,
     components: { weapon: component(99), engine: null, shield: null, cargoHold: null },
   });
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, QUALITY_MAX);
 });
 
 test("resolveComponentRepair() treats a never-repaired ship (no lastRepairedAt) as zero elapsed time on first call", () => {
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "ship-1", tier: "Grey" });
   const startShip = ship();
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, 50);
   assert.equal(result.lastRepairedAt, NOW);
 });
@@ -195,14 +159,14 @@ test("resolveComponentRepair() leaves a component with null durability untouched
     lastRepairedAt: NOW - 4 * MS_PER_HOUR,
     components: { weapon: component(null), engine: null, shield: null, cargoHold: null },
   });
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, null);
 });
 
 test("resolveComponentRepair() ignores crew assigned to a different ship", () => {
   const engineer = crew({ id: "engineer", shipRole: "Systems Engineer", assignedShipId: "other-ship", tier: "Grey" });
   const startShip = ship({ lastRepairedAt: NOW - 4 * MS_PER_HOUR });
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.components.weapon!.qualities.durability, 50);
 });
 
@@ -212,6 +176,6 @@ test("resolveComponentRepair() recomputes tier when a repair changes the aggrega
     lastRepairedAt: NOW - REPAIR_ELAPSED_TIME_CAP_HOURS * MS_PER_HOUR,
     components: { weapon: component(20), engine: null, shield: null, cargoHold: null },
   });
-  const result = resolveComponentRepair(startShip, [engineer], null, null, NOW);
+  const result = resolveComponentRepair(startShip, [engineer], null, NOW);
   assert.equal(result.tier, result.components.weapon!.tier);
 });

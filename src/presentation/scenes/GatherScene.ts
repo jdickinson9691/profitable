@@ -3,18 +3,16 @@ import { SCENE_KEYS, renderNav } from "./nav.ts";
 import { content, getInventory, setInventory } from "../gameState.ts";
 import { getCurrentPlanet } from "../currentPlanet.ts";
 import { startingPlanet } from "../galaxyState.ts";
-import { addBatch, totalQuantity, consume } from "../inventory.ts";
+import { addBatch, totalQuantity } from "../inventory.ts";
 import { getCurrentPlanetResources } from "../../galaxy/planetResourceCycle.ts";
 import type { ResourcesForCycle } from "../../galaxy/planetResourceCycle.ts";
 import { formatQualityRoll, formatQualityLabel } from "../display.ts";
 import { renderOnboardingStep } from "./onboardingOverlay.ts";
-import { PLAYER_ID, getWallet, setWallet } from "../tradingState.ts";
+import { getWallet, setWallet } from "../tradingState.ts";
 import { getShipRoster } from "../shipsState.ts";
 import { getPlanetOwnershipEntry, setPlanetOwnershipEntry } from "../planetOwnershipState.ts";
 import { transportColonists } from "../../planets/transportColonists.ts";
-import { claimPlanet } from "../../planets/claimPlanet.ts";
-import { buildCitadel } from "../../planets/buildCitadel.ts";
-import { MINIMUM_COLONISTS_TO_PRODUCE, CITADEL_LEVEL_BENEFITS } from "../../data/constants/planetOwnership.ts";
+import { MINIMUM_COLONISTS_TO_PRODUCE } from "../../data/constants/planetOwnership.ts";
 import type { Resource } from "../../data/types/resource.ts";
 import type { Planet } from "../../data/types/planet.ts";
 
@@ -97,14 +95,16 @@ export class GatherScene extends Phaser.Scene {
     );
   }
 
-  // Colonist-Driven Production / Citadels (planet-ownership.md). Minimal
-  // presentation hook -- without this, the colonist gate would make every
-  // non-bootstrap planet permanently unminable with no player-facing way
-  // to unlock one, a real regression to playability, not just an
-  // unfinished feature. Renders whichever single next action applies:
-  // transport colonists (uncolonized) -> claim (colonized, unclaimed) ->
-  // build Citadel (claimed, room to grow). Returns the y position to
-  // continue rendering from.
+  // Colonist-Driven Production (planet-ownership.md). Minimal presentation
+  // hook -- without this, the colonist gate would make every non-bootstrap
+  // planet permanently unminable with no player-facing way to unlock one,
+  // a real regression to playability, not just an unfinished feature.
+  // Returns the y position to continue rendering from.
+  //
+  // Retroactive removal (2026-08-04): this used to also render Claim
+  // Planet / Build Citadel Level N actions once colonized -- see
+  // planet-ownership.md's own retroactive note. Colonist-Driven Production
+  // never depended on either, so nothing else here changes.
   private renderOwnershipSection(planet: Planet, y: number): number {
     const entry = getPlanetOwnershipEntry(planet.id);
 
@@ -126,35 +126,7 @@ export class GatherScene extends Phaser.Scene {
       return y + 30;
     }
 
-    if (entry.ownedByPlayerId === null) {
-      const button = this.add.text(16, y, "> Claim Planet", {
-        fontFamily: "monospace",
-        fontSize: "16px",
-        color: "#2196f3",
-      });
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.claimPlanetAction(planet));
-      return y + 30;
-    }
-
-    if (entry.ownedByPlayerId === PLAYER_ID && entry.citadelLevel < 3) {
-      const targetLevel = (entry.citadelLevel + 1) as 1 | 2 | 3;
-      const benefit = CITADEL_LEVEL_BENEFITS.find((b) => b.level === targetLevel)!;
-      const materialLabel = benefit.constructionCost.material
-        ? ` + ${benefit.constructionCost.material.quantity}x ${benefit.constructionCost.material.resourceId}`
-        : "";
-      const button = this.add.text(
-        16,
-        y,
-        `> Build Citadel Level ${targetLevel} (${benefit.constructionCost.credits}cr${materialLabel})`,
-        { fontFamily: "monospace", fontSize: "16px", color: "#2196f3" },
-      );
-      button.setInteractive({ useHandCursor: true });
-      button.on("pointerdown", () => this.buildCitadelAction(planet, targetLevel));
-      return y + 30;
-    }
-
-    this.add.text(16, y, `Citadel Level ${entry.citadelLevel} (fully built)`, {
+    this.add.text(16, y, `Colonized (${entry.colonistCount} colonists)`, {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#88ff88",
@@ -173,41 +145,6 @@ export class GatherScene extends Phaser.Scene {
     }
     setWallet(result.updatedWallet);
     setPlanetOwnershipEntry(planet.id, result.updatedOwnershipEntry);
-    this.scene.restart();
-  }
-
-  private claimPlanetAction(planet: Planet): void {
-    const ship = getShipRoster()[0];
-    if (!ship) return;
-    const entry = getPlanetOwnershipEntry(planet.id);
-    const result = claimPlanet(ship, planet, PLAYER_ID, entry);
-    if (!result.success) {
-      this.resultText?.setText(`Claim failed: ${result.reason}`);
-      return;
-    }
-    setPlanetOwnershipEntry(planet.id, result.updatedOwnershipEntry);
-    this.scene.restart();
-  }
-
-  private buildCitadelAction(planet: Planet, targetLevel: 1 | 2 | 3): void {
-    const ship = getShipRoster()[0];
-    if (!ship) return;
-    const entry = getPlanetOwnershipEntry(planet.id);
-    const benefit = CITADEL_LEVEL_BENEFITS.find((b) => b.level === targetLevel)!;
-    const materialAvailable = benefit.constructionCost.material
-      ? totalQuantity(getInventory(), benefit.constructionCost.material.resourceId)
-      : 0;
-    const result = buildCitadel(ship, planet, targetLevel, getWallet(), materialAvailable, entry);
-    if (!result.success) {
-      this.resultText?.setText(`Build failed: ${result.reason}`);
-      return;
-    }
-    setWallet(result.updatedWallet);
-    setPlanetOwnershipEntry(planet.id, result.updatedOwnershipEntry);
-    if (result.materialResourceId && result.materialQuantityConsumed > 0) {
-      const { inventory } = consume(getInventory(), result.materialResourceId, result.materialQuantityConsumed);
-      setInventory(inventory);
-    }
     this.scene.restart();
   }
 

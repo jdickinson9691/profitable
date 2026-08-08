@@ -8,6 +8,11 @@ namespace Profitable.Core.Simulation;
 // enforced purpose. Colonists have no separate origin/supply -- abstracted
 // as "arranged via credits" once docked, not carried from a source planet
 // or limited pool (a deliberate simplification).
+//
+// Retroactive removal (2026-08-04): this used to also copy through
+// CitadelLevel/OwnedByPlayerId on the updated entry -- both fields removed
+// along with Citadels, see planet-ownership.md's own retroactive note.
+// ColonistCount handling is unaffected.
 public static class ColonistTransporter
 {
     public static TransportColonistsResult TransportColonists(
@@ -38,8 +43,6 @@ public static class ColonistTransporter
             UpdatedOwnershipEntry = new PlanetOwnershipEntry
             {
                 ColonistCount = currentOwnershipEntry.ColonistCount + quantity,
-                CitadelLevel = currentOwnershipEntry.CitadelLevel,
-                OwnedByPlayerId = currentOwnershipEntry.OwnedByPlayerId,
             },
         };
     }

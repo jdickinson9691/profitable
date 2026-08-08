@@ -5,12 +5,14 @@ import type { Planet } from "../data/types/planet.ts";
 import { mergePlanetOwnership } from "../planets/mergePlanetOwnership.ts";
 import { MINIMUM_COLONISTS_TO_PRODUCE } from "../data/constants/planetOwnership.ts";
 
-// Colonist-Driven Production / Citadels (planet-ownership.md). Persisted
-// side-table -- Planet objects are never persisted directly (galaxy.md's
-// "must not persist the generated planet array itself" rule), so
-// colonistCount/citadelLevel/ownedByPlayerId (real facts set by discrete
-// player actions, not derivable from the seed) live here instead, exactly
-// like galaxyState.ts's discoveredPlanetIds.
+// Colonist-Driven Production (planet-ownership.md). Persisted side-table --
+// Planet objects are never persisted directly (galaxy.md's "must not
+// persist the generated planet array itself" rule), so colonistCount (a
+// real fact set by discrete player actions, not derivable from the seed)
+// lives here instead, exactly like galaxyState.ts's discoveredPlanetIds.
+//
+// Retroactive removal (2026-08-04): citadelLevel/ownedByPlayerId removed
+// along with Citadels -- see planet-ownership.md's own retroactive note.
 const PLANET_OWNERSHIP_STATE_SAVE_KEY = "profitable:planetOwnershipState";
 
 let planetOwnershipState: Record<string, PlanetOwnershipEntry> =

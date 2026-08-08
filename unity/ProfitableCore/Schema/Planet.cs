@@ -24,14 +24,16 @@ public class Planet
     // Record<string, QualityRoll>.
     public Dictionary<string, QualityMap>? ResourceQualities { get; set; }
 
-    // Colonist-Driven Production / Citadels amendment (planet-ownership.md,
-    // Sub-Phase E). These three are never set by GeneratePlanet() -- they
-    // live exclusively in a persisted side-table and are merged onto a
-    // Planet at read time, same as the TypeScript source. Schema'd here
-    // (Sub-Phase A) even though the behavior that sets/reads most of them
-    // is Sub-Phase E's scope, so Sub-Phase E never needs to reopen this
-    // file.
+    // Colonist-Driven Production amendment (planet-ownership.md, Sub-Phase
+    // E). Never set by GeneratePlanet() -- lives exclusively in a
+    // persisted side-table and is merged onto a Planet at read time, same
+    // as the TypeScript source. Schema'd here (Sub-Phase A) even though the
+    // behavior that sets/reads it is Sub-Phase E's scope, so Sub-Phase E
+    // never needs to reopen this file.
+    //
+    // Retroactive removal (2026-08-04): CitadelLevel/OwnedByPlayerId
+    // removed along with the whole Citadels sub-system -- see
+    // planet-ownership.md's own retroactive note. ColonistCount is
+    // unaffected.
     public int? ColonistCount { get; set; }
-    public int? CitadelLevel { get; set; }
-    public string? OwnedByPlayerId { get; set; }
 }

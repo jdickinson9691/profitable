@@ -6,21 +6,20 @@ namespace Profitable.Core.Simulation;
 // Ports src/ships/refuelShip.ts. Checks funds, checks capacity (rejects
 // an over-fill, never silently clamps), deducts credits, adds fuel.
 //
-// DockedPlanet (Citadels amendment): the Level 2+ refuel-discount
-// benefit. Only applies when the ship's owner also owns the planet -- a
-// citadel benefits its owner, not any docked ship.
+// Retroactive removal (2026-08-04): the optional DockedPlanet parameter
+// and its Level 2+ Citadel refuel-discount logic are removed along with
+// Citadels -- see planet-ownership.md's own retroactive note. Reverted to
+// this method's original, pre-Citadels signature.
 public static class ShipRefueler
 {
-    public static RefuelShipResult RefuelShip(Ship ship, Wallet wallet, double amount, Planet? dockedPlanet = null)
+    public static RefuelShipResult RefuelShip(Ship ship, Wallet wallet, double amount)
     {
         if (amount <= 0)
         {
             return new RefuelShipRejected { Reason = "amount must be positive" };
         }
 
-        var citadelLevel = (dockedPlanet is not null && dockedPlanet.OwnedByPlayerId == ship.OwnerId) ? (dockedPlanet.CitadelLevel ?? 0) : 0;
-        var discountPercent = PlanetOwnershipConstants.CitadelLevelBenefits.TryGetValue(citadelLevel, out var benefit) ? benefit.RefuelDiscountPercent : 0;
-        var cost = Math.Round(amount * ShipsAndTravelConfig.RefuelCostPerUnit * (1 - discountPercent));
+        var cost = Math.Round(amount * ShipsAndTravelConfig.RefuelCostPerUnit);
         if (wallet.Credits < cost)
         {
             return new RefuelShipRejected { Reason = $"insufficient funds: need {cost}, have {wallet.Credits}" };

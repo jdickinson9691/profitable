@@ -7,16 +7,12 @@ import { getCrewSlotsForShip } from "../../ships/getCrewSlotsForShip.ts";
 import { assignToShipRole } from "../../ships/assignToShipRole.ts";
 import { unassignFromShipRole } from "../../ships/unassignFromShipRole.ts";
 import { resolveComponentRepair } from "../../ships/resolveComponentRepair.ts";
-import { galaxy, startingPlanet, getDiscoveredPlanets } from "../galaxyState.ts";
-import { withPlanetOwnership } from "../planetOwnershipState.ts";
 import { COMPONENT_CATEGORIES } from "../../data/types/componentCategory.ts";
 import { CARGO_HOLD_CAPACITY_BY_TIER } from "../../data/constants/shipsAndTravelConfig.ts";
 import { QUALITY_MAX } from "../../data/constants/quality.ts";
 import type { Ship } from "../../data/types/ship.ts";
 import type { CrewMember } from "../../data/types/crewMember.ts";
 import type { ShipCrewRole } from "../../data/types/shipCrewRole.ts";
-import type { Planet } from "../../data/types/planet.ts";
-import type { Voyage } from "../../data/types/voyage.ts";
 
 // One-line description of what each component category actually does,
 // per ship.md's consolidated contract -- weapon/shield feed Combat's own
@@ -137,29 +133,20 @@ export class ShipStatusScene extends Phaser.Scene {
     return y;
   }
 
-  // Ship Crew Roles / Citadels, task #89: resolveComponentRepair()'s own
-  // 3-way Systems Engineer / Crafter / Citadel-Level-3 resolution needs the
-  // caller to state which of "traveling" or "docked" currently applies --
-  // no hidden lookup inside that function, same convention its own doc
-  // comment establishes. getVoyages() (not ship.currentPlanetId alone) is
-  // the only way to actually tell the two apart, per ship.ts's own note.
-  private resolveShipDockContext(ship: Ship): { activeVoyage: Voyage | null; dockedPlanet: Planet | null } {
-    const activeVoyage = getVoyages().find((voyage) => voyage.shipId === ship.id) ?? null;
-    if (activeVoyage) return { activeVoyage, dockedPlanet: null };
-
-    const dockedPlanet =
-      getDiscoveredPlanets().find((planet) => planet.id === ship.currentPlanetId) ??
-      (() => {
-        const raw = galaxy.planets.find((planet) => planet.id === ship.currentPlanetId);
-        return raw ? withPlanetOwnership(raw) : undefined;
-      })() ??
-      (ship.currentPlanetId === startingPlanet.id ? startingPlanet : null);
-    return { activeVoyage: null, dockedPlanet: dockedPlanet ?? null };
-  }
-
+  // Ship Crew Roles, task #89: resolveComponentRepair()'s own Systems
+  // Engineer / Crafter resolution needs the caller to state whether the
+  // ship is currently traveling -- no hidden lookup inside that function,
+  // same convention its own doc comment establishes. getVoyages() (not
+  // ship.currentPlanetId alone) is the only way to tell, per ship.ts's own
+  // note.
+  //
+  // Retroactive removal (2026-08-04): this used to also resolve
+  // dockedPlanet, for the now-removed Citadel repair-rate contribution --
+  // see planet-ownership.md's own retroactive note. Only activeVoyage is
+  // needed now.
   private onCheckRepair(ship: Ship): void {
-    const { activeVoyage, dockedPlanet } = this.resolveShipDockContext(ship);
-    const updatedShip = resolveComponentRepair(ship, getCrewRoster(), activeVoyage, dockedPlanet, Date.now());
+    const activeVoyage = getVoyages().find((voyage) => voyage.shipId === ship.id) ?? null;
+    const updatedShip = resolveComponentRepair(ship, getCrewRoster(), activeVoyage, Date.now());
     replaceShip(updatedShip);
     this.setStatus(`Checked repair on ${updatedShip.name}.`);
     this.redraw();

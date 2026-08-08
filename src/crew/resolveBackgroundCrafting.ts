@@ -29,8 +29,9 @@ export function resolveBackgroundCrafting(
   random?: RandomFn,
   // Real-inventory availability cap, pre-resolved by the caller -- same
   // "core function never touches Inventory directly, caller passes in
-  // what's available" boundary buildCitadel()'s materialQuantityAvailable
-  // already established. Defaults to unbounded so every pre-existing call
+  // what's available" boundary this codebase already establishes elsewhere
+  // (e.g. craft()'s own recipe-input resolution). Defaults to unbounded so
+  // every pre-existing call
   // site (and every existing test) is unaffected. CrewScene computes this
   // from real inventory via totalQuantity() before calling, so a crew
   // member idle for long enough to time-compute more units than the

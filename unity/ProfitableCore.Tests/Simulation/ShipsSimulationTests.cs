@@ -9,6 +9,12 @@ namespace ProfitableCore.Tests.Simulation;
 // Parity/ShipsTravelParityTests.cs (the stronger, real-content proof);
 // these cover the error/rejection/edge paths that corpus doesn't
 // exhaustively cover, mirroring the TypeScript suite's own targeted cases.
+//
+// Retroactive removal (2026-08-04): this file used to also cover
+// RefuelShip's Citadel discount and ResolveComponentRepair's
+// dockedPlanet-contract-violation throw -- both removed along with the
+// whole Citadels sub-system, see planet-ownership.md's own retroactive
+// note.
 public class ShipsSimulationTests
 {
     private static QualityMap Uniform(int value) => new()
@@ -186,19 +192,6 @@ public class ShipsSimulationTests
     }
 
     [Fact]
-    public void RefuelShip_AppliesCitadelDiscountWhenDockedAtOwnedLevel2()
-    {
-        var ship = ShipFixture(fuelCapacity: 100, currentFuel: 0, ownerId: "player-1");
-        var wallet = new Wallet { PlayerId = "player-1", Credits = 1000 };
-        var dockedPlanet = new Planet { Id = "a", Name = "a", ProducibleResourceIds = new List<string>(), OwnedByPlayerId = "player-1", CitadelLevel = 2 };
-
-        var withDiscount = (RefuelShipSucceeded)ShipRefueler.RefuelShip(ship, wallet, 10, dockedPlanet);
-        var withoutDiscount = (RefuelShipSucceeded)ShipRefueler.RefuelShip(ship, wallet, 10, null);
-
-        Assert.True(withDiscount.UpdatedWallet.Credits > withoutDiscount.UpdatedWallet.Credits);
-    }
-
-    [Fact]
     public void AssignToShipRole_RejectsCrafterWithoutProfession()
     {
         var ship = ShipFixture(tier: TierColor.Gold);
@@ -252,16 +245,6 @@ public class ShipsSimulationTests
     }
 
     [Fact]
-    public void ResolveComponentRepair_ThrowsWhenBothVoyageAndDockedPlanetAreNonNull()
-    {
-        var ship = ShipFixture();
-        var voyage = new Voyage { Id = "v1" };
-        var planet = PlanetFixture("a", 0, 0);
-        Assert.Throws<InvalidOperationException>(() =>
-            ComponentRepairResolver.ResolveComponentRepair(ship, new List<CrewMember>(), voyage, planet, 0));
-    }
-
-    [Fact]
     public void ResolveComponentRepair_RepairsDurabilityWithAssignedSystemsEngineer()
     {
         var ship = new Ship
@@ -272,7 +255,7 @@ public class ShipsSimulationTests
         };
         var systemsEngineer = CrewFixture("se1", TierColor.Gold, ShipCrewRole.SystemsEngineer, ship.Id); // rate 3/hr at Gold
 
-        var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, new List<CrewMember> { systemsEngineer }, null, null, 10 * 60 * 60 * 1000);
+        var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, new List<CrewMember> { systemsEngineer }, null, 10 * 60 * 60 * 1000);
 
         var repairedDurability = repaired.Components.Weapon!.Qualities[Quality.Durability];
         Assert.True(repairedDurability > 50, $"expected durability to increase above 50, got {repairedDurability}");

@@ -428,13 +428,8 @@ public class ShipsTravelParityTests
     {
         var ship = ToShip(testCase.Ship);
         var wallet = new Wallet { PlayerId = testCase.Wallet.PlayerId, Credits = testCase.Wallet.Credits };
-        Planet? dockedPlanet = testCase.DockedPlanet is null ? null : new Planet
-        {
-            Id = testCase.DockedPlanet.Id, Name = testCase.DockedPlanet.Name, ProducibleResourceIds = new List<string>(),
-            OwnedByPlayerId = testCase.DockedPlanet.OwnedByPlayerId, CitadelLevel = testCase.DockedPlanet.CitadelLevel,
-        };
 
-        var result = ShipRefueler.RefuelShip(ship, wallet, testCase.Amount, dockedPlanet);
+        var result = ShipRefueler.RefuelShip(ship, wallet, testCase.Amount);
 
         Assert.Equal(testCase.ExpectedResult.Refueled, result.Refueled);
         if (result is RefuelShipSucceeded succeeded)
@@ -516,13 +511,8 @@ public class ShipsTravelParityTests
         var ship = ToShip(testCase.Ship);
         var ownedCrew = testCase.OwnedCrew.Select(ToCrewMember).ToList();
         Voyage? activeVoyage = testCase.ActiveVoyage is null ? null : ToVoyage(testCase.ActiveVoyage);
-        Planet? dockedPlanet = testCase.DockedPlanet is null ? null : new Planet
-        {
-            Id = testCase.DockedPlanet.Id, Name = testCase.DockedPlanet.Name, ProducibleResourceIds = new List<string>(),
-            OwnedByPlayerId = testCase.DockedPlanet.OwnedByPlayerId, CitadelLevel = testCase.DockedPlanet.CitadelLevel,
-        };
 
-        var result = ComponentRepairResolver.ResolveComponentRepair(ship, ownedCrew, activeVoyage, dockedPlanet, testCase.NowMs);
+        var result = ComponentRepairResolver.ResolveComponentRepair(ship, ownedCrew, activeVoyage, testCase.NowMs);
 
         AssertShipMatches(testCase.ExpectedResult, result);
     }

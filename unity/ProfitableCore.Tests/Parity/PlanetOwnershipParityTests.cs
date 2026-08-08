@@ -9,6 +9,12 @@ namespace ProfitableCore.Tests.Parity;
 //
 // Reads unity/parity/ts-parity-results.json's Sub-Phase E sections and
 // re-runs every case through the C# port, asserting exact equality.
+//
+// Retroactive removal (2026-08-04): this file used to also cover
+// PlanetClaimer.ClaimPlanet()/CitadelBuilder.BuildCitadel() -- both
+// removed along with the whole Citadels sub-system, see
+// planet-ownership.md's own retroactive note. Colonist-Driven Production
+// (ColonistTransporter/PlanetOwnershipMerger) is unaffected.
 public class PlanetOwnershipParityTests
 {
     private static ParityCorpus LoadCorpus()
@@ -50,14 +56,12 @@ public class PlanetOwnershipParityTests
 
     private static PlanetOwnershipEntry ToEntry(SerializedPlanetOwnershipEntry s) => new()
     {
-        ColonistCount = s.ColonistCount, CitadelLevel = s.CitadelLevel, OwnedByPlayerId = s.OwnedByPlayerId,
+        ColonistCount = s.ColonistCount,
     };
 
     private static void AssertEntryMatches(SerializedPlanetOwnershipEntry expected, PlanetOwnershipEntry actual)
     {
         Assert.Equal(expected.ColonistCount, actual.ColonistCount);
-        Assert.Equal(expected.CitadelLevel, actual.CitadelLevel);
-        Assert.Equal(expected.OwnedByPlayerId, actual.OwnedByPlayerId);
     }
 
     public static IEnumerable<object[]> TransportColonistsCases() => LoadCorpus().TransportColonistsCases.Select(c => new object[] { c });
@@ -85,56 +89,6 @@ public class PlanetOwnershipParityTests
         }
     }
 
-    public static IEnumerable<object[]> ClaimPlanetCases() => LoadCorpus().ClaimPlanetCases.Select(c => new object[] { c });
-
-    [Theory]
-    [MemberData(nameof(ClaimPlanetCases))]
-    public void ClaimPlanetMatchesTypeScript(ClaimPlanetCase testCase)
-    {
-        var ship = ToShip(testCase.Ship);
-        var planet = ToPlanetRef(testCase.Planet);
-        var entry = ToEntry(testCase.Entry);
-
-        var result = PlanetClaimer.ClaimPlanet(ship, planet, testCase.PlayerId, entry);
-
-        Assert.Equal(testCase.ExpectedResult.Success, result.Success);
-        if (result is ClaimPlanetSucceeded succeeded)
-        {
-            AssertEntryMatches(testCase.ExpectedResult.UpdatedOwnershipEntry!, succeeded.UpdatedOwnershipEntry);
-        }
-        else
-        {
-            Assert.Equal(testCase.ExpectedResult.Reason, ((ClaimPlanetRejected)result).Reason);
-        }
-    }
-
-    public static IEnumerable<object[]> BuildCitadelCases() => LoadCorpus().BuildCitadelCases.Select(c => new object[] { c });
-
-    [Theory]
-    [MemberData(nameof(BuildCitadelCases))]
-    public void BuildCitadelMatchesTypeScript(BuildCitadelCase testCase)
-    {
-        var ship = ToShip(testCase.Ship);
-        var planet = ToPlanetRef(testCase.Planet);
-        var wallet = new Wallet { PlayerId = testCase.Wallet.PlayerId, Credits = testCase.Wallet.Credits };
-        var entry = ToEntry(testCase.Entry);
-
-        var result = CitadelBuilder.BuildCitadel(ship, planet, testCase.TargetLevel, wallet, testCase.MaterialQuantityAvailable, entry);
-
-        Assert.Equal(testCase.ExpectedResult.Success, result.Success);
-        if (result is BuildCitadelSucceeded succeeded)
-        {
-            Assert.Equal(testCase.ExpectedResult.UpdatedWallet!.Credits, succeeded.UpdatedWallet.Credits, precision: 6);
-            AssertEntryMatches(testCase.ExpectedResult.UpdatedOwnershipEntry!, succeeded.UpdatedOwnershipEntry);
-            Assert.Equal(testCase.ExpectedResult.MaterialResourceId, succeeded.MaterialResourceId);
-            Assert.Equal(testCase.ExpectedResult.MaterialQuantityConsumed, succeeded.MaterialQuantityConsumed);
-        }
-        else
-        {
-            Assert.Equal(testCase.ExpectedResult.Reason, ((BuildCitadelRejected)result).Reason);
-        }
-    }
-
     public static IEnumerable<object[]> MergePlanetOwnershipCases() => LoadCorpus().MergePlanetOwnershipCases.Select(c => new object[] { c });
 
     [Theory]
@@ -147,7 +101,5 @@ public class PlanetOwnershipParityTests
         var merged = PlanetOwnershipMerger.MergePlanetOwnership(planet, entry);
 
         Assert.Equal(testCase.ExpectedResult.ColonistCount, merged.ColonistCount);
-        Assert.Equal(testCase.ExpectedResult.CitadelLevel, merged.CitadelLevel);
-        Assert.Equal(testCase.ExpectedResult.OwnedByPlayerId, merged.OwnedByPlayerId);
     }
 }

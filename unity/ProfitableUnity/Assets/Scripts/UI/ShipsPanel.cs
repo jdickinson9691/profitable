@@ -242,7 +242,7 @@ namespace Profitable.Unity.UI
                 return rejected;
             }
 
-            var result = ShipRefueler.RefuelShip(ship, MarketState.Wallet, amount, DockedPlanetFor(ship));
+            var result = ShipRefueler.RefuelShip(ship, MarketState.Wallet, amount);
             if (result is RefuelShipSucceeded succeeded)
             {
                 ShipsState.ReplaceShip(succeeded.UpdatedShip);
@@ -274,29 +274,26 @@ namespace Profitable.Unity.UI
             // but the real owned-crew list is available and correct to
             // pass regardless; no crew member has a ShipRole assigned yet
             // since that UI doesn't exist, so this resolves the same as
-            // before until it does) and the real Citadel-owning
-            // dockedPlanet when the ship is docked there, instead of
-            // always null/empty. A ship mid-voyage passes ActiveVoyage
-            // instead -- the two are mutually exclusive, matching
-            // ResolveComponentRepair's own contract.
+            // before until it does). A ship mid-voyage passes
+            // ActiveVoyage; a docked ship passes null.
+            //
+            // Retroactive removal (2026-08-04): this used to also resolve
+            // a dockedPlanet argument for the now-removed Citadel
+            // repair-rate contribution (via the now-deleted DockedPlanetFor
+            // helper) -- see planet-ownership.md's own retroactive note.
+            // Known consequence: since no Ship Crew Roles assignment UI
+            // exists in Unity yet (no crew member ever has a ShipRole),
+            // Systems Engineer/Crafter never contribute either, so this
+            // button is currently a no-op for every ship (it still stamps
+            // LastRepairedAt, but repairs nothing) until that UI is built --
+            // tracked in CLAUDE.md/unity-migration-phase2-checklist.md.
             var activeVoyage = ShipsState.ActiveVoyage?.ShipId == ship.Id ? ShipsState.ActiveVoyage : null;
-            var dockedPlanet = activeVoyage is null ? DockedPlanetFor(ship) : null;
-            var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, CrewState.Crew, activeVoyage, dockedPlanet, NowMs());
+            var repaired = ComponentRepairResolver.ResolveComponentRepair(ship, CrewState.Crew, activeVoyage, NowMs());
             ShipsState.ReplaceShip(repaired);
             _log($"Checked repair for {ship.Name}.");
             Refresh();
             return repaired;
         }
-
-        // Gap closed (2026-08-04): Citadel benefit lookups used to only
-        // ever resolve for a ship docked at the starting planet -- the
-        // only planet ownership could ever apply to before map-based
-        // travel existed. PlanetOwnershipState.WithOwnership (via
-        // ResolveKnownPlanet) already defaults gracefully for a planet
-        // with no ownership entry, so this now correctly resolves for a
-        // ship docked anywhere in the real galaxy, not just the two
-        // originally-special-cased planets.
-        private static Planet DockedPlanetFor(Ship ship) => ResolveKnownPlanet(ship.CurrentPlanetId);
 
         // Gap closed (2026-08-04): generalizes what was
         // InitiateVoyageToSecondaryDestination's own hardcoded

@@ -18,12 +18,17 @@ namespace Profitable.Unity.Tests.EditMode
     // is now fixed per current cycle, not rolled fresh every click.
     //
     // Migration Phase 2 Sub-Phase E addition (agent-61-unity-planet
-    // -ownership-presentation.md): TransportColonists/ClaimPlanet/
-    // BuildCitadel test cases. PlanetOwnershipState is injected with a
-    // temp-directory-backed FileSaveSystem in SetUp -- these are real
-    // persistence-backed tests (not a fake/in-memory double), but must
-    // never touch Application.persistentDataPath, the same real file a
-    // player's own save data would live in.
+    // -ownership-presentation.md): TransportColonists test cases.
+    // PlanetOwnershipState is injected with a temp-directory-backed
+    // FileSaveSystem in SetUp -- these are real persistence-backed tests
+    // (not a fake/in-memory double), but must never touch
+    // Application.persistentDataPath, the same real file a player's own
+    // save data would live in.
+    //
+    // Retroactive removal (2026-08-04): this file used to also cover
+    // ClaimPlanet/BuildCitadel test cases -- both removed along with the
+    // whole Citadels sub-system, see planet-ownership.md's own retroactive
+    // note. TransportColonists is unaffected.
     public class GatherPanelTests
     {
         private GameObject _parent = null!;
@@ -136,56 +141,12 @@ namespace Profitable.Unity.Tests.EditMode
         }
 
         [Test]
-        public void ClaimPlanet_SucceedsThanksToTheBootstrapColonistFloor()
-        {
-            // GalaxyState's own bootstrap already floors the starting
-            // planet's colonist count to MinimumColonistsToProduce --
-            // claiming should succeed with no manual transport needed.
-            AddDockedShip();
-
-            var result = _panel.ClaimPlanet();
-
-            Assert.IsTrue(result.Success);
-            Assert.AreEqual("player-1", PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).OwnedByPlayerId);
-        }
-
-        [Test]
-        public void ClaimPlanet_FailsWithoutADockedShip()
-        {
-            var result = _panel.ClaimPlanet();
-            Assert.IsFalse(result.Success);
-        }
-
-        [Test]
-        public void BuildCitadel_FailsBeforeThePlanetIsClaimed()
-        {
-            AddDockedShip();
-            var result = _panel.BuildCitadel();
-            Assert.IsNotNull(result);
-            Assert.IsFalse(result!.Success);
-        }
-
-        [Test]
-        public void BuildCitadel_SucceedsAtLevel1WithNoMaterialAfterClaiming()
-        {
-            AddDockedShip();
-            _panel.ClaimPlanet();
-
-            var result = _panel.BuildCitadel();
-
-            Assert.IsNotNull(result);
-            Assert.IsTrue(result!.Success);
-            Assert.AreEqual(1, PlanetOwnershipState.GetEntry(GalaxyState.StartingPlanet.Id).CitadelLevel);
-        }
-
-        [Test]
         public void PlanetOwnershipState_PersistsAcrossASimulatedReload()
         {
             AddDockedShip();
-            _panel.ClaimPlanet();
+            _panel.TransportColonists(5);
             var planetId = GalaxyState.StartingPlanet.Id;
             var entryBeforeReload = PlanetOwnershipState.GetEntry(planetId);
-            Assert.AreEqual("player-1", entryBeforeReload.OwnedByPlayerId);
 
             // Simulate a reload: clear the in-memory cache (but keep the
             // same on-disk save directory) and re-inject a fresh
@@ -196,8 +157,6 @@ namespace Profitable.Unity.Tests.EditMode
 
             var entryAfterReload = PlanetOwnershipState.GetEntry(planetId);
             Assert.AreEqual(entryBeforeReload.ColonistCount, entryAfterReload.ColonistCount);
-            Assert.AreEqual(entryBeforeReload.CitadelLevel, entryAfterReload.CitadelLevel);
-            Assert.AreEqual(entryBeforeReload.OwnedByPlayerId, entryAfterReload.OwnedByPlayerId);
         }
     }
 }

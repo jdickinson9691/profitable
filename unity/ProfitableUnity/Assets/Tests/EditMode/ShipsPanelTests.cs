@@ -19,8 +19,15 @@ namespace Profitable.Unity.Tests.EditMode
     // Migration Phase 2 Sub-Phase E addition (agent-62-unity-planet
     // -ownership-integration.md): PlanetOwnershipState is injected with a
     // temp-directory-backed FileSaveSystem in SetUp, same reasoning
-    // GatherPanelTests already documents -- RefuelShip/CheckRepair now
-    // read it (the Citadel refuel-discount/repair-rate integration fix).
+    // GatherPanelTests already documents.
+    //
+    // Retroactive removal (2026-08-04): this file used to also cover
+    // RefuelShip's Citadel refuel-discount integration (RefuelShip_
+    // AppliesCitadelDiscountWhenStartingPlanetIsOwnedAndHasALevel2Citadel)
+    // -- removed along with the whole Citadels sub-system, see
+    // planet-ownership.md's own retroactive note. CheckRepair's own known
+    // consequence (a no-op until Ship Crew Roles UI exists) is tracked in
+    // CLAUDE.md/unity-migration-phase2-checklist.md, not re-asserted here.
     public class ShipsPanelTests
     {
         private GameObject _parent = null!;
@@ -178,35 +185,6 @@ namespace Profitable.Unity.Tests.EditMode
             var result = _panel.ResolveArrival(ship.Id);
 
             Assert.IsNull(result);
-        }
-
-        [Test]
-        public void RefuelShip_AppliesCitadelDiscountWhenStartingPlanetIsOwnedAndHasALevel2Citadel()
-        {
-            var candidateId = FirstShipyardCandidateId();
-            _panel.PurchaseShip(candidateId);
-            var ship = ShipsState.OwnedShips[0]; // docked at GalaxyState.StartingPlanet by default
-            ShipsState.ReplaceShip(new Ship
-            {
-                Id = ship.Id, Name = ship.Name, OwnerId = ship.OwnerId, Tier = ship.Tier, CurrentPlanetId = ship.CurrentPlanetId,
-                FuelCapacity = 1000, CurrentFuel = 0, Components = ship.Components,
-            });
-            // Fast-forwards ownership directly (BuildCitadel's own
-            // material/sequencing logic is already covered by
-            // GatherPanelTests/PlanetOwnershipParityTests) -- this test's
-            // own job is proving ShipsPanel actually reads the resulting
-            // Citadel level, not re-proving BuildCitadel itself.
-            PlanetOwnershipState.SetEntry(GalaxyState.StartingPlanet.Id, new PlanetOwnershipEntry { ColonistCount = 10, CitadelLevel = 2, OwnedByPlayerId = "player-1" });
-            var creditsBeforeFirst = MarketState.Wallet.Credits;
-            _panel.RefuelShip(ship.Id, 10);
-            var costWithDiscount = creditsBeforeFirst - MarketState.Wallet.Credits;
-
-            PlanetOwnershipState.SetEntry(GalaxyState.StartingPlanet.Id, PlanetOwnershipEntry.Default());
-            var creditsBeforeSecond = MarketState.Wallet.Credits;
-            _panel.RefuelShip(ship.Id, 10);
-            var costWithoutDiscount = creditsBeforeSecond - MarketState.Wallet.Credits;
-
-            Assert.Less(costWithDiscount, costWithoutDiscount);
         }
 
         // A short, directly-constructed Voyage (1 hour) rather than a

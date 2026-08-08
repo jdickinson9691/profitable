@@ -74,12 +74,9 @@ test("transportColonists() adds to an existing colonistCount rather than overwri
   }
 });
 
-test("transportColonists() preserves citadelLevel/ownedByPlayerId on the updated entry", () => {
-  const existing = { colonistCount: 0, citadelLevel: 2 as const, ownedByPlayerId: "player-1" };
-  const result = transportColonists(ship(), planet(), 1, wallet(), existing);
-  assert.equal(result.success, true);
-  if (result.success) {
-    assert.equal(result.updatedOwnershipEntry.citadelLevel, 2);
-    assert.equal(result.updatedOwnershipEntry.ownedByPlayerId, "player-1");
-  }
-});
+// Retroactive removal (2026-08-04): a test previously here asserted that
+// transportColonists() preserves citadelLevel/ownedByPlayerId on the
+// updated entry -- both fields are removed along with Citadels (see
+// planet-ownership.md's own retroactive note), so that assertion no longer
+// applies. Every other test in this file (the actual colonist-gate
+// coverage) is unchanged.

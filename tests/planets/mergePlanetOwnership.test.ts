@@ -10,21 +10,17 @@ function planet(overrides: Partial<Planet> = {}): Planet {
 test("mergePlanetOwnership() applies the default entry when no entry exists", () => {
   const merged = mergePlanetOwnership(planet(), undefined);
   assert.equal(merged.colonistCount, 0);
-  assert.equal(merged.citadelLevel, 0);
-  assert.equal(merged.ownedByPlayerId, null);
 });
 
 test("mergePlanetOwnership() applies a real entry's values", () => {
-  const merged = mergePlanetOwnership(planet(), { colonistCount: 12, citadelLevel: 3, ownedByPlayerId: "player-1" });
+  const merged = mergePlanetOwnership(planet(), { colonistCount: 12 });
   assert.equal(merged.colonistCount, 12);
-  assert.equal(merged.citadelLevel, 3);
-  assert.equal(merged.ownedByPlayerId, "player-1");
 });
 
 test("mergePlanetOwnership() never mutates the passed-in Planet", () => {
   const base = planet();
   const snapshot = JSON.parse(JSON.stringify(base));
-  mergePlanetOwnership(base, { colonistCount: 5, citadelLevel: 1, ownedByPlayerId: "player-1" });
+  mergePlanetOwnership(base, { colonistCount: 5 });
   assert.deepEqual(base, snapshot);
 });
 

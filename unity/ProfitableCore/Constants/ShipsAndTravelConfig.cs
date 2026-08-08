@@ -250,9 +250,9 @@ public static class ShipsAndTravelConfig
         [TierColor.Gold] = 0.35,
     };
 
-    // ResolveComponentRepair()'s resolved 3-way Systems Engineer / Citadel
-    // Level 3 / Crafter interaction. Durability points restored per
-    // elapsed hour, keyed by the Systems Engineer crew member's own tier.
+    // ResolveComponentRepair()'s resolved Systems Engineer / Crafter
+    // interaction. Durability points restored per elapsed hour, keyed by
+    // the Systems Engineer crew member's own tier.
     public static Dictionary<TierColor, double> SystemsEngineerRepairRateByTier { get; } = new()
     {
         [TierColor.Grey] = 0.5,
@@ -277,11 +277,10 @@ public static class ShipsAndTravelConfig
         [TierColor.Gold] = 1.5,
     };
 
-    // Flat rates, not tier-keyed -- a Citadel has levels, not a crew/ship
-    // tier. Only accrue while docked at an owned Citadel of the matching
-    // level or higher.
-    public static double CitadelLevel2RepairRate { get; set; } = 0.5;
-    public static double CitadelLevel3RepairRate { get; set; } = 1;
+    // Retroactive removal (2026-08-04): CitadelLevel2RepairRate/
+    // CitadelLevel3RepairRate removed along with Citadels -- see
+    // planet-ownership.md's own retroactive note for the full account.
+    // Systems Engineer/Crafter repair rates above are unaffected.
 
     // A new, independent cap constant for ResolveComponentRepair's own
     // elapsed-time window -- deliberately not a reuse of Crew's

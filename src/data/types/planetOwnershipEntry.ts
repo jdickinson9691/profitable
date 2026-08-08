@@ -1,16 +1,16 @@
-// Colonist-Driven Production / Citadels (planet-ownership.md). One entry
-// per planet that has ever had colonists transported, been claimed, or had
-// a Citadel built -- planets with no entry are treated as the defaults
-// below (0 colonists, no citadel, unowned), never requiring an entry to
-// exist just to read a planet's ownership state.
+// Colonist-Driven Production (planet-ownership.md). One entry per planet
+// that has ever had colonists transported -- planets with no entry are
+// treated as the default below (0 colonists), never requiring an entry
+// to exist just to read a planet's ownership state.
+//
+// Retroactive removal (2026-08-04): citadelLevel/ownedByPlayerId removed
+// along with the whole Citadels sub-system -- see planet-ownership.md's
+// own retroactive note for the full account. Colonist-Driven Production
+// is unaffected; it never depended on Citadels for anything.
 export interface PlanetOwnershipEntry {
   colonistCount: number;
-  citadelLevel: 0 | 1 | 2 | 3;
-  ownedByPlayerId: string | null;
 }
 
 export const DEFAULT_PLANET_OWNERSHIP_ENTRY: PlanetOwnershipEntry = {
   colonistCount: 0,
-  citadelLevel: 0,
-  ownedByPlayerId: null,
 };

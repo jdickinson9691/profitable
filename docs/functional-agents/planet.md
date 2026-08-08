@@ -4,7 +4,7 @@
 
 **This file knowingly reopens previously-"resolved" design** (Mining's [renamed from "Gathering" this session — terminology only] roll-at-mine-time premise, Galaxy & Planet Generation's original once-and-permanent resource assignment) — see the design-questions.md entry for the full reasoning; this file is that entry's consolidated forward-looking contract, existing-system documentation and new scope together, clearly marked which is which throughout.
 
-**See also `docs/functional-agents/planet-ownership.md`** — Colonist-Driven Production adds a precondition in front of this file's `getCurrentPlanetResources()` (a planet must be sufficiently colonized before it's minable at all, the starting planet excepted); Citadels build further on that ownership concept. Kept as a separate file since ownership/investment is a genuinely different job from generation, not a change to any formula in this file.
+**See also `docs/functional-agents/planet-ownership.md`** — Colonist-Driven Production adds a precondition in front of this file's `getCurrentPlanetResources()` (a planet must be sufficiently colonized before it's minable at all, the starting planet excepted). Kept as a separate file since ownership/investment is a genuinely different job from generation, not a change to any formula in this file. (Citadels originally built further on that ownership concept — retroactively cut from alpha scope 2026-08-04, see `planet-ownership.md`'s own note; doesn't affect anything in this file.)
 
 ## Responsibility
 

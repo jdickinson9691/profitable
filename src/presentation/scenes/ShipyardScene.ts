@@ -167,17 +167,17 @@ export class ShipyardScene extends Phaser.Scene {
       if (atHome && ship.currentFuel < ship.fuelCapacity) {
         const refuelBtn = this.scroll!.addText(560, y, "> Refuel", { fontFamily: "monospace", fontSize: "14px", color: "#4caf50" });
         refuelBtn.setInteractive({ useHandCursor: true });
-        refuelBtn.on("pointerdown", () => this.onRefuel(ship, planet));
+        refuelBtn.on("pointerdown", () => this.onRefuel(ship));
       }
       y += 20;
     }
     return y;
   }
 
-  private onRefuel(ship: Ship, dockedPlanet: Planet): void {
+  private onRefuel(ship: Ship): void {
     const amount = ship.fuelCapacity - ship.currentFuel;
     const walletBefore = getWallet();
-    const result = refuelShip(ship, walletBefore, amount, dockedPlanet);
+    const result = refuelShip(ship, walletBefore, amount);
     if (!result.refueled) {
       this.setStatus(`Refuel failed: ${result.reason}`);
       return;

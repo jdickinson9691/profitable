@@ -157,12 +157,6 @@ public class ParityCorpus
     [JsonPropertyName("transportColonistsCases")]
     public List<TransportColonistsCase> TransportColonistsCases { get; set; } = new();
 
-    [JsonPropertyName("claimPlanetCases")]
-    public List<ClaimPlanetCase> ClaimPlanetCases { get; set; } = new();
-
-    [JsonPropertyName("buildCitadelCases")]
-    public List<BuildCitadelCase> BuildCitadelCases { get; set; } = new();
-
     [JsonPropertyName("mergePlanetOwnershipCases")]
     public List<MergePlanetOwnershipCase> MergePlanetOwnershipCases { get; set; } = new();
 }
@@ -303,17 +297,6 @@ public class SerializedPlanet
 
     [JsonPropertyName("colonistCount")]
     public int? ColonistCount { get; set; }
-
-    // Added for Sub-Phase D's RefuelShip/ResolveComponentRepair cases,
-    // which serialize a minimal dockedPlanet object with these two
-    // Citadel-related fields alongside id/name -- not populated by any
-    // Sub-Phase A galaxy/planet case, but harmless there (JSON-missing
-    // fields just deserialize to null).
-    [JsonPropertyName("ownedByPlayerId")]
-    public string? OwnedByPlayerId { get; set; }
-
-    [JsonPropertyName("citadelLevel")]
-    public int? CitadelLevel { get; set; }
 }
 
 public class ExpectedGalaxy
@@ -1728,9 +1711,6 @@ public class RefuelShipCase
     [JsonPropertyName("amount")]
     public double Amount { get; set; }
 
-    [JsonPropertyName("dockedPlanet")]
-    public SerializedPlanet? DockedPlanet { get; set; }
-
     [JsonPropertyName("expectedResult")]
     public SerializedRefuelShipResult ExpectedResult { get; set; } = new();
 }
@@ -1793,9 +1773,6 @@ public class ResolveComponentRepairCase
 
     [JsonPropertyName("activeVoyage")]
     public SerializedVoyage? ActiveVoyage { get; set; }
-
-    [JsonPropertyName("dockedPlanet")]
-    public SerializedPlanet? DockedPlanet { get; set; }
 
     [JsonPropertyName("nowMs")]
     public long NowMs { get; set; }
@@ -1904,18 +1881,18 @@ public class ResolveCombatChoiceCase
 }
 
 // ---- Sub-Phase E (Planet Ownership) parity DTOs (agent-60-unity-planet
-// -ownership-parity-validation.md). ----
+// -ownership-parity-validation.md).
+//
+// Retroactive removal (2026-08-04): CitadelLevel/OwnedByPlayerId removed
+// from SerializedPlanetOwnershipEntry, and ClaimPlanetCase/BuildCitadelCase
+// (and their Serialized*Result DTOs) removed entirely, along with the
+// whole Citadels sub-system -- see planet-ownership.md's own retroactive
+// note. TransportColonistsCase/MergePlanetOwnershipCase are unaffected. ----
 
 public class SerializedPlanetOwnershipEntry
 {
     [JsonPropertyName("colonistCount")]
     public int ColonistCount { get; set; }
-
-    [JsonPropertyName("citadelLevel")]
-    public int CitadelLevel { get; set; }
-
-    [JsonPropertyName("ownedByPlayerId")]
-    public string? OwnedByPlayerId { get; set; }
 }
 
 public class TransportColonistsCase
@@ -1955,87 +1932,6 @@ public class SerializedTransportColonistsResult
 
     [JsonPropertyName("updatedOwnershipEntry")]
     public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
-}
-
-public class ClaimPlanetCase
-{
-    [JsonPropertyName("label")]
-    public string Label { get; set; } = string.Empty;
-
-    [JsonPropertyName("ship")]
-    public SerializedShip Ship { get; set; } = new();
-
-    [JsonPropertyName("planet")]
-    public SerializedPlanetRef Planet { get; set; } = new();
-
-    [JsonPropertyName("playerId")]
-    public string PlayerId { get; set; } = string.Empty;
-
-    [JsonPropertyName("entry")]
-    public SerializedPlanetOwnershipEntry Entry { get; set; } = new();
-
-    [JsonPropertyName("expectedResult")]
-    public SerializedClaimPlanetResult ExpectedResult { get; set; } = new();
-}
-
-public class SerializedClaimPlanetResult
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("reason")]
-    public string? Reason { get; set; }
-
-    [JsonPropertyName("updatedOwnershipEntry")]
-    public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
-}
-
-public class BuildCitadelCase
-{
-    [JsonPropertyName("label")]
-    public string Label { get; set; } = string.Empty;
-
-    [JsonPropertyName("ship")]
-    public SerializedShip Ship { get; set; } = new();
-
-    [JsonPropertyName("planet")]
-    public SerializedPlanetRef Planet { get; set; } = new();
-
-    [JsonPropertyName("targetLevel")]
-    public int TargetLevel { get; set; }
-
-    [JsonPropertyName("wallet")]
-    public SerializedWallet Wallet { get; set; } = new();
-
-    [JsonPropertyName("materialQuantityAvailable")]
-    public int MaterialQuantityAvailable { get; set; }
-
-    [JsonPropertyName("entry")]
-    public SerializedPlanetOwnershipEntry Entry { get; set; } = new();
-
-    [JsonPropertyName("expectedResult")]
-    public SerializedBuildCitadelResult ExpectedResult { get; set; } = new();
-}
-
-public class SerializedBuildCitadelResult
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("reason")]
-    public string? Reason { get; set; }
-
-    [JsonPropertyName("updatedWallet")]
-    public SerializedWallet? UpdatedWallet { get; set; }
-
-    [JsonPropertyName("updatedOwnershipEntry")]
-    public SerializedPlanetOwnershipEntry? UpdatedOwnershipEntry { get; set; }
-
-    [JsonPropertyName("materialResourceId")]
-    public string? MaterialResourceId { get; set; }
-
-    [JsonPropertyName("materialQuantityConsumed")]
-    public int? MaterialQuantityConsumed { get; set; }
 }
 
 public class MergePlanetOwnershipCase

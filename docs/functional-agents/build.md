@@ -34,7 +34,7 @@ For each functional area named in `profitable-unity-migration-gdd.md` §2's Phas
 | Galaxy generation | `galaxy.md` | Fully as-built | **Yes** |
 | Planet generation | `planet.md` | **Now fully as-built** — Planet Resource Generation (fixed quality, reset cycle, tutorial guarantee) shipped; only the colonist gate (Planet Ownership, below) reaches into it, and that's additive, not a blocker on its own scope | **Yes** |
 | Mining | `mining.md` | **Now fully as-built** — `GatherScene` reads the deterministic `getCurrentPlanetResources()` path | **Yes** |
-| Planet Ownership | `planet-ownership.md` | **Now fully as-built** — Colonist-Driven Production, Citadels' claim/build, refuel discount, and depth-scaled repair (Level 2 reduced rate, Level 3 full rate) all wired and tested. Level 2's original "cargo storage" benefit was repurposed into the repair tier, not left as a gap (`planet-ownership.md`'s own status note) | **Yes** |
+| Planet Ownership | `planet-ownership.md` | **Colonist-Driven Production fully as-built.** (This row is a stale snapshot per this file's own "recomputed once already" framing above — see `docs/unity-migration-phase2-checklist.md`'s readiness table for the current picture. At the time this row was last accurate, Citadels' claim/build, refuel discount, and depth-scaled repair were also fully wired and tested; Citadels was subsequently cut from alpha scope entirely, 2026-08-04 — see `planet-ownership.md`'s own retroactive-removal note.) | **Yes** |
 | Refining | `refining.md` | Fully as-built | **Yes** |
 | Crafting | `crafting.md` | Fully as-built | **Yes** |
 | Recipes/Schematics | `recipes-schematics.md` | Fully as-built | **Yes** |

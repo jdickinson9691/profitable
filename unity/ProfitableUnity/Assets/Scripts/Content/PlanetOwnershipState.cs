@@ -26,7 +26,6 @@ namespace Profitable.Unity.Content
     public static class PlanetOwnershipState
     {
         private const string SaveKey = "profitable:planetOwnershipState";
-        private const string PlayerId = "player-1";
 
         private static ISaveSystem? _saveSystem;
         private static Dictionary<string, PlanetOwnershipEntry>? _state;
@@ -91,11 +90,9 @@ namespace Profitable.Unity.Content
             var floored = System.Math.Max(existing.ColonistCount, PlanetOwnershipConstants.MinimumColonistsToProduce);
             if (floored != existing.ColonistCount)
             {
-                SetEntry(planetId, new PlanetOwnershipEntry { ColonistCount = floored, CitadelLevel = existing.CitadelLevel, OwnedByPlayerId = existing.OwnedByPlayerId });
+                SetEntry(planetId, new PlanetOwnershipEntry { ColonistCount = floored });
             }
         }
-
-        public static string DefaultPlayerId => PlayerId;
 
         // Mirrors every other *State.cs's own ResetForTests() hook.
         public static void ResetForTests()

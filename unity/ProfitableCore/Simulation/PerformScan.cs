@@ -84,7 +84,6 @@ public static class ScanPerformer
                     PlanetType = planet.PlanetType, Tier = planet.Tier, Position = planet.Position,
                     SpecialtyResourceId = planet.SpecialtyResourceId, Discovered = true,
                     ResourceQualities = planet.ResourceQualities, ColonistCount = planet.ColonistCount,
-                    CitadelLevel = planet.CitadelLevel, OwnedByPlayerId = planet.OwnedByPlayerId,
                 });
             }
         }

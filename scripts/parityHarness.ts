@@ -68,8 +68,6 @@ import { initiateCombat } from "../src/ships/initiateCombat.ts";
 import { resolveEncounters } from "../src/ships/resolveEncounters.ts";
 import { resolveCombatChoice } from "../src/ships/resolveCombatChoice.ts";
 import { transportColonists } from "../src/planets/transportColonists.ts";
-import { claimPlanet } from "../src/planets/claimPlanet.ts";
-import { buildCitadel } from "../src/planets/buildCitadel.ts";
 import { mergePlanetOwnership } from "../src/planets/mergePlanetOwnership.ts";
 
 import type { Resource } from "../src/data/types/resource.ts";
@@ -1177,20 +1175,13 @@ const refreshScannerPoolCases = ["scanner-pool-seed-1", "scanner-pool-seed-2"].m
 }));
 
 const refuelShipSubjects = [
-  { label: "successful-no-discount", ship: shipFixture({ fuelCapacity: 100, currentFuel: 0 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 20, dockedPlanet: null as Planet | null },
-  {
-    label: "successful-with-citadel-level-2-discount",
-    ship: shipFixture({ fuelCapacity: 100, currentFuel: 0, ownerId: "player-1" }),
-    wallet: { playerId: "player-1", credits: 1000 } as Wallet,
-    amount: 20,
-    dockedPlanet: { id: shipsPlanetA.id, name: shipsPlanetA.name, producibleResourceIds: [], ownedByPlayerId: "player-1", citadelLevel: 2 } as Planet,
-  },
-  { label: "rejected-non-positive-amount", ship: shipFixture(), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 0, dockedPlanet: null as Planet | null },
-  { label: "rejected-exceeds-capacity", ship: shipFixture({ fuelCapacity: 65, currentFuel: 60 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 10, dockedPlanet: null as Planet | null },
+  { label: "successful", ship: shipFixture({ fuelCapacity: 100, currentFuel: 0 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 20 },
+  { label: "rejected-non-positive-amount", ship: shipFixture(), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 0 },
+  { label: "rejected-exceeds-capacity", ship: shipFixture({ fuelCapacity: 65, currentFuel: 60 }), wallet: { playerId: "player-1", credits: 1000 } as Wallet, amount: 10 },
 ];
 const refuelShipCases = refuelShipSubjects.map((s) => ({
-  label: s.label, ship: s.ship, wallet: s.wallet, amount: s.amount, dockedPlanet: s.dockedPlanet,
-  expectedResult: refuelShip(s.ship, s.wallet, s.amount, s.dockedPlanet),
+  label: s.label, ship: s.ship, wallet: s.wallet, amount: s.amount,
+  expectedResult: refuelShip(s.ship, s.wallet, s.amount),
 }));
 
 const getCrewSlotsForShipCases = TIERS.map((tier) => {
@@ -1233,7 +1224,6 @@ const resolveComponentRepairSubjects = [
     ship: shipFixture({ tier: "White", lastRepairedAt: 0, components: { weapon: shipComponent("w", "weapon", "White", 50), engine: null, shield: null, cargoHold: null } }),
     ownedCrew: [shipCrewMemberFixture({ id: "se1", tier: "Gold", shipRole: "Systems Engineer", assignedShipId: "ship-1" })],
     activeVoyage: null as Voyage | null,
-    dockedPlanet: null as Planet | null,
     now: 10 * 60 * 60 * 1000,
   },
   {
@@ -1244,13 +1234,12 @@ const resolveComponentRepairSubjects = [
     }),
     ownedCrew: [shipCrewMemberFixture({ id: "cr1", tier: "Gold", profession: "Weaponsmith", shipRole: "Crafter", assignedShipId: "ship-1" })],
     activeVoyage: { id: "v1", shipId: "ship-1", originPlanetId: "a", destinationPlanetId: "b", departedAt: 0, arrivesAt: 100000, cargo: [] } as Voyage,
-    dockedPlanet: null as Planet | null,
     now: 10 * 60 * 60 * 1000,
   },
 ];
 const resolveComponentRepairCases = resolveComponentRepairSubjects.map((s) => ({
-  label: s.label, ship: s.ship, ownedCrew: s.ownedCrew, activeVoyage: s.activeVoyage, dockedPlanet: s.dockedPlanet, nowMs: s.now,
-  expectedResult: resolveComponentRepair(s.ship, s.ownedCrew, s.activeVoyage, s.dockedPlanet, s.now),
+  label: s.label, ship: s.ship, ownedCrew: s.ownedCrew, activeVoyage: s.activeVoyage, nowMs: s.now,
+  expectedResult: resolveComponentRepair(s.ship, s.ownedCrew, s.activeVoyage, s.now),
 }));
 
 const performScanSubjects = [
@@ -1357,7 +1346,13 @@ const resolveCombatChoiceCases = resolveCombatChoiceSubjects.map((s) => {
 
 // ---- Sub-Phase E (Planet Ownership) cases. Hand-built ship/planet/
 // wallet/ownership-entry fixtures -- none of this data comes from the
-// content catalog except buildCitadel's real "iron-ingot" material id. ----
+// content catalog.
+//
+// Retroactive removal (2026-08-04): this section used to also cover
+// claimPlanet()/buildCitadel() -- both removed along with the whole
+// Citadels sub-system, see planet-ownership.md's own retroactive note.
+// Colonist-Driven Production (transportColonists/mergePlanetOwnership)
+// is unaffected. ----
 function ownershipShipFixture(currentPlanetId = "planet-a"): Ship {
   return {
     id: "ship-1", name: "Test Ship", ownerId: "player-1", tier: "White", currentPlanetId,
@@ -1373,7 +1368,7 @@ const transportColonistsSubjects = [
     planet: { id: "planet-a", position: undefined } as unknown as Planet,
     quantity: 5,
     wallet: { playerId: "player-1", credits: 1000 } as Wallet,
-    entry: { colonistCount: 3, citadelLevel: 0, ownedByPlayerId: null } as PlanetOwnershipEntry,
+    entry: { colonistCount: 3 } as PlanetOwnershipEntry,
   },
   {
     label: "rejected-ship-not-docked",
@@ -1381,7 +1376,7 @@ const transportColonistsSubjects = [
     planet: { id: "planet-a", position: undefined } as unknown as Planet,
     quantity: 5,
     wallet: { playerId: "player-1", credits: 1000 } as Wallet,
-    entry: { colonistCount: 0, citadelLevel: 0, ownedByPlayerId: null } as PlanetOwnershipEntry,
+    entry: { colonistCount: 0 } as PlanetOwnershipEntry,
   },
   {
     label: "rejected-insufficient-funds",
@@ -1389,7 +1384,7 @@ const transportColonistsSubjects = [
     planet: { id: "planet-a", position: undefined } as unknown as Planet,
     quantity: 5,
     wallet: { playerId: "player-1", credits: 1 } as Wallet,
-    entry: { colonistCount: 0, citadelLevel: 0, ownedByPlayerId: null } as PlanetOwnershipEntry,
+    entry: { colonistCount: 0 } as PlanetOwnershipEntry,
   },
 ];
 const transportColonistsCases = transportColonistsSubjects.map((s) => ({
@@ -1397,81 +1392,9 @@ const transportColonistsCases = transportColonistsSubjects.map((s) => ({
   expectedResult: transportColonists(s.ship, s.planet, s.quantity, s.wallet, s.entry),
 }));
 
-const claimPlanetSubjects = [
-  {
-    label: "successful-claim",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    playerId: "player-1",
-    entry: { colonistCount: 10, citadelLevel: 0, ownedByPlayerId: null } as PlanetOwnershipEntry,
-  },
-  {
-    label: "rejected-below-colonist-threshold",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    playerId: "player-1",
-    entry: { colonistCount: 1, citadelLevel: 0, ownedByPlayerId: null } as PlanetOwnershipEntry,
-  },
-  {
-    label: "rejected-already-claimed",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    playerId: "player-1",
-    entry: { colonistCount: 10, citadelLevel: 0, ownedByPlayerId: "someone-else" } as PlanetOwnershipEntry,
-  },
-];
-const claimPlanetCases = claimPlanetSubjects.map((s) => ({
-  label: s.label, ship: s.ship, planet: { id: s.planet.id }, playerId: s.playerId, entry: s.entry,
-  expectedResult: claimPlanet(s.ship, s.planet, s.playerId, s.entry),
-}));
-
-const buildCitadelSubjects = [
-  {
-    label: "successful-level-1-no-material",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    targetLevel: 1 as const,
-    wallet: { playerId: "player-1", credits: 10000 } as Wallet,
-    materialQuantityAvailable: 0,
-    entry: { colonistCount: 10, citadelLevel: 0, ownedByPlayerId: "player-1" } as PlanetOwnershipEntry,
-  },
-  {
-    label: "successful-level-2-with-material",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    targetLevel: 2 as const,
-    wallet: { playerId: "player-1", credits: 10000 } as Wallet,
-    materialQuantityAvailable: 5,
-    entry: { colonistCount: 10, citadelLevel: 1, ownedByPlayerId: "player-1" } as PlanetOwnershipEntry,
-  },
-  {
-    label: "rejected-level-skip",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    targetLevel: 3 as const,
-    wallet: { playerId: "player-1", credits: 10000 } as Wallet,
-    materialQuantityAvailable: 20,
-    entry: { colonistCount: 10, citadelLevel: 1, ownedByPlayerId: "player-1" } as PlanetOwnershipEntry,
-  },
-  {
-    label: "rejected-insufficient-material",
-    ship: ownershipShipFixture(),
-    planet: { id: "planet-a" } as Planet,
-    targetLevel: 2 as const,
-    wallet: { playerId: "player-1", credits: 10000 } as Wallet,
-    materialQuantityAvailable: 0,
-    entry: { colonistCount: 10, citadelLevel: 1, ownedByPlayerId: "player-1" } as PlanetOwnershipEntry,
-  },
-];
-const buildCitadelCases = buildCitadelSubjects.map((s) => ({
-  label: s.label, ship: s.ship, planet: { id: s.planet.id }, targetLevel: s.targetLevel, wallet: s.wallet,
-  materialQuantityAvailable: s.materialQuantityAvailable, entry: s.entry,
-  expectedResult: buildCitadel(s.ship, s.planet, s.targetLevel, s.wallet, s.materialQuantityAvailable, s.entry),
-}));
-
 const mergePlanetOwnershipSubjects = [
   { label: "no-entry-uses-defaults", planet: { id: "planet-a", name: "Planet A", producibleResourceIds: ["igneous-ore"] } as Planet, entry: undefined as PlanetOwnershipEntry | undefined },
-  { label: "entry-applied", planet: { id: "planet-a", name: "Planet A", producibleResourceIds: ["igneous-ore"] } as Planet, entry: { colonistCount: 42, citadelLevel: 2, ownedByPlayerId: "player-1" } as PlanetOwnershipEntry },
+  { label: "entry-applied", planet: { id: "planet-a", name: "Planet A", producibleResourceIds: ["igneous-ore"] } as Planet, entry: { colonistCount: 42 } as PlanetOwnershipEntry },
 ];
 const mergePlanetOwnershipCases = mergePlanetOwnershipSubjects.map((s) => ({
   label: s.label, planet: s.planet, entry: s.entry ?? null,
@@ -1528,8 +1451,6 @@ const output = {
   resolveEncountersCases,
   resolveCombatChoiceCases,
   transportColonistsCases,
-  claimPlanetCases,
-  buildCitadelCases,
   mergePlanetOwnershipCases,
 };
 
@@ -1562,6 +1483,6 @@ console.log(
     `unassignFromShipRole: ${unassignFromShipRoleCases.length}, resolveComponentRepair: ${resolveComponentRepairCases.length}, ` +
     `performScan: ${performScanCases.length}, initiateCombat: ${initiateCombatCases.length}, ` +
     `resolveEncounters: ${resolveEncountersCases.length}, resolveCombatChoice: ${resolveCombatChoiceCases.length}, ` +
-    `transportColonists: ${transportColonistsCases.length}, claimPlanet: ${claimPlanetCases.length}, ` +
-    `buildCitadel: ${buildCitadelCases.length}, mergePlanetOwnership: ${mergePlanetOwnershipCases.length}`,
+    `transportColonists: ${transportColonistsCases.length}, ` +
+    `mergePlanetOwnership: ${mergePlanetOwnershipCases.length}`,
 );
